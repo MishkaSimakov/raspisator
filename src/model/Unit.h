@@ -11,7 +11,7 @@ struct TaskOnUnitProperties {
 };
 
 class Unit {
-  size_t id_{};
+  size_t id_{0};
 
   std::vector<std::pair<const Task*, TaskOnUnitProperties>> tasks_;
 

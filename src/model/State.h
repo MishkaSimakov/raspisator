@@ -5,8 +5,8 @@
 enum class StateType { INPUT, OUTPUT, NON_STORABLE, NORMAL };
 
 class BaseState {
-protected:
-  size_t id_{};
+ protected:
+  size_t id_{0};
 
   friend class STN;
   friend class State;
@@ -19,15 +19,15 @@ class OutputState : public BaseState {};
 class NonStorableState : public BaseState {};
 
 class NormalState : public BaseState {
-  size_t initial_stock_;
-  size_t min_level_;
-  size_t max_level_;
-
  public:
+  size_t initial_stock;
+  size_t min_level;
+  size_t max_level;
+
   NormalState(size_t initial_stock, size_t min_level, size_t max_level)
-      : initial_stock_(initial_stock),
-        min_level_(min_level),
-        max_level_(max_level) {}
+      : initial_stock(initial_stock),
+        min_level(min_level),
+        max_level(max_level) {}
 };
 
 using StateVariant =

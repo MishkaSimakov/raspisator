@@ -12,17 +12,18 @@ class STN {
 
  public:
   Task* add(Task task) {
-    task.set_id(tasks_.size());
+    task.set_id(tasks_.size() + 1);
     return &tasks_.emplace_back(task);
   }
 
   Unit* add(Unit unit) {
-    unit.set_id(units_.size());
+    unit.set_id(units_.size() + 1);
     return &units_.emplace_back(unit);
   }
 
   State* add(State state) {
-    std::visit([id = states_.size()](auto& state) { state.id_ = id; }, state);
+    std::visit([id = states_.size() + 1](auto& state) { state.id_ = id; },
+               state);
     return &states_.emplace_back(state);
   }
 

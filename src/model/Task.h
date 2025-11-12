@@ -5,7 +5,7 @@
 #include "State.h"
 
 class Task {
-  size_t id_;
+  size_t id_{0};
 
   // TODO: different proportions for outputs
   std::vector<const State*> inputs_;

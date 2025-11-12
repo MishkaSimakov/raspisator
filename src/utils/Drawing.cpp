@@ -3,6 +3,17 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
+#include <string>
+
+using namespace std::string_literals;
+
+template <typename... Args>
+struct Overload : Args... {
+  explicit Overload(Args... args) : Args(args)... {}
+
+  using Args::operator()...;
+};
+
 std::vector<std::string> translate_states(const STN& stn) {
   const auto& states = stn.get_states();
 
@@ -10,7 +21,18 @@ std::vector<std::string> translate_states(const STN& stn) {
 
   for (size_t i = 0; i < states.size(); ++i) {
     size_t id = states[i].get_id();
-    result[i] = fmt::format("S{} [label=\"State {}\n(-,-,-)\"];", id, id);
+
+    auto props = std::visit(Overload{[](InputState) { return "in"s; },
+                                     [](OutputState) { return "out"s; },
+                                     [](NonStorableState) { return "ns"s; },
+                                     [](const NormalState& state) {
+                                       return fmt::format(
+                                           "({}, {}-{})", state.initial_stock,
+                                           state.min_level, state.max_level);
+                                     }},
+                            states[i]);
+
+    result[i] = fmt::format("S{} [label=\"State {}\n{}\"];", id, id, props);
   }
 
   return result;
