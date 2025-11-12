@@ -12,6 +12,6 @@ FetchContent_MakeAvailable(googletest)
 FetchContent_Declare(
         fmt
         GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG e69e5f977d458f2650bb346dadf2ad30c5320281
+        GIT_TAG 407c905e45ad75fc29bf0f9bb7c5c2fd3475976f
 )
 FetchContent_MakeAvailable(fmt)

@@ -6,6 +6,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 include(load_libraries)
 
+add_subdirectory(src)
 add_subdirectory(tests)
 
-add_executable(raspisator main.cpp)
+add_executable(playground playground/main.cpp)
+target_link_libraries(playground raspisator)
