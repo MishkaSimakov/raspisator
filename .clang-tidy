@@ -1,4 +1,4 @@
-{ Checks: 'readability-*, -misc-no-recursion, -readability-non-const-parameter, -modernize-use-nodiscard',
+{ Checks: 'readability-*, -misc-no-recursion, -readability-non-const-parameter, -modernize-use-nodiscard, -readability-math-missing-parentheses, -readability-magic-numbers',
   WarningsAsErrors: '*',
   CheckOptions: [
     { key: readability-identifier-naming.TypeTemplateParameterIgnoredRegexp,

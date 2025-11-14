@@ -1,7 +1,6 @@
 #pragma once
 #include "model/STN.h"
 
-// NOLINTBEGIN(readability-magic-numbers)
 // figure 2 in Blomer et al., 2000
 inline STN generate_problem() {
   STN stn;
@@ -60,4 +59,3 @@ inline STN generate_problem() {
 
   return stn;
 }
-// NOLINTEND(readability-magic-numbers)
