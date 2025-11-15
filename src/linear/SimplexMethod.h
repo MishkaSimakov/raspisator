@@ -6,14 +6,43 @@
 template <typename Field>
 struct FiniteSolution {
   Matrix<Field> point;
+  std::vector<size_t> basic_variables;
   Field value;
 };
 
 struct InfiniteSolution {};
 
+struct NoFeasibleElements {};
+
+// basic feasible solution
+template <typename Field>
+struct BFS {
+  Matrix<Field> point;
+  std::vector<size_t> basic_variables;
+
+  static BFS construct_nondegenerate(Matrix<Field> point) {
+    if (point.get_width() != 1) {
+      throw std::invalid_argument("shape of the point must be (d, 1).");
+    }
+
+    std::vector<size_t> basic_variables;
+    for (size_t i = 0; i < point.get_height(); ++i) {
+      if (point[i, 0] != 0) {
+        basic_variables.push_back(i);
+      }
+    }
+
+    return BFS(point, basic_variables);
+  }
+};
+
 // Solves cx -> max, Ax = b, x >= 0
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
 // it is assumed that n < d
+
+// Important Note: this method is NOT numerically stable!
+// Therefore, the result may be incorrect when using Field = double or float.
+// Use Rational instead.
 template <typename Field>
 class SimplexMethod {
   Matrix<Field> A_;
@@ -42,8 +71,7 @@ class SimplexMethod {
 
   // bfs is (d, 1) matrix
   // returns tableau and a vector holding indices of basic variables
-  std::pair<Matrix<Field>, std::vector<size_t>> initialize_tableau(
-      const Matrix<Field>& bfs) {
+  Matrix<Field> initialize_tableau(BFS<Field> bfs) {
     auto [n, d] = A_.shape();
 
     auto tableau = Matrix<Field>(n + 1, d + 1);
@@ -52,23 +80,13 @@ class SimplexMethod {
     auto A_b = Matrix<Field>(n, n);
     auto c_b = Matrix<Field>(1, n);
 
-    size_t basic_vars_counter = 0;
-    std::vector<size_t> basic_vars_indices(n);
-
-    for (size_t i = 0; i < d; ++i) {
-      if (bfs[i, 0] == 0) {  // TODO: Field?
-        continue;
-      }
-
+    for (size_t i = 0; i < bfs.basic_variables.size(); ++i) {
       // copy i-th column into A_b
-      basic_vars_indices[basic_vars_counter] = i;
-      c_b[0, basic_vars_counter] = c_[0, i];
+      c_b[0, i] = c_[0, bfs.basic_variables[i]];
 
       for (size_t j = 0; j < n; ++j) {
-        A_b[j, basic_vars_counter] = A_[j, i];
+        A_b[j, i] = A_[j, bfs.basic_variables[i]];
       }
-
-      ++basic_vars_counter;
     }
 
     //
@@ -95,7 +113,7 @@ class SimplexMethod {
 
     tableau[n, 0] = value[0, 0];
 
-    return {tableau, basic_vars_indices};
+    return tableau;
   }
 
   std::pair<size_t, Field> find_entering_variable(
@@ -105,6 +123,10 @@ class SimplexMethod {
 
     auto [d, n] = A_.shape();
 
+    // TODO:
+    // it is said in this article that in case of tie
+    // decision variables must have priority over slack variables
+    // https://www.nascollege.org/econtent/ecotent-10-4-20/DR%20K%20K%20KANSAL/L%2010%20M%20COM%2020-4-E.pdf
     for (size_t j = 0; j < n; ++j) {
       Field delta = tableau[d, j + 1];
 
@@ -120,6 +142,19 @@ class SimplexMethod {
   void transform_tableau(Matrix<Field>& tableau,
                          std::vector<size_t>& basic_vars, size_t entering_var,
                          size_t leaving_var) {
+    Field min = 0;
+    Field max = 0;
+    for (size_t i = 0; i < tableau.get_height(); ++i) {
+      for (size_t j = 0; j < tableau.get_width(); ++j) {
+        if (tableau[i, j] < min) {
+          min = tableau[i, j];
+        }
+        if (tableau[i, j] > max) {
+          max = tableau[i, j];
+        }
+      }
+    }
+
     basic_vars[leaving_var] = entering_var;
     tableau.gaussian_elimination(leaving_var, entering_var + 1);
   }
@@ -150,14 +185,14 @@ class SimplexMethod {
   // finds maximum starting from bfs (basic feasible solution)
   // returns solution ( (d, 1) matrix) and maximum value
   std::variant<FiniteSolution<Field>, InfiniteSolution> solve_from(
-      const Matrix<Field>& bfs) {
+      BFS<Field> bfs) {
     auto [n, d] = A_.shape();
 
-    if (bfs.shape() != std::pair{d, 1}) {
+    if (bfs.point.shape() != std::pair{d, 1}) {
       throw std::invalid_argument("bfs has wrong shape.");
     }
 
-    auto [tableau, basic_vars] = initialize_tableau(bfs);
+    auto tableau = initialize_tableau(bfs);
 
     while (true) {
       auto [entering_var, entering_var_delta] = find_entering_variable(tableau);
@@ -166,11 +201,11 @@ class SimplexMethod {
         // solution is found
         Matrix<Field> point(d, 1);
         for (size_t i = 0; i < n; ++i) {
-          point[basic_vars[i], 0] = tableau[i, 0];
+          point[bfs.basic_variables[i], 0] = tableau[i, 0];
         }
 
         Field value = tableau[n, 0];
-        return FiniteSolution<Field>{point, value};
+        return FiniteSolution<Field>{point, bfs.basic_variables, value};
       }
 
       auto leaving_var = find_leaving_variable(tableau, entering_var);
@@ -179,7 +214,88 @@ class SimplexMethod {
         return InfiniteSolution{};
       }
 
-      transform_tableau(tableau, basic_vars, entering_var, *leaving_var);
+      transform_tableau(tableau, bfs.basic_variables, entering_var,
+                        *leaving_var);
     }
+  }
+
+  std::optional<BFS<Field>> find_bfs() {
+    auto [n, d] = A_.shape();
+
+    // ensure that b >= 0
+    for (size_t i = 0; i < n; ++i) {
+      if (b_[i, 0] < 0) {
+        // multiply whole equation by -1
+        b_[i, 0] = -b_[i, 0];
+
+        for (size_t j = 0; j < d; ++j) {
+          A_[i, j] = -A_[i, j];
+        }
+      }
+    }
+
+    // solve additional problem to find bfs
+    auto A_new = Matrix<Field>(n, d + n);
+    auto c_new = Matrix<Field>(1, d + n, 0);
+    auto bfs_new = Matrix<Field>(d + n, 1, 0);
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < d + n; ++j) {
+        if (j >= d) {
+          A_new[i, j] = (j == i + d) ? 1 : 0;
+        } else {
+          A_new[i, j] = A_[i, j];
+        }
+      }
+    }
+
+    for (size_t j = d; j < d + n; ++j) {
+      c_new[0, j] = -1;
+      bfs_new[j, 0] = b_[j - d, 0];
+    }
+
+    std::vector<size_t> basic_vars(n);
+    for (size_t i = 0; i < n; ++i) {
+      basic_vars[i] = d + i;
+    }
+
+    auto solver = SimplexMethod(std::move(A_new), b_, std::move(c_new));
+
+    // InfiniteSolution is impossible here
+    auto solution = std::get<FiniteSolution<Field>>(
+        solver.solve_from(BFS{bfs_new, basic_vars}));
+
+    for (size_t basic_var : solution.basic_variables) {
+      if (basic_var >= d) {
+        return std::nullopt;
+      }
+    }
+
+    auto bfs = Matrix<Field>(d, 1);
+    for (size_t i = 0; i < n; ++i) {
+      bfs[i, 0] = solution.point[i, 0];
+    }
+
+    return BFS<Field>{bfs, solution.basic_variables};
+  }
+
+  // same as solve_from, but automatically finds bfs
+  std::variant<FiniteSolution<Field>, InfiniteSolution, NoFeasibleElements>
+  solve() {
+    auto bfs = find_bfs();
+
+    if (!bfs.has_value()) {
+      return NoFeasibleElements{};
+    }
+
+    std::cout << "found bfs" << std::endl;
+
+    // TODO: awkward casting, fix this
+    auto solution = solve_from(*bfs);
+    if (std::holds_alternative<InfiniteSolution>(solution)) {
+      return InfiniteSolution{};
+    }
+
+    return std::get<FiniteSolution<Field>>(solution);
   }
 };

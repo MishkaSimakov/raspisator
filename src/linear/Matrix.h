@@ -146,6 +146,7 @@ class Matrix {
         throw std::invalid_argument("Matrix must be non-singular.");
       }
 
+      inv.swap_rows(j, nonzero_row_index);
       swap_rows(j, nonzero_row_index);
 
       gaussian_elimination(j, j, SubtractionHook{inv}, MultiplicationHook{inv});

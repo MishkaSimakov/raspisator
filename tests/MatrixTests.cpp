@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <iostream>
-
+#include "linear/BigInteger.h"
 #include "linear/Matrix.h"
 
 TEST(MatrixTests, SimpleInitialization) {
@@ -47,31 +46,43 @@ TEST(MatrixTests, Equality) {
 }
 
 TEST(MatrixTests, InverseScalar) {
-  Matrix<double> matrix = {{5}};
+  Matrix<Rational> matrix = {{5}};
   matrix.inverse();
 
-  Matrix<double> expected = {{0.2}};
+  Matrix<Rational> expected = {{Rational(1) / 5}};
 
   ASSERT_EQ(matrix, expected);
 }
 
 TEST(MatrixTests, InverseMatrix) {
-  Matrix<double> matrix = {{4, 3}, {3, 2}};
+  Matrix<Rational> matrix = {{4, 3}, {3, 2}};
   matrix.inverse();
 
-  Matrix<double> expected = {{-2, 3}, {3, -4}};
+  Matrix<Rational> expected = {{-2, 3}, {3, -4}};
 
   ASSERT_EQ(matrix, expected);
 }
 
 TEST(MatrixTests, InvertMultiply) {
-  Matrix<double> matrix = {{4, 3}, {3, 2}};
+  {
+    Matrix<Rational> matrix = {{4, 3}, {3, 2}};
 
-  auto inverse = matrix;
-  inverse.inverse();
+    auto inverse = matrix;
+    inverse.inverse();
 
-  ASSERT_EQ(matrix * inverse, Matrix<double>::unity(2));
-  ASSERT_EQ(inverse * matrix, Matrix<double>::unity(2));
+    ASSERT_EQ(matrix * inverse, Matrix<Rational>::unity(2));
+    ASSERT_EQ(inverse * matrix, Matrix<Rational>::unity(2));
+  }
+
+  {
+    Matrix<Rational> matrix = {{0, 3, 0}, {0, 0, 2}, {1, 0, 0}};
+
+    auto inverse = matrix;
+    inverse.inverse();
+
+    ASSERT_EQ(matrix * inverse, Matrix<Rational>::unity(3));
+    ASSERT_EQ(inverse * matrix, Matrix<Rational>::unity(3));
+  }
 }
 
 TEST(MatrixTests, AddSubtract) {

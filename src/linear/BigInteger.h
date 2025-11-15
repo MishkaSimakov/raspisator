@@ -8,7 +8,7 @@
 using std::vector, std::strong_ordering, std::string;
 
 class BigInteger {
-private:
+ private:
   bool is_positive_;
 
   vector<int> chunks_;
@@ -117,17 +117,17 @@ private:
     // (a - b)(d - c) sign
     int ab_sign_multiplier =
         compareAbs(first, first + half, half, half) == strong_ordering::greater
-          ? 1
-          : -1;
+            ? 1
+            : -1;
     int cd_sign_multiplier = compareAbs(second + half, second, half, half) ==
-                             strong_ordering::greater
-                               ? 1
-                               : -1;
+                                     strong_ordering::greater
+                                 ? 1
+                                 : -1;
 
     for (size_t i = 0; i < half; ++i) {
       temp_result[i] = (first[i] - first[i + half]) * ab_sign_multiplier;
-      temp_result[i + half] = (second[i + half] - second[i]) *
-                              cd_sign_multiplier;
+      temp_result[i + half] =
+          (second[i + half] - second[i]) * cd_sign_multiplier;
     }
 
     propagateCarry(temp_result, half);
@@ -372,9 +372,9 @@ private:
     return {dividend_ptr, divisor_ptr, dividend_size, divisor_size, multiplier};
   }
 
-public:
+ public:
   BigInteger(unsigned long long value, bool is_positive)
-    : is_positive_(is_positive || value == 0) {
+      : is_positive_(is_positive || value == 0) {
     if (value == 0) {
       chunks_.push_back(0);
       return;
@@ -386,9 +386,7 @@ public:
     }
   }
 
-  BigInteger(long long value = 0)
-    : BigInteger(std::abs(value), value >= 0) {
-  }
+  BigInteger(long long value = 0) : BigInteger(std::abs(value), value >= 0) {}
 
   BigInteger(const char* string, unsigned long long length) {
     chunks_.reserve(length / kChunkWidth);
@@ -543,9 +541,8 @@ public:
     }
 
     if (!is_positive_) {
-      return result == strong_ordering::less
-               ? strong_ordering::greater
-               : strong_ordering::less;
+      return result == strong_ordering::less ? strong_ordering::greater
+                                             : strong_ordering::less;
     }
 
     return result;
@@ -626,7 +623,7 @@ public:
   static int baseLog(int value) { return static_cast<int>(std::log10(value)); }
 };
 
-BigInteger operator+(const BigInteger& first, const BigInteger& second) {
+inline BigInteger operator+(const BigInteger& first, const BigInteger& second) {
   BigInteger copy(first);
 
   copy += second;
@@ -634,7 +631,7 @@ BigInteger operator+(const BigInteger& first, const BigInteger& second) {
   return copy;
 }
 
-BigInteger operator-(const BigInteger& first, const BigInteger& second) {
+inline BigInteger operator-(const BigInteger& first, const BigInteger& second) {
   BigInteger copy(first);
 
   copy -= second;
@@ -642,7 +639,7 @@ BigInteger operator-(const BigInteger& first, const BigInteger& second) {
   return copy;
 }
 
-BigInteger operator*(const BigInteger& first, const BigInteger& second) {
+inline BigInteger operator*(const BigInteger& first, const BigInteger& second) {
   BigInteger copy(first);
 
   copy *= second;
@@ -650,7 +647,7 @@ BigInteger operator*(const BigInteger& first, const BigInteger& second) {
   return copy;
 }
 
-BigInteger operator/(const BigInteger& first, const BigInteger& second) {
+inline BigInteger operator/(const BigInteger& first, const BigInteger& second) {
   BigInteger copy(first);
 
   copy /= second;
@@ -658,7 +655,7 @@ BigInteger operator/(const BigInteger& first, const BigInteger& second) {
   return copy;
 }
 
-BigInteger operator%(const BigInteger& first, const BigInteger& second) {
+inline BigInteger operator%(const BigInteger& first, const BigInteger& second) {
   BigInteger copy(first);
 
   copy %= second;
@@ -666,7 +663,7 @@ BigInteger operator%(const BigInteger& first, const BigInteger& second) {
   return copy;
 }
 
-std::ostream& operator<<(std::ostream& os, const BigInteger& value) {
+inline std::ostream& operator<<(std::ostream& os, const BigInteger& value) {
   if (!value.is_positive_) {
     os << "-";
   }
@@ -684,7 +681,7 @@ std::ostream& operator<<(std::ostream& os, const BigInteger& value) {
   return os;
 }
 
-std::istream& operator>>(std::istream& is, BigInteger& value) {
+inline std::istream& operator>>(std::istream& is, BigInteger& value) {
   vector<int>& chunks = value.chunks_;
 
   chunks.clear();
@@ -748,17 +745,17 @@ std::istream& operator>>(std::istream& is, BigInteger& value) {
   return is;
 }
 
-BigInteger operator""_bi(const char* string, unsigned long length) {
+inline BigInteger operator""_bi(const char* string, unsigned long length) {
   return {string, length};
 }
 
-BigInteger operator""_bi(unsigned long long value) {
+inline BigInteger operator""_bi(unsigned long long value) {
   return {value, true};
 }
 
 // Rational
 class Rational {
-private:
+ private:
   static constexpr size_t kPrecisionForDouble = 25;
 
   BigInteger numerator_;
@@ -805,14 +802,10 @@ private:
     }
   }
 
-public:
-  Rational(const BigInteger& value)
-    : numerator_(value), denominator_(1) {
-  }
+ public:
+  Rational(const BigInteger& value) : numerator_(value), denominator_(1) {}
 
-  Rational(long long value = 0)
-    : numerator_(value), denominator_(1) {
-  }
+  Rational(long long value = 0) : numerator_(value), denominator_(1) {}
 
   Rational& operator+=(const Rational& other) {
     numerator_ *= other.denominator_;
@@ -919,7 +912,7 @@ public:
   }
 };
 
-Rational operator+(const Rational& first, const Rational& second) {
+inline Rational operator+(const Rational& first, const Rational& second) {
   Rational copy(first);
 
   copy += second;
@@ -927,7 +920,7 @@ Rational operator+(const Rational& first, const Rational& second) {
   return copy;
 }
 
-Rational operator-(const Rational& first, const Rational& second) {
+inline Rational operator-(const Rational& first, const Rational& second) {
   Rational copy(first);
 
   copy -= second;
@@ -935,7 +928,7 @@ Rational operator-(const Rational& first, const Rational& second) {
   return copy;
 }
 
-Rational operator*(const Rational& first, const Rational& second) {
+inline Rational operator*(const Rational& first, const Rational& second) {
   Rational copy(first);
 
   copy *= second;
@@ -943,7 +936,7 @@ Rational operator*(const Rational& first, const Rational& second) {
   return copy;
 }
 
-Rational operator/(const Rational& first, const Rational& second) {
+inline Rational operator/(const Rational& first, const Rational& second) {
   Rational copy(first);
 
   copy /= second;
@@ -951,8 +944,52 @@ Rational operator/(const Rational& first, const Rational& second) {
   return copy;
 }
 
-std::ostream& operator<<(std::ostream& os, const Rational& rational) {
+inline std::ostream& operator<<(std::ostream& os, const Rational& rational) {
   os << rational.toString();
 
   return os;
+}
+
+inline std::istream& operator>>(std::istream& is, Rational& rational) {
+  while (std::isspace(is.peek()) != 0) {
+    is.get();
+  }
+
+  // read sign
+  bool negate = false;
+  int first_char = is.peek();
+  if (first_char == '-' || first_char == '+') {
+    negate = true;
+    is.get();
+  }
+
+  rational = 0;
+  bool fractional_part = false;
+  size_t fractional_size = 0;
+
+  while ('0' <= is.peek() && is.peek() <= '9' ||
+         !fractional_part && is.peek() == '.') {
+    int input = is.get();
+
+    if (fractional_part) {
+      ++fractional_size;
+    }
+
+    if (input == '.') {
+      fractional_part = true;
+    } else {
+      rational *= 10;
+      rational += input - '0';
+    }
+  }
+
+  if (negate) {
+    rational *= -1;
+  }
+
+  for (size_t i = 0; i < fractional_size; ++i) {
+    rational /= 10;
+  }
+
+  return is;
 }
