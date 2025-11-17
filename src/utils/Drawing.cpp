@@ -5,14 +5,9 @@
 
 #include <string>
 
+#include "utils/Variant.h"
+
 using namespace std::string_literals;
-
-template <typename... Args>
-struct Overload : Args... {
-  explicit Overload(Args... args) : Args(args)... {}
-
-  using Args::operator()...;
-};
 
 std::vector<std::string> translate_states(const STN& stn) {
   const auto& states = stn.get_states();

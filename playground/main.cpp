@@ -1,52 +1,26 @@
 #include <iostream>
 
 #include "linear/BigInteger.h"
+#include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
 #include "linear/SimplexMethod.h"
 
+using Field = Rational;
+
 int main() {
-  auto reader = MPSReader<Rational>();
-  reader.read("resources/adlittle.mps");
+  Matrix<Field> A = {{8000, 4000, 1, 0}, {15, 30, 0, 1}};
 
-  auto [A, b, c] = reader.get_canonical_representation();
+  Matrix<Field> b = {{40'000}, {200}};
+  Matrix<Field> c = {{100, 150, 0, 0}};
 
-  std::cout << "A" << std::endl;
-  std::cout << A << std::endl;
+  std::vector<size_t> integer = {0, 1};
 
-  std::cout << "b" << std::endl;
-  std::cout << b << std::endl;
+  MILPProblem<Field> problem(A, b, c, integer);
 
-  std::cout << "c" << std::endl;
-  std::cout << c << std::endl;
+  BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
+ solver.solve();
 
-  for (size_t j = 0; j < A.get_width(); ++j) {
-    bool all_zeros = true;
-
-    for (size_t i = 0; i < A.get_height(); ++i) {
-      if (A[i, j] != 0) {
-        all_zeros = false;
-        break;
-      }
-    }
-
-    if (all_zeros) {
-      std::cout << "there is zero column in A!" << std::endl;
-    }
-  }
-
-  auto solver = SimplexMethod<Rational>(A, b, c);
-  auto solution = solver.solve();
-
-  if (std::holds_alternative<FiniteSolution<Rational>>(solution)) {
-    std::cout << std::get<FiniteSolution<Rational>>(solution).point
-              << std::endl;
-    std::cout << std::get<FiniteSolution<Rational>>(solution).value
-              << std::endl;
-  } else if (std::holds_alternative<InfiniteSolution>(solution)) {
-    std::cout << "Infinite solution" << std::endl;
-  } else {
-    std::cout << "No feasible points" << std::endl;
-  }
+  std::cout << GraphvizBuilder<Field>().build(solver.get_root()) << std::endl;
 
   return 0;
 }

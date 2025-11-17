@@ -1,3 +1,7 @@
+#pragma once
+
+#include <fmt/ostream.h>
+
 #include <algorithm>
 #include <compare>
 #include <iomanip>
@@ -5,8 +9,11 @@
 #include <string>
 #include <vector>
 
+#include "FieldTraits.h"
+
 using std::vector, std::strong_ordering, std::string;
 
+// TODO: Small Object Optimization
 class BigInteger {
  private:
   bool is_positive_;
@@ -807,6 +814,8 @@ class Rational {
 
   Rational(long long value = 0) : numerator_(value), denominator_(1) {}
 
+  Rational floor() const { return numerator_ / denominator_; }
+
   Rational& operator+=(const Rational& other) {
     numerator_ *= other.denominator_;
     numerator_ += other.numerator_ * denominator_;
@@ -993,3 +1002,11 @@ inline std::istream& operator>>(std::istream& is, Rational& rational) {
 
   return is;
 }
+
+template <>
+struct FieldTraits<Rational> {
+  static Rational floor(const Rational& value) { return value.floor(); }
+};
+
+template <>
+struct fmt::formatter<Rational> : ostream_formatter {};

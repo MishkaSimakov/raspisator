@@ -1,7 +1,9 @@
 #pragma once
 
 #include <iostream>
+#include <sstream>
 #include <vector>
+#include <iomanip>
 
 template <typename Field>
 class Matrix {
@@ -48,6 +50,28 @@ class Matrix {
       ++row;
       col = 0;
     }
+  }
+
+  Matrix get_extended(size_t new_height, size_t new_width,
+                      Field fill_value) const {
+    if (new_height < rows_count_ || new_width < cols_count_) {
+      throw std::invalid_argument("New size must be larger than the old size.");
+    }
+
+    auto result = Matrix(new_height, new_width, fill_value);
+
+    for (size_t i = 0; i < rows_count_; ++i) {
+      for (size_t j = 0; j < cols_count_; ++j) {
+        result[i, j] = (*this)[i, j];
+      }
+    }
+
+    return result;
+  }
+
+  template <typename OtherField>
+  static Matrix zeros_like(const Matrix<OtherField>& other) {
+    return Matrix(other.shape().first, other.shape().second, 0);
   }
 
   template <typename Functor>
@@ -252,9 +276,23 @@ Matrix<Field> operator+(const Matrix<Field>& left, const Matrix<Field>& right) {
 template <typename Field>
 std::ostream& operator<<(std::ostream& os, const Matrix<Field>& matrix) {
   auto [n, m] = matrix.shape();
+
+  std::vector<std::string> results(n * m);
+  size_t max_length = 0;
+
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < m; ++j) {
-      os << matrix[i, j] << " ";
+      std::stringstream ss;
+      ss << matrix[i, j];
+      results[i * m + j] = ss.str();
+
+      max_length = std::max(max_length, results[i * m + j].size());
+    }
+  }
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < m; ++j) {
+      os << std::right << std::setw(max_length) << results[i * m + j] << " ";
     }
 
     os << "\n";

@@ -28,7 +28,6 @@ class STN {
   }
 
   const std::deque<State>& get_states() const { return states_; }
-
   const std::deque<Task>& get_tasks() const { return tasks_; }
 
   //
