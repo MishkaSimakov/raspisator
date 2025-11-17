@@ -1,6 +1,7 @@
 #pragma once
 #include <fmt/format.h>
 
+#include <optional>
 #include <queue>
 #include <ranges>
 #include <sstream>
@@ -63,9 +64,9 @@ class GraphvizBuilder {
 
  private:
   std::stringstream ss_;
-  std::unordered_map<const void*, std::string> ids_;
+  std::unordered_map<const Node<Field>*, std::string> ids_;
 
-  std::string getId(const void* ptr) {
+  std::string getId(const Node<Field>* ptr) {
     auto it = ids_.find(ptr);
     if (it != ids_.end()) {
       return it->second;
@@ -76,38 +77,30 @@ class GraphvizBuilder {
     return id;
   }
 
-  void add_node(Node<Field>* node_ptr) {
-    std::string id = getId(node_ptr);
+  void add_node(const Node<Field>* node) {
+    std::string id = getId(node);
 
-    std::visit(
-        Overload{[id, this](const Node<Field>& node) {
-                   ss_ << fmt::format(
-                       "  {} [label=\"UB={}\\nLB={}\\nx_{} <> {}\"];\n", id,
-                       node.upper_bound, node.lower_bound,
-                       node.branching_variable, node.branching_value);
+    ss_ << fmt::format("  {} [label=\"UB={}\\nx_{} <> {}\"];\n", id,
+                       node->upper_bound, node->branching_variable,
+                       node->branching_value);
 
-                   if (node.left) {
-                     ss_ << fmt::format("  {} -> {};\n", id, getId(node.left));
-                     add_node(node.left);
-                   }
+    if (node->left) {
+      ss_ << fmt::format("  {} -> {} [label=\"left\"];\n", id,
+                         getId(node->left));
+      add_node(node->left);
+    }
 
-                   if (node.right) {
-                     ss_ << fmt::format("  {} -> {};\n", id, getId(node.right));
-                     add_node(node.right);
-                   }
-                 },
-                 [id, this](const InfeasibleNode&) {
-                   ss_ << "  " << id
-                       << " [label=\"Infeasible\", style=filled, "
-                          "fillcolor=lightgray];\n";
-                 }},
-        *node_ptr);
+    if (node->right) {
+      ss_ << fmt::format("  {} -> {} [label=\"right\"];\n", id,
+                         getId(node->right));
+      add_node(node->right);
+    }
   }
 };
 
 template <typename Field, typename LPSolver>
 class BranchAndBound {
-  MILPProblem<Field> problem_;
+  const MILPProblem<Field> problem_;
 
   // stores branch and bound tree nodes
   // root node is nodes_[0]
@@ -133,11 +126,11 @@ class BranchAndBound {
   }
 
   // returns branching variable index
-  static size_t find_branching(const Matrix<Field>& solution) {
+  size_t find_branching(const Matrix<Field>& solution) const {
     size_t max_fractional_index = 0;
     Field max_fractional_value = 0;
 
-    for (size_t i = 0; i < solution.get_height(); ++i) {
+    for (auto i : problem_.integer_indices) {
       Field fractional =
           solution[i, 0] - FieldTraits<Field>::floor(solution[i, 0]);
 
@@ -150,149 +143,103 @@ class BranchAndBound {
     return max_fractional_index;
   }
 
-  // for each integer variable adds new slack variable that will be used
-  // during branch and bound algorithm
-  void add_slack_variables() {
-    auto [n, d] = problem_.A.shape();
-    size_t integer_cnt = problem_.integer_indices.size();
-
-    auto new_A = problem_.A.get_extended(n + integer_cnt, d + integer_cnt, 0);
-    auto new_b = problem_.b.get_extended(n + integer_cnt, 1, 0);
-    auto new_c = problem_.c.get_extended(1, d + integer_cnt, 0);
-
-    for (size_t i = 0; i < integer_cnt; ++i) {
-      new_A[n + i, d + i] = -1;
-      new_A[n + i, problem_.integer_indices[i]] = 1;
-    }
-
-    problem_.A = std::move(new_A);
-    problem_.b = std::move(new_b);
-    problem_.c = std::move(new_c);
-
-    for (size_t i = 0; i < integer_cnt; ++i) {
-      slack_variables_[problem_.integer_indices[i]] = std::pair{i + n, i + d};
-    }
-  }
-
-  void shift_variable(size_t index, Field delta) {
-    for (size_t i = 0; i < problem_.A.get_height(); ++i) {
-      problem_.b[i, 0] += problem_.A[i, index] * delta;
-    }
-  }
-
-  // Each variable can be shifted. shifts[i] = a means that x_i was replaced
-  // by y_i = x_i + a
-  Node<Field>* solve_recursive(std::vector<Field> shifts, size_t depth) {
-    if (depth > 1) {
-      return &nodes_.emplace_back(InfeasibleNode{});
-    }
-
-    std::println("depth: {}", depth);
-
-    auto& node = nodes_.emplace_back(step(problem_, shifts));
-    Node<Field>* standard_node = std::get_if<Node<Field>>(&node);
-
-    // we end traversal of a branch in two cases:
-    // 1. there are no feasible points
-    // 2. lower bound is equal to upper bound
-    if (standard_node == nullptr ||
-        standard_node->lower_bound == standard_node->upper_bound) {
-      return &node;
-    }
-
-    auto [slack_var_row, slack_var_col] =
-        slack_variables_[standard_node->branching_variable];
-
-    // traverse left child
-    // x_i <= a iff x_i + lambda_i = a iff y_i + lambda_i = a + shifts[i]
-    {
-      // remember old values before changing them
-      Field A_coef = problem_.A[slack_var_row, slack_var_col];
-      Field b_coef = problem_.b[slack_var_row, 0];
-
-      problem_.A[slack_var_row, slack_var_col] = 1;
-      problem_.b[slack_var_row, 0] = standard_node->branching_value +
-                                     shifts[standard_node->branching_variable];
-
-      standard_node->left = solve_recursive(shifts, depth + 1);
-
-      problem_.A[slack_var_row, slack_var_col] = A_coef;
-      problem_.b[slack_var_row, 0] = b_coef;
-    }
-
-    // traverse right child
-    // x_i >= a + 1 iff x_i - a - 1 >= 0 iff y_i >= 0, where y_i = x_i - a - 1
-
-    Field delta = -standard_node->branching_value - 1 -
-                  shifts[standard_node->branching_variable];
-    shift_variable(standard_node->branching_variable, delta);
-    shifts[standard_node->branching_variable] += delta;
-
-    standard_node->right = solve_recursive(shifts, depth + 1);
-
-    shift_variable(standard_node->branching_variable, -delta);
-    shifts[standard_node->branching_variable] -= delta;
-
-    return &node;
-  }
+  enum class NodeType { LEFT_CHILD, RIGHT_CHILD, ROOT };
 
   // returns an array of variable shifts that were applied
   // they are used to revert constraints
-  std::vector<Field> apply_constraints(const Node<Field>* node) {
-    std::vector<Field> shifts(problem_.A.get_width(), 0);
+  std::tuple<Matrix<Field>, Matrix<Field>, Matrix<Field>, std::vector<Field>>
+  apply_constraints(const Node<Field>* node, NodeType type) {
+    auto [n, d] = problem_.A.shape();
+    std::vector<Field> shifts(d, 0);
+
+    if (type == NodeType::ROOT) {
+      return {problem_.A, problem_.b, problem_.c, shifts};
+    }
+
+    struct UpperBound {
+      size_t slack_variable_index;
+      Field upper_bound;
+    };
+
+    std::unordered_map<size_t, UpperBound> upper_bounds;
+    // lower bounds are stored in shifts
 
     const auto* curr = node;
-    const auto* prev = node->parent;
+    NodeType curr_type = type;
 
-    while (prev != nullptr) {
-      if (curr == std::get_if<Node<Field>>(prev->left)) {
+    while (true) {
+      size_t br_variable = curr->branching_variable;
+
+      if (curr_type == NodeType::LEFT_CHILD) {
         // apply left child constraints
         // x_i <= a iff x_i + lambda_i = a iff y_i + lambda_i = a + shifts[i]
-        auto [row, col] = slack_variables_[curr->branching_variable];
-
-        problem_.A[row, col] = 1;
-        problem_.b[row, 0] = curr->branching_value;
-      } else {
+        auto itr = upper_bounds.find(br_variable);
+        if (itr == upper_bounds.end()) {
+          auto bound = UpperBound{upper_bounds.size(), curr->branching_value};
+          upper_bounds.emplace(br_variable, bound);
+        } else {
+          itr->second.upper_bound =
+              std::min(itr->second.upper_bound, curr->branching_value);
+        }
+      } else if (curr_type == NodeType::RIGHT_CHILD) {
         // apply right child constraints
         // x_i >= a + 1 iff x_i - a - 1 >= 0 iff y_i >= 0,
         // where y_i = x_i - a - 1
-        // we postpone application of shifts, just remember they must be done
-        Field delta = -curr->branching_value - 1;
-        shifts[curr->branching_variable] += delta;
+        shifts[curr->branching_variable] = std::min(
+            shifts[curr->branching_variable], -curr->branching_value - 1);
       }
+
+      auto* next = curr->parent;
+
+      if (next == nullptr) {
+        break;
+      }
+
+      curr_type =
+          next->left == curr ? NodeType::LEFT_CHILD : NodeType::RIGHT_CHILD;
+      curr = next;
+    }
+
+    // apply upper bounds
+    auto A = problem_.A.get_extended(n + upper_bounds.size(),
+                                     d + upper_bounds.size(), 0);
+    auto b = problem_.b.get_extended(n + upper_bounds.size(), 1, 0);
+    auto c = problem_.c.get_extended(1, d + upper_bounds.size(), 0);
+
+    for (const auto& [var_index, info] : upper_bounds) {
+      size_t slack_index = info.slack_variable_index;
+      A[n + slack_index, d + slack_index] = 1;
+      A[n + slack_index, var_index] = 1;
+
+      b[n + slack_index, 0] = info.upper_bound;
     }
 
     // apply shifts
     for (size_t i = 0; i < shifts.size(); ++i) {
-      shift_variable(i, shifts[i]);
+      for (size_t j = 0; j < A.get_height(); ++j) {
+        b[j, 0] += A[j, i] * shifts[i];
+      }
     }
 
-    return shifts;
+    return {A, b, c, shifts};
   }
 
-  void remove_constraints(const std::vector<Field>& shifts) {
-    for (size_t i = 0; i < shifts.size(); ++i) {
-      shift_variable(i, -shifts[i]);
-    }
+  void calculate_node(Node<Field>* parent, NodeType type) {
+    auto [A, b, c, shifts] = apply_constraints(parent, type);
 
-    for (auto [row, col] : slack_variables_ | std::views::values) {
-      problem_.A[row, col] = -1;
-      problem_.b[row, 0] = 0;
-    }
-  }
+    auto relaxed_solution = LPSolver(A, b, c).solve();
 
-  void calculate_node(Node<Field>* node, const std::vector<Field>& shifts) {
-    auto relaxed_solution =
-        LPSolver(problem_.A, problem_.b, problem_.c).solve();
-    FiniteSolution<Field>* finite_solution =
-        std::get_if<FiniteSolution<Field>>(&relaxed_solution);
-
-    if (finite_solution == nullptr) {
-      *node = InfeasibleNode{};
+    // prune branch if there is no feasible solution
+    if (!std::holds_alternative<FiniteSolution<Field>>(relaxed_solution)) {
       return;
     }
 
-    auto br_variable = find_branching(finite_solution->point);
+    auto& finite_solution = std::get<FiniteSolution<Field>>(relaxed_solution);
+    for (size_t i = 0; i < shifts.size(); ++i) {
+      finite_solution.point[i, 0] -= shifts[i];
+    }
+
+    auto br_variable = find_branching(finite_solution.point);
 
     Field total_shift = 0;
     for (size_t i = 0; i < shifts.size(); ++i) {
@@ -300,68 +247,64 @@ class BranchAndBound {
     }
 
     Field floored =
-        FieldTraits<Field>::floor(finite_solution->point[br_variable, 0]);
-    Field fractional = finite_solution->point[br_variable, 0] - floored;
+        FieldTraits<Field>::floor(finite_solution.point[br_variable, 0]);
+    Field fractional = finite_solution.point[br_variable, 0] - floored;
 
-    Node<Field> result;
+    Field upper_bound = finite_solution.value - total_shift;
 
-    result.branching_variable = br_variable;
-    result.branching_value = floored - shifts[br_variable];
-    result.upper_bound = finite_solution->value - total_shift;
-
-    // if all values are integer we can update lower bound
+    // prune branch if all values are integer
     if (fractional == 0 &&
-        (!lower_bound_ || lower_bound_->first < result.upper_bound)) {
-      lower_bound_ = std::pair{result.upper_bound, finite_solution->point};
+        (!lower_bound_ || lower_bound_->first < upper_bound)) {
+      size_t d = problem_.A.get_width();
+
+      Matrix<Field> trimmed_solution(d, 1);
+      for (size_t i = 0; i < d; ++i) {
+        trimmed_solution[i, 0] = finite_solution.point[i, 0];
+      }
+
+      lower_bound_ = std::pair{upper_bound, trimmed_solution};
       return;
     }
 
-    *node = std::move(result);
-    queue_.push(std::get_if<Node<Field>>(node));
+    // prune branch if upper bound is worse than current best solution
+    if (lower_bound_ && upper_bound <= lower_bound_->first) {
+      return;
+    }
+
+    Node<Field>& child = nodes_.emplace_back();
+
+    child.parent = parent;
+    child.branching_variable = br_variable;
+    child.branching_value = floored;
+    child.upper_bound = upper_bound;
+
+    if (type == NodeType::LEFT_CHILD) {
+      parent->left = &child;
+    } else if (type == NodeType::RIGHT_CHILD) {
+      parent->right = &child;
+    }
+
+    queue_.push(&child);
   }
 
  public:
   explicit BranchAndBound(MILPProblem<Field> problem) : problem_(problem) {}
 
   std::pair<Field, Matrix<Field>> solve() {
-    add_slack_variables();
+    calculate_node(nullptr, NodeType::ROOT);
 
-    std::vector<Field> shifts(problem_.A.get_width(), 0);
-
-    auto& root = nodes_.emplace_back(Node<Field>{});
-    calculate_node(&root, shifts);
-
-    while (true) {
+    while (!queue_.empty()) {
       // node with maximum upper bound
       auto* current_node = queue_.top();
       queue_.pop();
 
-      if (lower_bound_ && current_node->upper_bound <= lower_bound_->first) {
-        return *lower_bound_;
-      }
+      current_node->calculated = true;
 
-      // left branch
-      {
-        current_node->left =
-            &nodes_.emplace_back(Node<Field>{.parent = current_node});
-
-        auto shifts =
-            apply_constraints(std::get_if<Node<Field>>(current_node->left));
-        calculate_node(current_node->left, shifts);
-        remove_constraints(shifts);
-      }
-
-      // right branch
-      {
-        current_node->right =
-            &nodes_.emplace_back(Node<Field>{.parent = current_node});
-
-        auto shifts =
-            apply_constraints(std::get_if<Node<Field>>(current_node->right));
-        calculate_node(current_node->right, shifts);
-        remove_constraints(shifts);
-      }
+      calculate_node(current_node, NodeType::LEFT_CHILD);
+      calculate_node(current_node, NodeType::RIGHT_CHILD);
     }
+
+    return *lower_bound_;
   }
 
   const Node<Field>* get_root() const { return &nodes_[0]; }

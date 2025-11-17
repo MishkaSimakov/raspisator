@@ -18,9 +18,11 @@ int main() {
   MILPProblem<Field> problem(A, b, c, integer);
 
   BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
- solver.solve();
+  auto [value, point] = solver.solve();
 
   std::cout << GraphvizBuilder<Field>().build(solver.get_root()) << std::endl;
+
+  std::cout << point << std::endl;
 
   return 0;
 }
