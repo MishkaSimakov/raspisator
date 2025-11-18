@@ -1,9 +1,8 @@
 #pragma once
 
-#include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <vector>
-#include <iomanip>
 
 template <typename Field>
 class Matrix {
@@ -15,17 +14,9 @@ class Matrix {
     return col + cols_count_ * row;
   }
 
-  void swap_rows(size_t first, size_t second) {
-    if (first == second) {
-      return;
-    }
-
-    for (size_t j = 0; j < cols_count_; ++j) {
-      std::swap((*this)[first, j], (*this)[second, j]);
-    }
-  }
-
  public:
+  Matrix() : Matrix(0, 0) {}
+
   Matrix(size_t rows, size_t cols)
       : data_(rows * cols), rows_count_(rows), cols_count_(cols) {}
 
@@ -52,6 +43,16 @@ class Matrix {
     }
   }
 
+  void swap_rows(size_t first, size_t second) {
+    if (first == second) {
+      return;
+    }
+
+    for (size_t j = 0; j < cols_count_; ++j) {
+      std::swap((*this)[first, j], (*this)[second, j]);
+    }
+  }
+
   Matrix get_extended(size_t new_height, size_t new_width,
                       Field fill_value) const {
     if (new_height < rows_count_ || new_width < cols_count_) {
@@ -73,6 +74,8 @@ class Matrix {
   static Matrix zeros_like(const Matrix<OtherField>& other) {
     return Matrix(other.shape().first, other.shape().second, 0);
   }
+
+  static Matrix item(Field value) { return Matrix(1, 1, std::move(value)); }
 
   template <typename Functor>
   static Matrix elementwise(const Matrix& left, const Matrix& right,
@@ -299,4 +302,54 @@ std::ostream& operator<<(std::ostream& os, const Matrix<Field>& matrix) {
   }
 
   return os;
+}
+
+template <typename Field>
+Matrix<Field> vstack(const Matrix<Field>& top, const Matrix<Field>& bottom) {
+  if (top.get_width() != bottom.get_width()) {
+    throw std::runtime_error(
+        "Matrices must have equal width to stack them vertically.");
+  }
+
+  size_t width = top.get_width();
+  Matrix<Field> result(top.get_height() + bottom.get_height(), width);
+
+  for (size_t i = 0; i < top.get_height(); ++i) {
+    for (size_t j = 0; j < width; ++j) {
+      result[i, j] = top[i, j];
+    }
+  }
+
+  for (size_t i = 0; i < bottom.get_height(); ++i) {
+    for (size_t j = 0; j < width; ++j) {
+      result[i + top.get_height(), j] = bottom[i, j];
+    }
+  }
+
+  return result;
+}
+
+template <typename Field>
+Matrix<Field> hstack(const Matrix<Field>& left, const Matrix<Field>& right) {
+  if (left.get_height() != right.get_height()) {
+    throw std::runtime_error(
+        "Matrices must have equal height to stack them horizontally.");
+  }
+
+  size_t height = left.get_height();
+  Matrix<Field> result(height, left.get_width() + right.get_width());
+
+  for (size_t i = 0; i < height; ++i) {
+    for (size_t j = 0; j < left.get_width(); ++j) {
+      result[i, j] = left[i, j];
+    }
+  }
+
+  for (size_t i = 0; i < height; ++i) {
+    for (size_t j = 0; j < right.get_width(); ++j) {
+      result[i, j + left.get_width()] = right[i, j];
+    }
+  }
+
+  return result;
 }

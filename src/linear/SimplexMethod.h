@@ -2,20 +2,8 @@
 #include <variant>
 
 #include "Matrix.h"
+#include "linear/Solution.h"
 #include "utils/Variant.h"
-
-template <typename Field>
-struct FiniteSolution {
-  Matrix<Field> point;
-  std::vector<size_t> basic_variables;
-  Field value;
-
-  Matrix<Field> tableau;
-};
-
-struct InfiniteSolution {};
-
-struct NoFeasibleElements {};
 
 // basic feasible solution
 template <typename Field>
@@ -168,7 +156,7 @@ class SimplexMethod {
   }
 
   // finds maximum starting from bfs (basic feasible solution)
-  std::variant<FiniteSolution<Field>, InfiniteSolution> solve_from(
+  std::variant<FiniteLPSolution<Field>, InfiniteSolution> solve_from(
       BFS<Field> bfs) {
     auto [n, d] = A_.shape();
 
@@ -191,8 +179,9 @@ class SimplexMethod {
 
         Field value = tableau[n, 0];
 
-        return FiniteSolution{std::move(point), std::move(bfs.basic_variables),
-                              std::move(value), std::move(tableau)};
+        return FiniteLPSolution{std::move(point),
+                                std::move(bfs.basic_variables),
+                                std::move(value), std::move(tableau)};
       }
 
       auto leaving_var = find_leaving_variable(tableau, entering_var);
@@ -244,7 +233,7 @@ class SimplexMethod {
     auto solver = SimplexMethod(std::move(A_new), b_, std::move(c_new));
 
     // InfiniteSolution is impossible here
-    auto solution = std::get<FiniteSolution<Field>>(
+    auto solution = std::get<FiniteLPSolution<Field>>(
         solver.solve_from(BFS{bfs_new, basic_vars}));
 
     // Case 1
@@ -287,8 +276,8 @@ class SimplexMethod {
   }
 
   // same as solve_from, but automatically finds bfs
-  using SimplexSolution =
-      std::variant<FiniteSolution<Field>, InfiniteSolution, NoFeasibleElements>;
+  using SimplexSolution = std::variant<FiniteLPSolution<Field>,
+                                       InfiniteSolution, NoFeasibleElements>;
 
   SimplexSolution solve() {
     auto bfs = find_bfs();

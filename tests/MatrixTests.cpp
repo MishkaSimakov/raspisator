@@ -93,3 +93,19 @@ TEST(MatrixTests, AddSubtract) {
   ASSERT_EQ(second + first - first, second);
   ASSERT_EQ(first - second + second, first);
 }
+
+TEST(MatrixTests, SimpleGaussElimination) {
+  Matrix<Rational> matrix = {{1, 0}, {1, 1}};
+
+  matrix.gaussian_elimination(0, 0);
+
+  ASSERT_EQ(matrix, (Matrix<Rational>{{1, 0}, {0, 1}}));
+}
+
+TEST(MatrixTests, GaussEliminationWithZeros) {
+  Matrix<Rational> matrix = {{1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
+
+  matrix.gaussian_elimination(0, 0);
+
+  ASSERT_EQ(matrix, (Matrix<Rational>{{1, 0, 1}, {0, 1, 0}, {0, 1, 1}}));
+}

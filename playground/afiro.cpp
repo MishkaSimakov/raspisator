@@ -39,10 +39,10 @@ int main() {
   auto solver = SimplexMethod<Field>(A, b, c);
   auto solution = solver.solve();
 
-  if (std::holds_alternative<FiniteSolution<Field>>(solution)) {
-    std::cout << std::get<FiniteSolution<Field>>(solution).point
+  if (std::holds_alternative<FiniteLPSolution<Field>>(solution)) {
+    std::cout << std::get<FiniteLPSolution<Field>>(solution).point
               << std::endl;
-    std::cout << std::get<FiniteSolution<Field>>(solution).value
+    std::cout << std::get<FiniteLPSolution<Field>>(solution).value
               << std::endl;
   } else if (std::holds_alternative<InfiniteSolution>(solution)) {
     std::cout << "Infinite solution" << std::endl;

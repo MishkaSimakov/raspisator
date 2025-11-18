@@ -7,10 +7,8 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "BranchAndBound.h"
-#include "Matrix.h"
-#include "SimplexMethod.h"
-#include "utils/Variant.h"
+#include "linear/Matrix.h"
+#include "linear/Solution.h"
 
 // c x -> max, s.t. Ax = b, x >= 0
 // and all integer_indices variables are integer
@@ -98,6 +96,7 @@ class GraphvizBuilder {
   }
 };
 
+// TODO: implement more efficient version for binary variables
 template <typename Field, typename LPSolver>
 class BranchAndBound {
   const MILPProblem<Field> problem_;
@@ -224,20 +223,33 @@ class BranchAndBound {
     return {A, b, c, shifts};
   }
 
-  void calculate_node(Node<Field>* parent, NodeType type) {
+  enum class NodeCalculationResult {
+    INFINITE_SOLUTION,
+    NO_FEASIBLE_ELEMENTS,
+    INTEGER_SOLUTION,
+    WORSE_THAN_LOWER_BOUND,
+    NORMAL
+  };
+
+  NodeCalculationResult calculate_node(Node<Field>* parent, NodeType type) {
     auto [A, b, c, shifts] = apply_constraints(parent, type);
 
     auto relaxed_solution = LPSolver(A, b, c).solve();
 
     // prune branch if there is no feasible solution
-    if (!std::holds_alternative<FiniteSolution<Field>>(relaxed_solution)) {
-      return;
+    if (std::holds_alternative<InfiniteSolution>(relaxed_solution)) {
+      return NodeCalculationResult::INFINITE_SOLUTION;
+    }
+    if (std::holds_alternative<NoFeasibleElements>(relaxed_solution)) {
+      return NodeCalculationResult::NO_FEASIBLE_ELEMENTS;
     }
 
-    auto& finite_solution = std::get<FiniteSolution<Field>>(relaxed_solution);
+    auto& finite_solution = std::get<FiniteLPSolution<Field>>(relaxed_solution);
     for (size_t i = 0; i < shifts.size(); ++i) {
       finite_solution.point[i, 0] -= shifts[i];
     }
+
+    std::cout << finite_solution.point << std::endl;
 
     auto br_variable = find_branching(finite_solution.point);
 
@@ -263,12 +275,12 @@ class BranchAndBound {
       }
 
       lower_bound_ = std::pair{upper_bound, trimmed_solution};
-      return;
+      return NodeCalculationResult::INTEGER_SOLUTION;
     }
 
     // prune branch if upper bound is worse than current best solution
     if (lower_bound_ && upper_bound <= lower_bound_->first) {
-      return;
+      return NodeCalculationResult::WORSE_THAN_LOWER_BOUND;
     }
 
     Node<Field>& child = nodes_.emplace_back();
@@ -285,26 +297,47 @@ class BranchAndBound {
     }
 
     queue_.push(&child);
+
+    return NodeCalculationResult::NORMAL;
   }
 
  public:
   explicit BranchAndBound(MILPProblem<Field> problem) : problem_(problem) {}
 
-  std::pair<Field, Matrix<Field>> solve() {
-    calculate_node(nullptr, NodeType::ROOT);
+  std::variant<FiniteMILPSolution<Field>, NoFeasibleElements, InfiniteSolution>
+  solve() {
+    NodeCalculationResult result;
+
+    result = calculate_node(nullptr, NodeType::ROOT);
+    if (result == NodeCalculationResult::INFINITE_SOLUTION) {
+      return InfiniteSolution{};
+    }
 
     while (!queue_.empty()) {
+      std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
+
       // node with maximum upper bound
       auto* current_node = queue_.top();
       queue_.pop();
 
       current_node->calculated = true;
 
-      calculate_node(current_node, NodeType::LEFT_CHILD);
-      calculate_node(current_node, NodeType::RIGHT_CHILD);
+      result = calculate_node(current_node, NodeType::LEFT_CHILD);
+      if (result == NodeCalculationResult::INFINITE_SOLUTION) {
+        return InfiniteSolution{};
+      }
+
+      result = calculate_node(current_node, NodeType::RIGHT_CHILD);
+      if (result == NodeCalculationResult::INFINITE_SOLUTION) {
+        return InfiniteSolution{};
+      }
     }
 
-    return *lower_bound_;
+    if (!lower_bound_) {
+      return NoFeasibleElements{};
+    }
+
+    return FiniteMILPSolution{lower_bound_->second, lower_bound_->first};
   }
 
   const Node<Field>* get_root() const { return &nodes_[0]; }

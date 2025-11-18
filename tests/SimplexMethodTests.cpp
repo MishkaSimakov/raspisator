@@ -69,8 +69,8 @@ TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {
   auto solution =
       solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
-  ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).point, bfs);
-  ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).value, 7);
+  ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, bfs);
+  ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
 }
 
 TEST(SimplexMethodTests, FullSimple) {
@@ -91,8 +91,8 @@ TEST(SimplexMethodTests, FullSimple) {
 
     Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
 
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).point, expected);
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).value, 7);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
   }
 
   {
@@ -113,8 +113,8 @@ TEST(SimplexMethodTests, FullSimple) {
 
     Matrix<Rational> expected = {{4}, {0}, {2}, {0}};
 
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).point, expected);
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).value, 10);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 10);
   }
 
   {
@@ -130,8 +130,8 @@ TEST(SimplexMethodTests, FullSimple) {
 
     Matrix<Rational> expected = {{0}, {1}};
 
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).point, expected);
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).value, 2);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 2);
   }
 
   {
@@ -147,8 +147,8 @@ TEST(SimplexMethodTests, FullSimple) {
 
     Matrix<Rational> expected = {{1}, {0}};
 
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).point, expected);
-    ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).value, 2);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
+    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 2);
   }
 }
 
@@ -182,6 +182,6 @@ TEST(SimplexMethodTests, FullWithFindingBFS) {
 
   Matrix<Rational> expected = {{4}, {0}, {2}, {0}};
 
-  ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).point, expected);
-  ASSERT_EQ(std::get<FiniteSolution<Rational>>(solution).value, 10);
+  ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
+  ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 10);
 }
