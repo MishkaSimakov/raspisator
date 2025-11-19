@@ -7,6 +7,9 @@ template <typename Field>
 class Variable;
 
 template <typename Field>
+class Constraint;
+
+template <typename Field>
 class Expression;
 
 namespace details {

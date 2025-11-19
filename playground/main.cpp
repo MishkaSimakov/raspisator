@@ -1,12 +1,12 @@
 #include <iostream>
+#include <print>
 
 #include "linear/BigInteger.h"
 #include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
-#include "linear/RowBasis.h"
 #include "linear/SimplexMethod.h"
 #include "linear/builder/ProblemBuilder.h"
-#include "problems/Blomer.h"
+#include "problems/Dwarf.h"
 #include "utils/Hashers.h"
 
 using Field = Rational;
@@ -14,12 +14,12 @@ using Field = Rational;
 int main() {
   auto problem = generate_problem<Field>();
 
-  size_t H = 10;  // number of periods
+  size_t H = 3;  // number of periods
 
   ProblemBuilder<Field> builder;
 
   // decision variables
-  auto makespan = builder.new_variable("MS");
+  auto makespan = builder.new_variable("MS", VariableType::INTEGER);
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
                      Variable<Field>>
       quantities;
@@ -33,11 +33,14 @@ int main() {
       for (size_t t = 0; t < H; ++t) {
         quantities.emplace(
             std::tuple{&unit, task, t},
-            builder.new_variable(fmt::format("Q({}, {}, {})", unit.get_id(),
-                                             task->get_id(), t)));
-        starts.emplace(std::tuple{&unit, task, t},
-                       builder.new_variable(fmt::format(
-                           "x({}, {}, {})", unit.get_id(), task->get_id(), t)));
+            builder.new_variable(
+                std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
+                VariableType::INTEGER));
+        starts.emplace(
+            std::tuple{&unit, task, t},
+            builder.new_variable(
+                std::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
+                VariableType::INTEGER));
       }
     }
   }
@@ -47,7 +50,8 @@ int main() {
       for (size_t t = 0; t < H; ++t) {
         stocks.emplace(
             std::pair{&state, t},
-            builder.new_variable(fmt::format("p({}, {})", state.get_id(), t)));
+            builder.new_variable(fmt::format("p({}, {})", state.get_id(), t),
+                                 VariableType::INTEGER));
       }
     }
   }
@@ -56,10 +60,9 @@ int main() {
   for (const auto& unit : problem.get_units()) {
     for (const auto& [task, props] : unit.get_tasks()) {
       for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(
-            makespan >= Field(t) * starts.at({&unit, task, t}) +
-                            Expression<Field>(props.batch_processing_time) -
-                            Expression<Field>(1));
+        Field finish_time(t + props.batch_processing_time - 1);
+        builder.add_constraint(makespan >=
+                               finish_time * starts.at({&unit, task, t}));
       }
     }
   }
@@ -189,10 +192,65 @@ int main() {
     }
   }
 
+  // variables domain
+  for (const auto& unit : problem.get_units()) {
+    for (const auto* task : unit.get_tasks() | std::views::keys) {
+      for (size_t t = 0; t < H; ++t) {
+        builder.add_constraint(starts.at({&unit, task, t}) <=
+                               Expression<Field>(1));
+      }
+    }
+  }
+
+  // desired amounts
+  for (const State& state : problem.get_states()) {
+    if (!std::holds_alternative<OutputState>(state)) {
+      continue;
+    }
+
+    Expression<Field> desired_amount(
+        std::get<OutputState>(state).desired_amount);
+
+    builder.add_constraint(stocks.at({&state, H - 1}) >= desired_amount);
+  }
+
   // objective
   builder.set_objective(-makespan);
 
-
-  builder.normalize();
   std::cout << builder << std::endl;
+
+  // solve MILP problem
+  auto milp_problem = builder.get_problem();
+
+  auto solution =
+      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem).solve();
+
+  if (std::holds_alternative<NoFiniteSolution>(solution)) {
+    std::println("No finite solution.");
+  } else {
+    auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
+
+    std::println("Finish production in {} time units.\n",
+                 -finite_solution.value);
+
+    auto point = finite_solution.point;
+
+    for (const auto& unit : problem.get_units()) {
+      std::println("schedule for unit {}:", unit.get_id());
+
+      for (size_t t = 0; t < H; ++t) {
+        for (const auto* task : unit.get_tasks() | std::views::keys) {
+          Field x =
+              builder.extract_variable(point, starts.at({&unit, task, t}));
+          Field Q =
+              builder.extract_variable(point, starts.at({&unit, task, t}));
+
+          std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       x);
+          std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       Q);
+        }
+      }
+    }
+  }
 }

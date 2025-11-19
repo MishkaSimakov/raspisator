@@ -9,6 +9,7 @@ target_sources(tests PUBLIC
         BranchAndBoundTests.cpp
         RowBasisTests.cpp
         SolutionCheckingTests.cpp
+        ProblemBuilderTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 

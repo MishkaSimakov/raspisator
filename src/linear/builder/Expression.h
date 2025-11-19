@@ -9,6 +9,17 @@ class Expression {
   Field shift_;
   std::unordered_map<size_t, Field> variables_;
 
+  // removes variables with zero coefficient
+  void cleanup() {
+    for (auto itr = variables_.begin(); itr != variables_.end();) {
+      if (itr->second == 0) {
+        itr = variables_.erase(itr);
+      } else {
+        ++itr;
+      }
+    }
+  }
+
  public:
   Expression() = default;
 
@@ -19,6 +30,9 @@ class Expression {
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   Expression(Field value) : shift_(std::move(value)) {}
+
+  // an expression is constant if it doesn't contain any variables
+  bool is_constant() const { return variables_.empty(); }
 
   Expression& operator+=(const Expression& other) {
     shift_ += other.shift_;
@@ -32,6 +46,8 @@ class Expression {
         itr->second += coef;
       }
     }
+
+    cleanup();
 
     return *this;
   }
@@ -49,6 +65,8 @@ class Expression {
       }
     }
 
+    cleanup();
+
     return *this;
   }
 
@@ -58,10 +76,13 @@ class Expression {
     }
     shift_ *= alpha;
 
+    cleanup();
+
     return *this;
   }
 
   friend ProblemBuilder<Field>;
+  friend Constraint<Field>;
 };
 
 auto operator+(details::ExpressionLike auto&& left,

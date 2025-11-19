@@ -1,5 +1,4 @@
 #pragma once
-#include <fmt/format.h>
 
 #include <optional>
 #include <queue>
@@ -10,17 +9,6 @@
 #include "linear/Matrix.h"
 #include "linear/model/LP.h"
 #include "linear/model/MILP.h"
-
-// c x -> max, s.t. Ax = b, x >= 0
-// and all integer_indices variables are integer
-template <typename Field>
-struct MILPProblem {
-  Matrix<Field> A;
-  Matrix<Field> b;
-  Matrix<Field> c;
-
-  std::vector<size_t> integer_indices;
-};
 
 // Branch and Bound nodes
 template <typename Field>
@@ -79,18 +67,18 @@ class GraphvizBuilder {
   void add_node(const Node<Field>* node) {
     std::string id = getId(node);
 
-    ss_ << fmt::format("  {} [label=\"UB={}\\nx_{} <> {}\"];\n", id,
+    ss_ << std::format("  {} [label=\"UB={}\\nx_{} <> {}\"];\n", id,
                        node->upper_bound, node->branching_variable,
                        node->branching_value);
 
     if (node->left) {
-      ss_ << fmt::format("  {} -> {} [label=\"left\"];\n", id,
+      ss_ << std::format("  {} -> {} [label=\"left\"];\n", id,
                          getId(node->left));
       add_node(node->left);
     }
 
     if (node->right) {
-      ss_ << fmt::format("  {} -> {} [label=\"right\"];\n", id,
+      ss_ << std::format("  {} -> {} [label=\"right\"];\n", id,
                          getId(node->right));
       add_node(node->right);
     }
@@ -130,7 +118,11 @@ class BranchAndBound {
     size_t max_fractional_index = 0;
     Field max_fractional_value = 0;
 
-    for (auto i : problem_.integer_indices) {
+    for (size_t i = 0; i < problem_.variables_.size(); ++i) {
+      if (problem_.variables_[i] != VariableType::INTEGER) {
+        continue;
+      }
+
       Field fractional =
           solution[i, 0] - FieldTraits<Field>::floor(solution[i, 0]);
 
@@ -309,6 +301,8 @@ class BranchAndBound {
     calculate_node(nullptr, NodeType::ROOT);
 
     while (!queue_.empty()) {
+      std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
+
       // node with maximum upper bound
       auto* current_node = queue_.top();
       queue_.pop();
