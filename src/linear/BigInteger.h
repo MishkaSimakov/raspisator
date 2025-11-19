@@ -1009,4 +1009,27 @@ struct FieldTraits<Rational> {
 };
 
 template <>
-struct fmt::formatter<Rational> : ostream_formatter {};
+struct std::formatter<Rational, char> {
+  template <class ParseContext>
+  constexpr ParseContext::iterator parse(ParseContext& ctx) {
+    // auto it = ctx.begin();
+    // if (it == ctx.end()) return it;
+    //
+    // if (*it == '#') {
+    //   quoted = true;
+    //   ++it;
+    // }
+    // if (it != ctx.end() && *it != '}')
+    //   throw std::format_error("Invalid format args for QuotableString.");
+    //
+    return ctx.begin();
+  }
+
+  template <class FmtContext>
+  FmtContext::iterator format(const Rational& value, FmtContext& ctx) const {
+    std::ostringstream out;
+    out << value;
+
+    return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+  }
+};

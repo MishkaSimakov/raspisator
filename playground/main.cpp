@@ -14,7 +14,7 @@ using Field = Rational;
 int main() {
   auto problem = generate_problem<Field>();
 
-  size_t H = 5;  // number of periods
+  size_t H = 3;  // number of periods
 
   ProblemBuilder<Field> builder;
 
@@ -34,12 +34,12 @@ int main() {
         quantities.emplace(
             std::tuple{&unit, task, t},
             builder.new_variable(
-                fmt::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
+                std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
                 VariableType::INTEGER));
         starts.emplace(
             std::tuple{&unit, task, t},
             builder.new_variable(
-                fmt::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
+                std::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
                 VariableType::INTEGER));
       }
     }
@@ -60,10 +60,9 @@ int main() {
   for (const auto& unit : problem.get_units()) {
     for (const auto& [task, props] : unit.get_tasks()) {
       for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(
-            makespan >= Field(t) * starts.at({&unit, task, t}) +
-                            Expression<Field>(props.batch_processing_time) -
-                            Expression<Field>(1));
+        Field finish_time(t + props.batch_processing_time - 1);
+        builder.add_constraint(makespan >=
+                               finish_time * starts.at({&unit, task, t}));
       }
     }
   }
@@ -203,11 +202,25 @@ int main() {
     }
   }
 
+  // desired amounts
+  for (const State& state : problem.get_states()) {
+    if (!std::holds_alternative<OutputState>(state)) {
+      continue;
+    }
+
+    Expression<Field> desired_amount(
+        std::get<OutputState>(state).desired_amount);
+
+    builder.add_constraint(stocks.at({&state, H - 1}) >= desired_amount);
+  }
+
   // objective
   builder.set_objective(-makespan);
 
+  std::cout << builder << std::endl;
+
   // solve MILP problem
-  auto milp_problem = std::move(builder).get_problem();
+  auto milp_problem = builder.get_problem();
 
   auto solution =
       BranchAndBound<Field, SimplexMethod<Field>>(milp_problem).solve();
@@ -218,18 +231,26 @@ int main() {
     auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
 
     std::println("Finish production in {} time units.\n",
-                 finite_solution.value);
+                 -finite_solution.value);
 
     auto point = finite_solution.point;
 
-    // for (const auto& unit : problem.get_units()) {
-    //   std::println("schedule for unit {}:", unit.get_id());
-    //
-    //   for (size_t t = 0; t < H; ++t) {
-    //     for (const auto* task : unit.get_tasks() | std::views::keys) {
-    //       builder.extract_variable(solution, starts.at({&unit, task, t}));
-    //     }
-    //   }
-    // }
+    for (const auto& unit : problem.get_units()) {
+      std::println("schedule for unit {}:", unit.get_id());
+
+      for (size_t t = 0; t < H; ++t) {
+        for (const auto* task : unit.get_tasks() | std::views::keys) {
+          Field x =
+              builder.extract_variable(point, starts.at({&unit, task, t}));
+          Field Q =
+              builder.extract_variable(point, starts.at({&unit, task, t}));
+
+          std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       x);
+          std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       Q);
+        }
+      }
+    }
   }
 }

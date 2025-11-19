@@ -8,6 +8,7 @@ target_sources(tests PUBLIC
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
         RowBasisTests.cpp
+        ProblemBuilderTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 

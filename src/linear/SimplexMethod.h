@@ -170,7 +170,6 @@ class SimplexMethod {
     auto tableau = initialize_tableau(bfs);
 
     while (true) {
-      std::cout << "step" << std::endl;
       auto [entering_var, entering_var_delta] = find_entering_variable(tableau);
 
       if (entering_var_delta >= 0) {

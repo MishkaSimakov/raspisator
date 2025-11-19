@@ -3,6 +3,7 @@
 #include <fmt/ranges.h>
 
 #include <string>
+#include <format>
 
 #include "model/STN.h"
 #include "utils/Variant.h"
@@ -22,13 +23,13 @@ std::string to_graphviz(const STN<Field>& stn) {
                                      [](OutputState) { return "out"s; },
                                      [](NonStorableState) { return "ns"s; },
                                      [](const NormalState& state) {
-                                       return fmt::format(
+                                       return std::format(
                                            "({}, {}-{})", state.initial_stock,
                                            state.min_level, state.max_level);
                                      }},
                             states[i]);
 
-    result[i] = fmt::format("S{} [label=\"State {}\n{}\"];", id, id, props);
+    result[i] = std::format("S{} [label=\"State {}\n{}\"];", id, id, props);
   }
 
   return result;
@@ -45,7 +46,7 @@ std::vector<std::string> translate_tasks(const STN& stn) {
 
     for (const auto [unit, props] : stn.get_task_units(tasks[i])) {
       units_description.push_back(
-          fmt::format("{{ Unit {}|({}u, bs: {}-{}) }}", unit->get_id(),
+          std::format("{{ Unit {}|({}u, bs: {}-{}) }}", unit->get_id(),
                       props.batch_processing_time, props.batch_min_size,
                       props.batch_max_size));
     }
@@ -66,11 +67,11 @@ std::vector<std::string> translate_arcs(const STN& stn) {
     size_t id = tasks[i].get_id();
 
     for (const State* input : tasks[i].get_inputs()) {
-      result.push_back(fmt::format("S{} -> T{}", input->get_id(), id));
+      result.push_back(std::format("S{} -> T{}", input->get_id(), id));
     }
 
     for (const State* output : tasks[i].get_outputs()) {
-      result.push_back(fmt::format("T{} -> S{}", id, output->get_id()));
+      result.push_back(std::format("T{} -> S{}", id, output->get_id()));
     }
   }
 

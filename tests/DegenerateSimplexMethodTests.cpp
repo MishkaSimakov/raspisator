@@ -5,9 +5,7 @@
 
 #include <gtest/gtest.h>
 
-#include <iostream>
-#include <variant>
-
+#include "Assertions.h"
 #include "linear/BigInteger.h"
 #include "linear/Matrix.h"
 #include "linear/SimplexMethod.h"
@@ -24,7 +22,5 @@ TEST(DegenerateSimplexMethodTests, SimpleTests) {
   auto bfs = SimplexMethod(A, b, c).find_bfs();
 
   ASSERT_TRUE(bfs.has_value());
-
-  ASSERT_EQ(std::set(bfs->basic_variables.begin(), bfs->basic_variables.end()),
-            (std::set<size_t>{0, 1}));
+  ASSERT_SETS_EQ(bfs->basic_variables, (std::vector<size_t>{0, 1}));
 }

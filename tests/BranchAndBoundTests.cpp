@@ -15,9 +15,10 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     Matrix<Rational> b = {{40'000}, {200}};
     Matrix<Rational> c = {{100, 150, 0, 0}};
 
-    std::vector<size_t> integer = {0, 1};
+    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
+                             VariableType::SLACK, VariableType::SLACK};
 
-    MILPProblem problem(A, b, c, integer);
+    MILPProblem problem(A, b, c, variables);
     BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
     auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve());
 
@@ -40,9 +41,12 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     Matrix<Rational> b = {{120'000}, {12}, {1}, {1}, {1}, {1}, {1}};
     Matrix<Rational> c = {{300, 90, 400, 150, 0, 0, 0, 0, 0, 0, 0}};
 
-    std::vector<size_t> integer = {0, 1, 2, 3};
+    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
+                             VariableType::INTEGER, VariableType::INTEGER,
+                             VariableType::SLACK,   VariableType::SLACK,
+                             VariableType::SLACK,   VariableType::SLACK};
 
-    MILPProblem problem(A, b, c, integer);
+    MILPProblem problem(A, b, c, variables);
     BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
     auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve());
 
@@ -64,9 +68,9 @@ TEST(BranchAndBoundTests, InfiniteSolution) {
     Matrix<Rational> b = {{1}};
     Matrix<Rational> c = {{1, 0}};
 
-    std::vector<size_t> integer = {0, 1};
+    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER};
 
-    MILPProblem problem(A, b, c, integer);
+    MILPProblem problem(A, b, c, variables);
     BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
     auto solution = solver.solve();
 
@@ -79,9 +83,10 @@ TEST(BranchAndBoundTests, InfiniteSolution) {
     Matrix<Rational> b = {{1}, {1}};
     Matrix<Rational> c = {{1, 0, 0, 0}};
 
-    std::vector<size_t> integer = {0, 1, 2, 3};
+    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
+                             VariableType::INTEGER, VariableType::INTEGER};
 
-    MILPProblem problem(A, b, c, integer);
+    MILPProblem problem(A, b, c, variables);
     BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
     auto solution = solver.solve();
 
@@ -96,9 +101,10 @@ TEST(BranchAndBoundTests, NoFeasibleElements) {
   Matrix<Rational> b = {{-Rational{1} / 3}, {Rational{2} / 3}};
   Matrix<Rational> c = {{0, 1, 0, 0}};
 
-  std::vector<size_t> integer = {0, 1};
+  std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
+                           VariableType::SLACK, VariableType::SLACK};
 
-  MILPProblem problem(A, b, c, integer);
+  MILPProblem problem(A, b, c, variables);
   BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
   auto solution = solver.solve();
 

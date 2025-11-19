@@ -1,5 +1,4 @@
 #pragma once
-#include <fmt/format.h>
 
 #include <optional>
 #include <queue>
@@ -68,18 +67,18 @@ class GraphvizBuilder {
   void add_node(const Node<Field>* node) {
     std::string id = getId(node);
 
-    ss_ << fmt::format("  {} [label=\"UB={}\\nx_{} <> {}\"];\n", id,
+    ss_ << std::format("  {} [label=\"UB={}\\nx_{} <> {}\"];\n", id,
                        node->upper_bound, node->branching_variable,
                        node->branching_value);
 
     if (node->left) {
-      ss_ << fmt::format("  {} -> {} [label=\"left\"];\n", id,
+      ss_ << std::format("  {} -> {} [label=\"left\"];\n", id,
                          getId(node->left));
       add_node(node->left);
     }
 
     if (node->right) {
-      ss_ << fmt::format("  {} -> {} [label=\"right\"];\n", id,
+      ss_ << std::format("  {} -> {} [label=\"right\"];\n", id,
                          getId(node->right));
       add_node(node->right);
     }

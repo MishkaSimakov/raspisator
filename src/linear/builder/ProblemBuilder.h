@@ -147,8 +147,12 @@ class ProblemBuilder {
     objective_ = std::move(objective);
   }
 
-  // after this call a ProblemBuilder object is not safe to use
-  MILPProblem<Field> get_problem() && {
+  Field extract_variable(const Matrix<Field>& point,
+                         Variable<Field> variable) const {
+    return point[variable.id_, 0];
+  }
+
+  MILPProblem<Field> get_problem() {
     normalize();
 
     Matrix<Field> A(constraints_.size(), variables_.size(), 0);

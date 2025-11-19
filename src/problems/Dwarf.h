@@ -12,7 +12,7 @@ inline STN<Field> generate_problem() {
   auto* state1 = stn.add(InputState{});
   auto* state2 = stn.add(NormalState{0, 0, 50});
   auto* state3 = stn.add(NormalState{0, 0, 50});
-  auto* state4 = stn.add(OutputState{});
+  auto* state4 = stn.add(OutputState{0, 100});
 
   // Units
   auto* unit1 = stn.add(Unit<Field>{});
