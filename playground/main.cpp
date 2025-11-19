@@ -8,13 +8,16 @@
 #include "linear/builder/ProblemBuilder.h"
 #include "problems/Dwarf.h"
 #include "utils/Hashers.h"
+#include "utils/Drawing.h"
 
 using Field = Rational;
 
 int main() {
-  auto problem = generate_problem<Field>();
+  auto problem = dwarf_problem_normal<Field>();
 
-  size_t H = 3;  // number of periods
+  std::cout << to_graphviz(problem) << std::endl;
+
+  size_t H = 4;  // number of periods
 
   ProblemBuilder<Field> builder;
 
@@ -60,7 +63,7 @@ int main() {
   for (const auto& unit : problem.get_units()) {
     for (const auto& [task, props] : unit.get_tasks()) {
       for (size_t t = 0; t < H; ++t) {
-        Field finish_time(t + props.batch_processing_time - 1);
+        Field finish_time(t + props.batch_processing_time);
         builder.add_constraint(makespan >=
                                finish_time * starts.at({&unit, task, t}));
       }
@@ -243,7 +246,7 @@ int main() {
           Field x =
               builder.extract_variable(point, starts.at({&unit, task, t}));
           Field Q =
-              builder.extract_variable(point, starts.at({&unit, task, t}));
+              builder.extract_variable(point, quantities.at({&unit, task, t}));
 
           std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
                        x);

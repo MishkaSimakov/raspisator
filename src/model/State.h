@@ -17,6 +17,8 @@ class BaseState {
 class InputState : public BaseState {
  public:
   size_t initial_stock;
+
+  InputState(size_t initial_stock) : initial_stock(initial_stock) {}
 };
 
 class OutputState : public BaseState {

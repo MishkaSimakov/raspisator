@@ -3,7 +3,7 @@
 
 // figure 2 in Blomer et al., 2000
 template <typename Field>
-inline STN<Field> generate_problem() {
+STN<Field> blomer_problem() {
   STN<Field> stn;
 
   // States

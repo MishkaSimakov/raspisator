@@ -155,6 +155,8 @@ class ProblemBuilder {
   MILPProblem<Field> get_problem() {
     normalize();
 
+    std::cout << *this << std::endl;
+
     Matrix<Field> A(constraints_.size(), variables_.size(), 0);
     Matrix<Field> b(constraints_.size(), 1, 0);
     Matrix<Field> c(1, variables_.size(), 0);
