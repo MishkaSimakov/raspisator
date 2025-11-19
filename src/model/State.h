@@ -22,6 +22,11 @@ class InputState : public BaseState {
 class OutputState : public BaseState {
  public:
   size_t initial_stock;
+  size_t target;
+
+  OutputState(size_t initial_stock, size_t target) : 
+      initial_stock(initial_stock),
+      target(target) {}
 };
 
 class NonStorableState : public BaseState {};
