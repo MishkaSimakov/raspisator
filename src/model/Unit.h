@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 #include "Task.h"
 
@@ -24,6 +25,13 @@ class Unit {
   size_t get_id() const { return id_; }
 
   const auto& get_tasks() const { return tasks_; }
+
+  const TaskOnUnitProperties<Field>* get_properties(const Task<Field>* task) const {
+    for (const auto& p : tasks_) {
+      if (p.first == task) return &p.second;
+    }
+    return nullptr;
+  }
 
   void attach_task(const Task<Field>* task,
                    const TaskOnUnitProperties<Field>& properties) {
