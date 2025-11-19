@@ -8,13 +8,21 @@ class BaseState {
  protected:
   size_t id_{0};
 
+  template <typename F>
   friend class STN;
+
   friend class State;
 };
 
-class InputState : public BaseState {};
+class InputState : public BaseState {
+ public:
+  size_t initial_stock;
+};
 
-class OutputState : public BaseState {};
+class OutputState : public BaseState {
+ public:
+  size_t initial_stock;
+};
 
 class NonStorableState : public BaseState {};
 

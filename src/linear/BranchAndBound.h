@@ -8,7 +8,8 @@
 #include <unordered_map>
 
 #include "linear/Matrix.h"
-#include "linear/Solution.h"
+#include "linear/model/LP.h"
+#include "linear/model/MILP.h"
 
 // c x -> max, s.t. Ax = b, x >= 0
 // and all integer_indices variables are integer
@@ -97,7 +98,7 @@ class GraphvizBuilder {
 };
 
 // TODO: implement more efficient version for binary variables
-template <typename Field, typename LPSolver>
+template <typename Field, LPSolver<Field> LPSolver>
 class BranchAndBound {
   const MILPProblem<Field> problem_;
 
@@ -304,37 +305,22 @@ class BranchAndBound {
  public:
   explicit BranchAndBound(MILPProblem<Field> problem) : problem_(problem) {}
 
-  std::variant<FiniteMILPSolution<Field>, NoFeasibleElements, InfiniteSolution>
-  solve() {
-    NodeCalculationResult result;
-
-    result = calculate_node(nullptr, NodeType::ROOT);
-    if (result == NodeCalculationResult::INFINITE_SOLUTION) {
-      return InfiniteSolution{};
-    }
+  MILPSolution<Field> solve() {
+    calculate_node(nullptr, NodeType::ROOT);
 
     while (!queue_.empty()) {
-      std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
-
       // node with maximum upper bound
       auto* current_node = queue_.top();
       queue_.pop();
 
       current_node->calculated = true;
 
-      result = calculate_node(current_node, NodeType::LEFT_CHILD);
-      if (result == NodeCalculationResult::INFINITE_SOLUTION) {
-        return InfiniteSolution{};
-      }
-
-      result = calculate_node(current_node, NodeType::RIGHT_CHILD);
-      if (result == NodeCalculationResult::INFINITE_SOLUTION) {
-        return InfiniteSolution{};
-      }
+      calculate_node(current_node, NodeType::LEFT_CHILD);
+      calculate_node(current_node, NodeType::RIGHT_CHILD);
     }
 
     if (!lower_bound_) {
-      return NoFeasibleElements{};
+      return NoFiniteSolution{};
     }
 
     return FiniteMILPSolution{lower_bound_->second, lower_bound_->first};

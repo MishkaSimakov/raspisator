@@ -54,3 +54,53 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     ASSERT_EQ((solution.point[3, 0]), 0);
   }
 }
+
+// TODO: next two tests must be updated when BranchAndBound distinguishes
+// between InfiniteSolution and NoFiniteSolution
+TEST(BranchAndBoundTests, InfiniteSolution) {
+  {
+    Matrix<Rational> A = {{0, 1}};
+
+    Matrix<Rational> b = {{1}};
+    Matrix<Rational> c = {{1, 0}};
+
+    std::vector<size_t> integer = {0, 1};
+
+    MILPProblem problem(A, b, c, integer);
+    BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
+    auto solution = solver.solve();
+
+    ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));
+  }
+
+  {
+    Matrix<Rational> A = {{1, -1, 1, 0}, {-1, 1, 0, 1}};
+
+    Matrix<Rational> b = {{1}, {1}};
+    Matrix<Rational> c = {{1, 0, 0, 0}};
+
+    std::vector<size_t> integer = {0, 1, 2, 3};
+
+    MILPProblem problem(A, b, c, integer);
+    BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
+    auto solution = solver.solve();
+
+    ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));
+  }
+}
+
+TEST(BranchAndBoundTests, NoFeasibleElements) {
+  // x_2 -> max, s.t. 1/3 <= x_1 <= 2/3
+  Matrix<Rational> A = {{-1, 0, 1, 0}, {1, 0, 0, 1}};
+
+  Matrix<Rational> b = {{-Rational{1} / 3}, {Rational{2} / 3}};
+  Matrix<Rational> c = {{0, 1, 0, 0}};
+
+  std::vector<size_t> integer = {0, 1};
+
+  MILPProblem problem(A, b, c, integer);
+  BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
+  auto solution = solver.solve();
+
+  ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));
+}

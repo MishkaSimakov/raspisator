@@ -2,7 +2,7 @@
 #include <variant>
 
 #include "Matrix.h"
-#include "linear/Solution.h"
+#include "linear/model/LP.h"
 #include "utils/Variant.h"
 
 // basic feasible solution
@@ -276,16 +276,13 @@ class SimplexMethod {
   }
 
   // same as solve_from, but automatically finds bfs
-  using SimplexSolution = std::variant<FiniteLPSolution<Field>,
-                                       InfiniteSolution, NoFeasibleElements>;
-
-  SimplexSolution solve() {
+  LPSolution<Field> solve() {
     auto bfs = find_bfs();
 
     if (!bfs.has_value()) {
       return NoFeasibleElements{};
     }
 
-    return variant_cast<SimplexSolution>(solve_from(*bfs));
+    return variant_cast<LPSolution<Field>>(solve_from(*bfs));
   }
 };
