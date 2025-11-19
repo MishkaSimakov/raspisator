@@ -158,6 +158,9 @@ class SimplexMethod {
   // finds maximum starting from bfs (basic feasible solution)
   std::variant<FiniteLPSolution<Field>, InfiniteSolution> solve_from(
       BFS<Field> bfs) {
+    std::println("solving a problem with {}x{} matrix, appreciate this scale",
+                 A_.get_height(), A_.get_width());
+
     auto [n, d] = A_.shape();
 
     if (bfs.point.shape() != std::pair{d, 1}) {
@@ -167,6 +170,7 @@ class SimplexMethod {
     auto tableau = initialize_tableau(bfs);
 
     while (true) {
+      std::cout << "step" << std::endl;
       auto [entering_var, entering_var_delta] = find_entering_variable(tableau);
 
       if (entering_var_delta >= 0) {
@@ -278,6 +282,8 @@ class SimplexMethod {
   // same as solve_from, but automatically finds bfs
   LPSolution<Field> solve() {
     auto bfs = find_bfs();
+
+    std::cout << "found bfs" << std::endl;
 
     if (!bfs.has_value()) {
       return NoFeasibleElements{};

@@ -1,12 +1,12 @@
 #include <iostream>
+#include <print>
 
 #include "linear/BigInteger.h"
 #include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
-#include "linear/RowBasis.h"
 #include "linear/SimplexMethod.h"
 #include "linear/builder/ProblemBuilder.h"
-#include "problems/Blomer.h"
+#include "problems/Dwarf.h"
 #include "utils/Hashers.h"
 
 using Field = Rational;
@@ -14,12 +14,12 @@ using Field = Rational;
 int main() {
   auto problem = generate_problem<Field>();
 
-  size_t H = 10;  // number of periods
+  size_t H = 5;  // number of periods
 
   ProblemBuilder<Field> builder;
 
   // decision variables
-  auto makespan = builder.new_variable("MS");
+  auto makespan = builder.new_variable("MS", VariableType::INTEGER);
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
                      Variable<Field>>
       quantities;
@@ -33,11 +33,14 @@ int main() {
       for (size_t t = 0; t < H; ++t) {
         quantities.emplace(
             std::tuple{&unit, task, t},
-            builder.new_variable(fmt::format("Q({}, {}, {})", unit.get_id(),
-                                             task->get_id(), t)));
-        starts.emplace(std::tuple{&unit, task, t},
-                       builder.new_variable(fmt::format(
-                           "x({}, {}, {})", unit.get_id(), task->get_id(), t)));
+            builder.new_variable(
+                fmt::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
+                VariableType::INTEGER));
+        starts.emplace(
+            std::tuple{&unit, task, t},
+            builder.new_variable(
+                fmt::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
+                VariableType::INTEGER));
       }
     }
   }
@@ -47,7 +50,8 @@ int main() {
       for (size_t t = 0; t < H; ++t) {
         stocks.emplace(
             std::pair{&state, t},
-            builder.new_variable(fmt::format("p({}, {})", state.get_id(), t)));
+            builder.new_variable(fmt::format("p({}, {})", state.get_id(), t),
+                                 VariableType::INTEGER));
       }
     }
   }
@@ -189,10 +193,43 @@ int main() {
     }
   }
 
+  // variables domain
+  for (const auto& unit : problem.get_units()) {
+    for (const auto* task : unit.get_tasks() | std::views::keys) {
+      for (size_t t = 0; t < H; ++t) {
+        builder.add_constraint(starts.at({&unit, task, t}) <=
+                               Expression<Field>(1));
+      }
+    }
+  }
+
   // objective
   builder.set_objective(-makespan);
 
+  // solve MILP problem
+  auto milp_problem = std::move(builder).get_problem();
 
-  builder.normalize();
-  std::cout << builder << std::endl;
+  auto solution =
+      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem).solve();
+
+  if (std::holds_alternative<NoFiniteSolution>(solution)) {
+    std::println("No finite solution.");
+  } else {
+    auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
+
+    std::println("Finish production in {} time units.\n",
+                 finite_solution.value);
+
+    auto point = finite_solution.point;
+
+    // for (const auto& unit : problem.get_units()) {
+    //   std::println("schedule for unit {}:", unit.get_id());
+    //
+    //   for (size_t t = 0; t < H; ++t) {
+    //     for (const auto* task : unit.get_tasks() | std::views::keys) {
+    //       builder.extract_variable(solution, starts.at({&unit, task, t}));
+    //     }
+    //   }
+    // }
+  }
 }

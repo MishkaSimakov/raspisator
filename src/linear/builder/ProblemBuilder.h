@@ -1,22 +1,42 @@
 #pragma once
 
+#include <unordered_set>
+
 #include "Constraint.h"
 #include "Expression.h"
 #include "Variable.h"
+#include "linear/model/MILP.h"
 
 template <typename Field>
 class ProblemBuilder {
-  std::vector<std::string> variables_names_;
+  std::vector<std::pair<std::string, VariableType>> variables_;
 
   std::vector<Constraint<Field>> constraints_;
   Expression<Field> objective_;
 
   void print_expression(std::ostream& os, const Expression<Field>& expr) const {
-    for (const auto& [var, coef] : expr.variables_) {
-      os << coef << "*" << variables_names_.at(var) << " + ";
+    bool has_shift = expr.shift_ != 0;
+
+    for (auto itr = expr.variables_.begin(); itr != expr.variables_.end();
+         ++itr) {
+      bool is_last = std::next(itr) == expr.variables_.end();
+
+      if (itr->second == -1) {
+        os << "-";
+      } else if (itr->second != 1) {
+        os << itr->second << "*";
+      }
+
+      os << variables_.at(itr->first).first;
+
+      if (!is_last || has_shift) {
+        os << " + ";
+      }
     }
 
-    os << expr.shift_;
+    if (has_shift || expr.is_constant()) {
+      os << expr.shift_;
+    }
   }
 
   void print_constraint(std::ostream& os,
@@ -34,12 +54,40 @@ class ProblemBuilder {
     print_expression(os, constraint.rhs_);
   }
 
- public:
   // transforms all constraints into equalities (by adding slack variables)
   // moves all variables into lhs, all constants into rhs
-  // removes all useless constraints
-  // removes linearly dependent rows
+  // removes all constant constraints
+  // throws an exception if any constant constraint is false (e.g. 2 <= 1)
+  // removes unused variables
   void normalize() {
+    // move all variables to rhs
+    for (Constraint<Field>& constraint : constraints_) {
+      constraint.lhs_ -= constraint.rhs_;
+      constraint.rhs_ = Expression<Field>(0);
+      std::swap(constraint.lhs_.shift_, constraint.rhs_.shift_);
+      constraint.rhs_.shift_ *= -1;
+    }
+
+    // remove constant constraints
+    for (auto itr = constraints_.begin(); itr != constraints_.end();) {
+      switch (itr->evaluate()) {
+        case EvaluationResult::TRUE:
+          itr = constraints_.erase(itr);
+          break;
+        case EvaluationResult::FALSE:
+          throw std::runtime_error(
+              "Problem is trivially unfeasible. It contains a constant "
+              "constraint that evaluates to false.");
+          break;
+        case EvaluationResult::DONT_KNOW:
+          ++itr;
+          break;
+        default:
+          std::unreachable();
+      }
+    }
+
+    // transform all constraints into equalities
     size_t slack_index = 0;
 
     for (Constraint<Field>& constraint : constraints_) {
@@ -53,27 +101,36 @@ class ProblemBuilder {
       }
 
       // now it is <= constraint
-      auto slack_var = new_variable(fmt::format("slack({})", slack_index));
+      auto slack_var = new_variable(fmt::format("slack({})", slack_index),
+                                    VariableType::SLACK);
       ++slack_index;
 
       constraint.lhs_ += slack_var;
       constraint.type_ = ConstraintType::EQUAL;
     }
 
+    // remove unused variables
+    // TODO: finish this
+    // std::unordered_set<size_t> used;
     //
-    for (Constraint<Field>& constraint : constraints_) {
-      constraint.lhs_ -= constraint.rhs_;
-      constraint.rhs_ = Expression<Field>(0);
-      std::swap(constraint.lhs_.shift_, constraint.rhs_.shift_);
-    }
+    // for (const Constraint<Field>& constraint : constraints_) {
+    //   used.insert_range(constraint.lhs_.variables_ |
+    //   std::views::elements<0>); used.insert_range(constraint.rhs_.variables_
+    //   | std::views::elements<0>);
+    // }
+    //
+    // for (auto itr = variables_names_.begin(); itr != variables_names_.end();)
+    // {
+    //   if (itr->)
+    // }
   }
 
  public:
   explicit ProblemBuilder() = default;
 
-  Variable<Field> new_variable(std::string_view name) {
-    size_t index = variables_names_.size();
-    variables_names_.emplace_back(name);
+  Variable<Field> new_variable(std::string_view name, VariableType type) {
+    size_t index = variables_.size();
+    variables_.emplace_back(name, type);
 
     return Variable<Field>{index};
   }
@@ -83,16 +140,46 @@ class ProblemBuilder {
   }
 
   void set_objective(Expression<Field> objective) {
+    if (objective.shift_ != 0) {
+      throw std::invalid_argument("Objective must not contain a shift.");
+    }
+
     objective_ = std::move(objective);
   }
 
-  std::tuple<Matrix<Field>, Matrix<Field>, Matrix<Field>> get_matrices() {}
+  // after this call a ProblemBuilder object is not safe to use
+  MILPProblem<Field> get_problem() && {
+    normalize();
+
+    Matrix<Field> A(constraints_.size(), variables_.size(), 0);
+    Matrix<Field> b(constraints_.size(), 1, 0);
+    Matrix<Field> c(1, variables_.size(), 0);
+
+    for (const auto& [var, coef] : objective_.variables_) {
+      c[0, var] = coef;
+    }
+
+    for (size_t i = 0; i < constraints_.size(); ++i) {
+      for (const auto& [var, coef] : constraints_[i].lhs_.variables_) {
+        A[i, var] = coef;
+      }
+
+      b[i, 0] = constraints_[i].rhs_.shift_;
+    }
+
+    std::vector<VariableType> types(variables_.size());
+    for (size_t i = 0; i < variables_.size(); ++i) {
+      types[i] = variables_[i].second;
+    }
+
+    return {A, b, c, types};
+  }
 
   //
   friend std::ostream& operator<<(std::ostream& os,
                                   const ProblemBuilder& builder) {
-    os << "problem builder with " << builder.variables_names_.size()
-       << " variables:\n";
+    os << fmt::format("problem builder with {} variables and {} constraints\n",
+                      builder.variables_.size(), builder.constraints_.size());
 
     for (const Constraint<Field>& constraint : builder.constraints_) {
       builder.print_constraint(os, constraint);

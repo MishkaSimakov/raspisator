@@ -11,17 +11,6 @@
 #include "linear/model/LP.h"
 #include "linear/model/MILP.h"
 
-// c x -> max, s.t. Ax = b, x >= 0
-// and all integer_indices variables are integer
-template <typename Field>
-struct MILPProblem {
-  Matrix<Field> A;
-  Matrix<Field> b;
-  Matrix<Field> c;
-
-  std::vector<size_t> integer_indices;
-};
-
 // Branch and Bound nodes
 template <typename Field>
 struct Node {
@@ -130,7 +119,11 @@ class BranchAndBound {
     size_t max_fractional_index = 0;
     Field max_fractional_value = 0;
 
-    for (auto i : problem_.integer_indices) {
+    for (size_t i = 0; i < problem_.variables_.size(); ++i) {
+      if (problem_.variables_[i] != VariableType::INTEGER) {
+        continue;
+      }
+
       Field fractional =
           solution[i, 0] - FieldTraits<Field>::floor(solution[i, 0]);
 
@@ -309,6 +302,8 @@ class BranchAndBound {
     calculate_node(nullptr, NodeType::ROOT);
 
     while (!queue_.empty()) {
+      std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
+
       // node with maximum upper bound
       auto* current_node = queue_.top();
       queue_.pop();
