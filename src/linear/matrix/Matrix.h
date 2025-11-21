@@ -98,6 +98,15 @@ class MatrixSlice {
     return *this;
   }
 
+  MatrixSlice& operator=(const MatrixSlice<const Field>& other)
+    requires(!std::is_const_v<Field>)
+  {
+    apply_elementwise(other,
+                      [](Field& left, const Field& right) { left = right; });
+
+    return *this;
+  }
+
   Field& operator[](size_t row, size_t col) {
     return element_access_impl(row, col);
   }
@@ -168,6 +177,23 @@ class MatrixSlice {
   friend Matrix<std::remove_const_t<Field>>;
   friend MatrixSlice<std::decay_t<Field>>;
 };
+
+namespace std {
+template <typename Field>
+void swap(MatrixSlice<Field> lhs, MatrixSlice<Field> rhs) {
+  if (lhs.shape() != rhs.shape()) {
+    throw DimensionsException("Matrices must have same shape for swap.");
+  }
+
+  auto [n, d] = lhs.shape();
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < d; ++j) {
+      std::swap(lhs[i, j], rhs[i, j]);
+    }
+  }
+}
+}  // namespace std
 
 template <typename Field>
 class Matrix {
