@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
+#include "linear/matrix/Matrix.h"
 #include "Assertions.h"
 #include "linear/BigInteger.h"
-#include "linear/Matrix.h"
 #include "linear/RowBasis.h"
 
 TEST(RowBasisTests, UnityMatrix) {

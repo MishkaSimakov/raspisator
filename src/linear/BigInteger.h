@@ -1006,6 +1006,13 @@ inline std::istream& operator>>(std::istream& is, Rational& rational) {
 template <>
 struct FieldTraits<Rational> {
   static Rational floor(const Rational& value) { return value.floor(); }
+
+  static Rational abs(const Rational& value) {
+    return value < 0 ? -value : value;
+  }
+
+  static bool is_strictly_positive(const Rational& value) { return value > 0; }
+  static bool is_strictly_negative(const Rational& value) { return value < 0; }
 };
 
 template <>

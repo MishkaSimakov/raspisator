@@ -4,7 +4,7 @@
 #include <variant>
 #include <vector>
 
-#include "linear/Matrix.h"
+#include "linear/matrix/Matrix.h"
 
 template <typename Field>
 struct FiniteLPSolution {

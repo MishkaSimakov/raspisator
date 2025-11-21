@@ -6,9 +6,9 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "linear/Matrix.h"
 #include "linear/model/LP.h"
 #include "linear/model/MILP.h"
+#include "matrix/Matrix.h"
 
 // Branch and Bound nodes
 template <typename Field>

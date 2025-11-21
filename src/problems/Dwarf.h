@@ -1,6 +1,5 @@
 #pragma once
 
-#include "linear/BigInteger.h"
 #include "model/STN.h"
 
 // a miniscule problems straight out of my head
@@ -30,8 +29,8 @@ STN<Field> dwarf_problem_normal() {
   unit2->attach_task(task2, {1, 5, 30});
 
   auto* task3 = stn.add(Task<Field>{});
-  task3->add_input(state2, Rational{1} / 2);
-  task3->add_input(state3, Rational{1} / 2);
+  task3->add_input(state2, Field{1} / 2);
+  task3->add_input(state3, Field{1} / 2);
   task3->add_output(state4, 1);
   unit1->attach_task(task3, {1, 50, 200});
 

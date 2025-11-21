@@ -2,7 +2,7 @@
 
 #include <variant>
 
-#include "linear/Matrix.h"
+#include "linear/matrix/Matrix.h"
 
 enum class VariableType { INTEGER, SLACK, REAL };
 

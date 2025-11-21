@@ -3,8 +3,8 @@
 #include <iostream>
 #include <variant>
 
+#include "linear/matrix/Matrix.h"
 #include "linear/BigInteger.h"
-#include "linear/Matrix.h"
 #include "linear/SimplexMethod.h"
 
 TEST(SimplexMethodTests, TableauInitialization) {

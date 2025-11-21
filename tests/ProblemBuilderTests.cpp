@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
+#include "linear/matrix/Matrix.h"
 #include "linear/BigInteger.h"
 #include "linear/BranchAndBound.h"
-#include "linear/Matrix.h"
 #include "linear/SimplexMethod.h"
 #include "linear/builder/ProblemBuilder.h"
 

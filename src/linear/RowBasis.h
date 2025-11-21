@@ -3,7 +3,7 @@
 #include <numeric>
 #include <vector>
 
-#include "linear/Matrix.h"
+#include "matrix/Matrix.h"
 
 template <typename Field>
 std::vector<size_t> get_row_basis(Matrix<Field> matrix) {

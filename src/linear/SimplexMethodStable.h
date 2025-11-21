@@ -27,21 +27,24 @@ struct BFS {
   }
 };
 
+// Double, double toil and trouble;
+// Fire burn and caldron bubble.
+// - Macbeth
+//
+// There are a lot of problems about a double. This version of SimplexMethod
+// is trying to be numerically stable.
+
 // Solves cx -> max, Ax = b, x >= 0
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
 // it is assumed that n < d
-
-// Important Note: this method is NOT numerically stable!
-// Therefore, the result may be incorrect when using Field = double or float.
-// Use Rational instead.
 template <typename Field>
-class SimplexMethod {
+class SimplexMethodStable {
   Matrix<Field> A_;
   Matrix<Field> b_;
   Matrix<Field> c_;
 
  public:
-  SimplexMethod(Matrix<Field> A, Matrix<Field> b, Matrix<Field> c)
+  SimplexMethodStable(Matrix<Field> A, Matrix<Field> b, Matrix<Field> c)
       : A_(std::move(A)), b_(std::move(b)), c_(std::move(c)) {
     // check sizes
     auto [n, d] = A_.shape();
@@ -78,6 +81,61 @@ class SimplexMethod {
     return max;
   }
 
+  static std::pair<size_t, Field> find_entering_variable(
+      const Matrix<Field>& tableau) {
+    Field min_delta_value = 0;
+    size_t min_delta_index = 0;
+
+    // TODO:
+    // it is said in this article that in case of tie
+    // decision variables must have priority over slack variables
+    // https://www.nascollege.org/econtent/ecotent-10-4-20/DR%20K%20K%20KANSAL/L%2010%20M%20COM%2020-4-E.pdf
+    for (size_t j = 0; j < tableau.get_width() - 1; ++j) {
+      Field delta = tableau[tableau.get_height() - 1, j + 1];
+
+      if (delta <= min_delta_value) {
+        min_delta_value = delta;
+        min_delta_index = j;
+      }
+    }
+
+    return std::pair{min_delta_index, min_delta_value};
+  }
+
+  static void pivot(Matrix<Field>& tableau, std::vector<size_t>& basic_vars,
+                    size_t entering_var, size_t leaving_var) {
+    basic_vars[leaving_var] = entering_var;
+  }
+
+  static std::optional<size_t> find_leaving_variable(
+      const Matrix<Field>& tableau, size_t entering_var) {
+    std::optional<Field> min_t_value = std::nullopt;
+    size_t min_t_index = 0;
+
+    for (size_t i = 0; i < tableau.get_height() - 1; ++i) {
+      if (!FieldTraits<Field>::is_strictly_positive(
+              tableau[i, entering_var + 1])) {
+        continue;
+      }
+
+      // std::cout << tableau[i, entering_var + 1] << " ";
+      Field t = tableau[i, 0] / tableau[i, entering_var + 1];
+
+      if (!min_t_value || t < *min_t_value) {
+        min_t_value = t;
+        min_t_index = i;
+      }
+    }
+
+    // std::cout << std::endl;
+
+    // if (min_t_value) {
+    // std::println("min t value={}", *min_t_value);
+    // }
+
+    return min_t_value ? std::optional{min_t_index} : std::nullopt;
+  }
+
   // bfs is (d, 1) matrix
   // returns tableau and a vector holding indices of basic variables
   Matrix<Field> initialize_tableau(BFS<Field> bfs) {
@@ -99,7 +157,18 @@ class SimplexMethod {
     }
 
     //
+
     auto inv = A_b.inverse();
+    for (size_t i = 0; i < inv.get_height(); ++i) {
+      for (size_t j = 0; j < inv.get_width(); ++j) {
+        if (FieldTraits<Field>::is_zero(inv[i, j])) {
+          inv[i, j] = 0;
+        }
+      }
+    }
+
+    std::cout << "A_b^-1" << std::endl;
+    std::cout << inv << std::endl;
 
     auto X = inv * A_;
     auto deltas = c_b * X - c_;
@@ -125,54 +194,6 @@ class SimplexMethod {
     return tableau;
   }
 
-  static std::pair<size_t, Field> find_entering_variable(
-      const Matrix<Field>& tableau) {
-    Field min_delta_value = 0;
-    size_t min_delta_index = 0;
-
-    // TODO:
-    // it is said in this article that in case of tie
-    // decision variables must have priority over slack variables
-    // https://www.nascollege.org/econtent/ecotent-10-4-20/DR%20K%20K%20KANSAL/L%2010%20M%20COM%2020-4-E.pdf
-    for (size_t j = 0; j < tableau.get_width() - 1; ++j) {
-      Field delta = tableau[tableau.get_height() - 1, j + 1];
-
-      if (delta <= min_delta_value) {
-        min_delta_value = delta;
-        min_delta_index = j;
-      }
-    }
-
-    return std::pair{min_delta_index, min_delta_value};
-  }
-
-  static void pivot(Matrix<Field>& tableau, std::vector<size_t>& basic_vars,
-                    size_t entering_var, size_t leaving_var) {
-    basic_vars[leaving_var] = entering_var;
-    tableau.gaussian_elimination(leaving_var, entering_var + 1);
-  }
-
-  static std::optional<size_t> find_leaving_variable(
-      const Matrix<Field>& tableau, size_t entering_var) {
-    std::optional<Field> min_t_value = std::nullopt;
-    size_t min_t_index = 0;
-
-    for (size_t i = 0; i < tableau.get_height() - 1; ++i) {
-      if (tableau[i, entering_var + 1] <= 0) {
-        continue;
-      }
-
-      Field t = tableau[i, 0] / tableau[i, entering_var + 1];
-
-      if (!min_t_value || t < *min_t_value) {
-        min_t_value = t;
-        min_t_index = i;
-      }
-    }
-
-    return min_t_value ? std::optional{min_t_index} : std::nullopt;
-  }
-
   // finds maximum starting from bfs (basic feasible solution)
   std::variant<FiniteLPSolution<Field>, InfiniteSolution> solve_from(
       BFS<Field> bfs) {
@@ -182,12 +203,15 @@ class SimplexMethod {
       throw std::invalid_argument("bfs has wrong shape.");
     }
 
-    auto tableau = initialize_tableau(bfs);
-
     while (true) {
+      auto tableau = initialize_tableau(bfs);
+      std::cout << tableau << std::endl;
+      std::println("error after pivoting: {}",
+                   estimate_rounding_errors(tableau, bfs.basic_variables));
+
       auto [entering_var, entering_var_delta] = find_entering_variable(tableau);
 
-      if (entering_var_delta >= 0) {
+      if (!FieldTraits<Field>::is_strictly_negative(entering_var_delta)) {
         // solution is found
         Matrix<Field> point(d, 1, 0);
 
@@ -208,10 +232,9 @@ class SimplexMethod {
         return InfiniteSolution{};
       }
 
-      pivot(tableau, bfs.basic_variables, entering_var, *leaving_var);
+      // std::println("pivot: delta={}", entering_var_delta);
 
-      std::println("error after pivoting: {}",
-                   estimate_rounding_errors(tableau, bfs.basic_variables));
+      pivot(tableau, bfs.basic_variables, entering_var, *leaving_var);
     }
   }
 
@@ -251,7 +274,7 @@ class SimplexMethod {
       basic_vars[i] = d + i;
     }
 
-    auto solver = SimplexMethod(std::move(A_new), b_, std::move(c_new));
+    auto solver = SimplexMethodStable(std::move(A_new), b_, std::move(c_new));
 
     // InfiniteSolution is impossible here
     auto solution = std::get<FiniteLPSolution<Field>>(
@@ -275,8 +298,7 @@ class SimplexMethod {
 
       for (size_t j = 0; j < d; ++j) {
         if (solution.tableau[i, j + 1] != 0) {
-          SimplexMethod::pivot(solution.tableau, solution.basic_variables, j,
-                               i);
+          pivot(solution.tableau, solution.basic_variables, j, i);
           pivoted = true;
         }
       }
