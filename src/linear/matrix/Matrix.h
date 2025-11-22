@@ -397,63 +397,6 @@ class Matrix {
     return MatrixSlice<const Field>(*this)[rows, cols];
   }
 
-  Matrix& inverse() {
-    auto [n, m] = shape();
-    if (n != m) {
-      throw std::invalid_argument("Matrix must be square for inverse.");
-    }
-
-    auto inv = Matrix::unity(n);
-
-    struct MultiplicationHook {
-      Matrix& inv;
-
-      explicit MultiplicationHook(Matrix& inv) : inv(inv) {}
-
-      void operator()(size_t multiplicand, Field multiplier) {
-        for (size_t j = 0; j < inv.shape().second; ++j) {
-          inv[multiplicand, j] *= multiplier;
-        }
-      }
-    };
-
-    struct SubtractionHook {
-      Matrix& inv;
-
-      explicit SubtractionHook(Matrix& inv) : inv(inv) {}
-
-      void operator()(size_t minuend, size_t subtrahend, Field multiplier) {
-        for (size_t j = 0; j < inv.shape().second; ++j) {
-          inv[minuend, j] -= inv[subtrahend, j] * multiplier;
-        }
-      }
-    };
-
-    for (size_t j = 0; j < n; ++j) {
-      size_t nonzero_row_index = n;
-
-      for (size_t i = j; i < n; ++i) {
-        if ((*this)[i, j] != 0) {
-          nonzero_row_index = i;
-          break;
-        }
-      }
-
-      if (nonzero_row_index == n) {
-        throw std::invalid_argument("Matrix must be non-singular.");
-      }
-
-      inv.swap_rows(j, nonzero_row_index);
-      swap_rows(j, nonzero_row_index);
-
-      gaussian_elimination(j, j, SubtractionHook{inv}, MultiplicationHook{inv});
-    }
-
-    std::swap(inv, *this);
-
-    return *this;
-  }
-
   bool operator==(const Matrix& other) const {
     if (other.rows_count_ != rows_count_ || other.cols_count_ != cols_count_) {
       return false;
@@ -468,47 +411,6 @@ class Matrix {
     }
 
     return true;
-  }
-
-  // gaussian elimination
-  struct NoopSubtractHook {
-    void operator()(size_t minuend, size_t subtrahend, Field multiplier) {}
-  };
-
-  struct NoopMultiplyHook {
-    void operator()(size_t multiplicand, Field multiplier) {}
-  };
-
-  // subtracts row #row_index from other rows, so the column #col_index becomes
-  // (0, ..., 1, 0, ..., 0)^T, where 1 is in row #row_index
-  template <typename SubtractHook = NoopSubtractHook,
-            typename MultiplyHook = NoopMultiplyHook>
-  void gaussian_elimination(size_t row_index, size_t col_index,
-                            SubtractHook subtract_hook = {},
-                            MultiplyHook multiply_hook = {}) {
-    if ((*this)[row_index, col_index] == 0) {
-      throw std::invalid_argument(
-          "Element must be non-zero for gaussian elimination.");
-    }
-
-    Field inverse = 1 / (*this)[row_index, col_index];
-    multiply_hook(row_index, inverse);
-    for (size_t j = 0; j < cols_count_; ++j) {
-      (*this)[row_index, j] *= inverse;
-    }
-
-    for (size_t i = 0; i < rows_count_; ++i) {
-      if (i == row_index || (*this)[i, col_index] == 0) {
-        continue;
-      }
-
-      Field coef = (*this)[i, col_index];
-      subtract_hook(i, row_index, coef);
-
-      for (size_t j = 0; j < cols_count_; ++j) {
-        (*this)[i, j] -= (*this)[row_index, j] * coef;
-      }
-    }
   }
 };
 
@@ -645,7 +547,7 @@ template <MatrixLike T>
 Matrix<matrix_field_t<T>> transposed(T&& matrix) {
   auto [n, d] = matrix.shape();
 
-  Matrix<matrix_field_t<T>> result(n, d);
+  Matrix<matrix_field_t<T>> result(d, n);
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < d; ++j) {

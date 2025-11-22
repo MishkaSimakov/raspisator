@@ -3,6 +3,7 @@
 #include <numeric>
 
 #include "Matrix.h"
+#include "linear/FieldTraits.h"
 
 namespace linalg {
 template <MatrixLike T>

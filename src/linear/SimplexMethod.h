@@ -1,9 +1,13 @@
 #pragma once
+
+#include <algorithm>
+#include <ranges>
 #include <variant>
 
 #include "linear/model/LP.h"
 #include "matrix/LU.h"
 #include "matrix/Matrix.h"
+#include "matrix/RowBasis.h"
 #include "utils/Variant.h"
 
 // basic feasible solution
@@ -102,11 +106,15 @@ class SimplexMethod {
 
       auto change = linalg::dot(dual_point, A_[{0, n}, i]) - c_[0, i];
 
+      // std::cout << change << " ";
+
       if (change < min_change) {
         min_change_index = i;
         min_change = change;
       }
     }
+
+    // std::cout << std::endl;
 
     return {min_change_index, min_change};
   }
@@ -136,6 +144,8 @@ class SimplexMethod {
       }
     }
 
+    // std::println("min t: {}", *min_t_value);
+
     return min_t_value ? std::optional{min_t_index} : std::nullopt;
   }
 
@@ -156,6 +166,7 @@ class SimplexMethod {
 
     // solve Ly = Pb
     auto y = linalg::solve_lower(L, Pb, std::true_type{});
+    // std::cout << "y" << y << std::endl;
 
     // solve Ux = y
     auto x = linalg::solve_upper(U, y, std::false_type{});
@@ -188,16 +199,26 @@ class SimplexMethod {
       cb[i, 0] = c_[0, basic_vars[i]];
     }
 
-    // TODO: lots of unnecessary copying here
-    auto z = linalg::solve_lower(linalg::transposed(U), cb, std::false_type{});
-    auto y = linalg::solve_upper(linalg::transposed(L), z, std::true_type{});
+    // PB = LU
+    // solving (P^-1 LU)^T x = cb
+    // U^T L^T P^-T x = cb
 
+    // TODO: lots of unnecessary copying here
+    // U^T z = cb
+    auto z = linalg::solve_lower(linalg::transposed(U), cb, std::false_type{});
+    // assert(linalg::transposed(U) * z == cb);
+    // L^T y = z
+    auto y = linalg::solve_upper(linalg::transposed(L), z, std::true_type{});
+    // assert(linalg::transposed(L) * y == z);
+
+    // P^-T x = y
+    // x = P^T y
     std::vector<size_t> transposed_P(n);
     for (size_t i = 0; i < n; ++i) {
       transposed_P[P[i]] = i;
     }
 
-    return linalg::apply_permutation(y, P);
+    return linalg::apply_permutation(y, transposed_P);
   }
 
   // finds maximum starting from bfs (basic feasible solution)
@@ -210,13 +231,23 @@ class SimplexMethod {
     }
 
     while (true) {
-      auto [L, U, P] = get_basic_lup(bfs.basic_variables);
+      // temporary
+      size_t n = bfs.basic_variables.size();
+      Matrix<Field> B(n, n);
 
-      std::cout << "basic variables" << std::endl;
-      for (auto i : bfs.basic_variables) {
-        std::cout << i << " ";
+      for (size_t i = 0; i < n; ++i) {
+        B[{0, n}, i] = A_[{0, n}, bfs.basic_variables[i]];
       }
-      std::cout << std::endl;
+      //
+
+      auto [L, U, P] = get_basic_lup(bfs.basic_variables);
+      // std::cout << L << "\n" << U << std::endl;
+
+      // std::cout << "basic variables" << std::endl;
+      // for (auto i : bfs.basic_variables) {
+      // std::cout << i << " ";
+      // }
+      // std::cout << std::endl;
       //
       // std::cout << "L\n" << L << "\nU\n" << U << std::endl;
 
@@ -224,14 +255,23 @@ class SimplexMethod {
       // Bu = b
       auto point = get_point(L, U, P);
 
+      // std::cout << point << std::endl;
+      // assert(B * point == b_);
+
       // obtain a solution of a dual problem by solving
       // B^T u = c_b
       auto dual_point = get_dual_point(L, U, P, bfs.basic_variables);
+      Matrix<Field> cb(n, 1);
+      for (size_t i = 0; i < n; ++i) {
+        cb[i, 0] = c_[0, bfs.basic_variables[i]];
+      }
+
+      // assert(linalg::transposed(B) * dual_point == cb);
 
       auto [entering_var, change] =
           find_entering_variable(dual_point, bfs.basic_variables);
 
-      std::cout << change << std::endl;
+      // std::cout << change << std::endl;
 
       if (!FieldTraits<Field>::is_strictly_negative(change)) {
         // solution is found
@@ -243,10 +283,21 @@ class SimplexMethod {
 
         Field value = (c_ * extended_point)[0, 0];
 
+        // std::cout << extended_point << std::endl;
+
         return FiniteLPSolution{std::move(extended_point),
                                 std::move(bfs.basic_variables),
                                 std::move(value)};
       }
+
+      // temporary
+      // Matrix<Field> extended_point(d, 1, 0);
+      // for (size_t i = 0; i < n; ++i) {
+      //   extended_point[bfs.basic_variables[i], 0] = point[i, 0];
+      // }
+      // Field value = (c_ * extended_point)[0, 0];
+      //
+      // std::cout << "value: " << value << std::endl;
 
       // obtain coordinates of entering variable by solving
       // By = A_s, where s is the entering variable index
@@ -271,13 +322,12 @@ class SimplexMethod {
     for (size_t i = 0; i < n; ++i) {
       if (b_[i, 0] < 0) {
         // multiply whole equation by -1
-        b_[i, 0] = -b_[i, 0];
-
-        for (size_t j = 0; j < d; ++j) {
-          A_[i, j] = -A_[i, j];
-        }
+        b_[i, 0] *= -1;
+        A_[i, {0, d}] *= -1;
       }
     }
+
+    // std::cout << b_ << std::endl;
 
     // add artificial variables
     auto A_new = A_.get_extended(n, d + n, 0);
@@ -305,53 +355,84 @@ class SimplexMethod {
         solver.solve_from(BFS{bfs_new, basic_vars}));
 
     // Case 1
-    if (solution.value < 0) {
+    if (FieldTraits<Field>::is_strictly_negative(solution.value)) {
       return std::nullopt;
     }
 
     // Case 2: try to eliminate artificial variables from basic variables (if
     // there are any) using pivot operation
 
+    std::ranges::sort(solution.basic_variables);
+
+    // Case 2 (a): all basic variables are real
+    if (solution.basic_variables.back() < d) {
+      return BFS<Field>{solution.point[{0, d}, 0],
+                        std::move(solution.basic_variables)};
+    }
+
+    // Case 2 (b): there are artificial variables amongst basic variables.
+    // Trying to replace them with a real ones.
+    Matrix<Field> A_copy(d, n);
+
+    size_t current_row = 0;
+    std::vector<size_t> column_index_mapping(d);
+
+    // first we copy columns, corresponding to basic variables
     for (size_t i = 0; i < solution.basic_variables.size(); ++i) {
-      if (solution.basic_variables[i] < d) {
+      if (solution.basic_variables[i] >= d) {
         continue;
       }
 
-      // artificial basic variable -> try to pivot
-      bool pivoted = false;
-
-      // TODO: pivoting
-      // for (size_t j = 0; j < d; ++j) {
-      //   if (solution.tableau[i, j + 1] != 0) {
-      //     pivot(solution.tableau, solution.basic_variables, j, i);
-      //     pivoted = true;
-      //   }
-      // }
-
-      if (!pivoted) {
-        // rows of A are linearly dependent
-        throw std::runtime_error(
-            "Linear dependent rows in A. This case is not implemented yet.");
+      for (size_t j = 0; j < n; ++j) {
+        A_copy[i, j] = A_[j, solution.basic_variables[i]];
       }
+
+      column_index_mapping[current_row] = solution.basic_variables[i];
+
+      ++current_row;
     }
 
-    auto bfs = Matrix<Field>(d, 1);
+    // then copy remaining columns from A
+    for (size_t i = 0; i < d; ++i) {
+      if (std::ranges::find(solution.basic_variables, i) !=
+          solution.basic_variables.end()) {
+        continue;
+      }
+
+      for (size_t j = 0; j < n; ++j) {
+        A_copy[current_row, j] = A_[j, i];
+      }
+
+      column_index_mapping[current_row] = i;
+
+      ++current_row;
+    }
+
+    auto row_basis = linalg::get_row_basis(std::move(A_copy));
+
+    if (row_basis.size() < n) {
+      // rows of A are linearly dependent
+      throw std::runtime_error(
+          "Linear dependent rows in A. This case is not implemented yet.");
+    }
+
     for (size_t i = 0; i < n; ++i) {
-      bfs[i, 0] = solution.point[i, 0];
+      row_basis[i] = column_index_mapping[row_basis[i]];
     }
 
-    return BFS<Field>{bfs, std::move(solution.basic_variables)};
+    return BFS<Field>{solution.point[{0, d}, 0], std::move(row_basis)};
   }
 
   // same as solve_from, but automatically finds bfs
   LPSolution<Field> solve() {
     auto bfs = find_bfs();
 
-    std::cout << "found bfs" << std::endl;
-
     if (!bfs.has_value()) {
       return NoFeasibleElements{};
     }
+
+    // std::cout << "found bfs" << std::endl;
+    // std::cout << bfs->point << std::endl;
 
     return variant_cast<LPSolution<Field>>(solve_from(*bfs));
   }

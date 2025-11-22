@@ -233,7 +233,7 @@ TEST(LUTests, SolveTransposedUsingLUChain) {
     transposed_P[P[i]] = i;
   }
 
-  auto x = linalg::apply_permutation(y, P);
+  auto x = linalg::apply_permutation(y, transposed_P);
 
   ASSERT_EQ(x.shape(), (std::pair{N, 1}));
   ASSERT_EQ(linalg::transposed(A) * x, b);

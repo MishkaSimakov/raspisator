@@ -13,7 +13,7 @@
 using Field = Rational;
 
 int main() {
-  auto problem = dwarf_problem_small<Field>();
+  auto problem = dwarf_problem_smaller<Field>();
 
   std::cout << to_graphviz(problem) << std::endl;
 

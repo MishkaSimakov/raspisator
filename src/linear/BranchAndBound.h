@@ -227,6 +227,9 @@ class BranchAndBound {
   NodeCalculationResult calculate_node(Node<Field>* parent, NodeType type) {
     auto [A, b, c, shifts] = apply_constraints(parent, type);
 
+    // std::cout << "c:\n" << c << std::endl;
+    // std::cout << "A | b:\n" << linalg::hstack(A, b) << std::endl;
+
     auto relaxed_solution = LPSolver(A, b, c).solve();
 
     // prune branch if there is no feasible solution
@@ -238,11 +241,11 @@ class BranchAndBound {
     }
 
     auto& finite_solution = std::get<FiniteLPSolution<Field>>(relaxed_solution);
+
+    // std::cout << linalg::transposed(finite_solution.point) << std::endl;
     for (size_t i = 0; i < shifts.size(); ++i) {
       finite_solution.point[i, 0] -= shifts[i];
     }
-
-    std::cout << finite_solution.point << std::endl;
 
     auto br_variable = find_branching(finite_solution.point);
 
@@ -309,7 +312,9 @@ class BranchAndBound {
 
       current_node->calculated = true;
 
+      std::cout << "left child" << std::endl;
       calculate_node(current_node, NodeType::LEFT_CHILD);
+      std::cout << "right child" << std::endl;
       calculate_node(current_node, NodeType::RIGHT_CHILD);
     }
 

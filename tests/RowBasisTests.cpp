@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
 
-#include "linear/matrix/Matrix.h"
+#include "../src/linear/matrix/RowBasis.h"
 #include "Assertions.h"
 #include "linear/BigInteger.h"
-#include "linear/RowBasis.h"
+#include "linear/matrix/Matrix.h"
 
 TEST(RowBasisTests, UnityMatrix) {
   auto unity = Matrix<Rational>::unity(3);
 
-  auto row_basis = get_row_basis(unity);
+  auto row_basis = linalg::get_row_basis(unity);
 
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1, 2}));
 }
@@ -16,7 +16,7 @@ TEST(RowBasisTests, UnityMatrix) {
 TEST(RowBasisTests, LinearlyDependentRows) {
   Matrix<Rational> matrix = {{1, 1, 0, 0}, {0, 0, 1, 1}, {1, 1, 1, 1}};
 
-  auto row_basis = get_row_basis(matrix);
+  auto row_basis = linalg::get_row_basis(matrix);
 
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1}));
 }
@@ -24,7 +24,7 @@ TEST(RowBasisTests, LinearlyDependentRows) {
 TEST(RowBasisTests, ZeroRow) {
   Matrix<Rational> matrix = {{1, 0}, {0, 1}, {0, 0}};
 
-  auto row_basis = get_row_basis(matrix);
+  auto row_basis = linalg::get_row_basis(matrix);
 
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1}));
 }
@@ -33,7 +33,7 @@ TEST(RowBasisTests, LongRows) {
   Matrix<Rational> matrix = {
       {1, 1, 0, 0}, {0, 0, 1, 1}, {0, 1, 0, 1}, {1, 0, 1, 0}};
 
-  auto row_basis = get_row_basis(matrix);
+  auto row_basis = linalg::get_row_basis(matrix);
 
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1, 2}));
 }
@@ -45,7 +45,7 @@ TEST(RowBasisTests, RowPermutations) {
       {0, 1},
   };
 
-  auto row_basis = get_row_basis(matrix);
+  auto row_basis = linalg::get_row_basis(matrix);
 
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
 }

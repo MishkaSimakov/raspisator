@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "linear/BigInteger.h"
+#include "linear/matrix/Elimination.h"
 #include "linear/matrix/Matrix.h"
 
 // some type checks
@@ -64,7 +65,7 @@ TEST(MatrixTests, Equality) {
 
 TEST(MatrixTests, InverseScalar) {
   Matrix<Rational> matrix = {{5}};
-  matrix.inverse();
+  matrix = linalg::inverse(matrix);
 
   Matrix<Rational> expected = {{Rational(1) / 5}};
 
@@ -73,7 +74,7 @@ TEST(MatrixTests, InverseScalar) {
 
 TEST(MatrixTests, InverseMatrix) {
   Matrix<Rational> matrix = {{4, 3}, {3, 2}};
-  matrix.inverse();
+  matrix = linalg::inverse(matrix);
 
   Matrix<Rational> expected = {{-2, 3}, {3, -4}};
 
@@ -85,7 +86,7 @@ TEST(MatrixTests, InvertMultiply) {
     Matrix<Rational> matrix = {{4, 3}, {3, 2}};
 
     auto inverse = matrix;
-    inverse.inverse();
+    matrix = linalg::inverse(matrix);
 
     ASSERT_EQ(matrix * inverse, Matrix<Rational>::unity(2));
     ASSERT_EQ(inverse * matrix, Matrix<Rational>::unity(2));
@@ -95,7 +96,7 @@ TEST(MatrixTests, InvertMultiply) {
     Matrix<Rational> matrix = {{0, 3, 0}, {0, 0, 2}, {1, 0, 0}};
 
     auto inverse = matrix;
-    inverse.inverse();
+    matrix = linalg::inverse(matrix);
 
     ASSERT_EQ(matrix * inverse, Matrix<Rational>::unity(3));
     ASSERT_EQ(inverse * matrix, Matrix<Rational>::unity(3));
@@ -114,7 +115,7 @@ TEST(MatrixTests, AddSubtract) {
 TEST(MatrixTests, SimpleGaussElimination) {
   Matrix<Rational> matrix = {{1, 0}, {1, 1}};
 
-  matrix.gaussian_elimination(0, 0);
+  linalg::gaussian_elimination(matrix, 0, 0);
 
   ASSERT_EQ(matrix, (Matrix<Rational>{{1, 0}, {0, 1}}));
 }
@@ -122,7 +123,7 @@ TEST(MatrixTests, SimpleGaussElimination) {
 TEST(MatrixTests, GaussEliminationWithZeros) {
   Matrix<Rational> matrix = {{1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
 
-  matrix.gaussian_elimination(0, 0);
+  linalg::gaussian_elimination(matrix, 0, 0);
 
   ASSERT_EQ(matrix, (Matrix<Rational>{{1, 0, 1}, {0, 1, 0}, {0, 1, 1}}));
 }

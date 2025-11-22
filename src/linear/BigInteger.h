@@ -3,6 +3,7 @@
 #include <fmt/ostream.h>
 
 #include <algorithm>
+#include <cassert>
 #include <compare>
 #include <iomanip>
 #include <sstream>
@@ -1013,6 +1014,8 @@ struct FieldTraits<Rational> {
 
   static bool is_strictly_positive(const Rational& value) { return value > 0; }
   static bool is_strictly_negative(const Rational& value) { return value < 0; }
+
+  static bool is_nonzero(const Rational& value) { return value != 0; }
 };
 
 template <>

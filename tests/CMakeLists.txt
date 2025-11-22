@@ -11,6 +11,7 @@ target_sources(tests PUBLIC
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
         LUTests.cpp
+        NumericalStabilityTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
