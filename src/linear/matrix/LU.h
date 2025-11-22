@@ -119,4 +119,63 @@ std::vector<size_t> inplace_lup(T&& matrix) {
   return P;
 }
 
+// solves Ax = b, where A is lower triangular
+template <MatrixLike U, MatrixLike V, bool ones_on_diagonal>
+Matrix<common_field_t<U, V>> solve_lower(U&& A, V&& b,
+                                         std::bool_constant<ones_on_diagonal>) {
+  using Field = common_field_t<U, V>;
+
+  Matrix<Field> result = b;
+
+  for (size_t i = 0; i < b.get_height(); ++i) {
+    for (size_t j = 0; j < i; ++j) {
+      result[i, 0] -= result[j, 0] * A[i, j];
+    }
+
+    if constexpr (!ones_on_diagonal) {
+      result[i, 0] /= A[i, i];
+    }
+  }
+
+  return result;
+}
+
+// solves Ax = b, where A is upper triangular matrix
+template <MatrixLike U, MatrixLike V, bool ones_on_diagonal>
+Matrix<common_field_t<U, V>> solve_upper(U&& A, V&& b,
+                                         std::bool_constant<ones_on_diagonal>) {
+  using Field = common_field_t<U, V>;
+
+  Matrix<Field> result = b;
+  const size_t n = b.get_height();
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = n - i; j < n; ++j) {
+      result[n - i - 1, 0] -= result[j, 0] * A[n - i - 1, j];
+    }
+
+    if constexpr (!ones_on_diagonal) {
+      result[n - i - 1, 0] /= A[n - i - 1, n - i - 1];
+    }
+  }
+
+  return result;
+}
+
+// this method combines with LUP decomposition
+// if LU = PA, then L * U = apply_permutation(A, P)
+template <MatrixLike T>
+Matrix<matrix_field_t<T>> apply_permutation(
+    T&& matrix, const std::vector<size_t>& permutation) {
+  auto [n, d] = matrix.shape();
+
+  Matrix<matrix_field_t<T>> result(n, d);
+
+  for (size_t i = 0; i < n; ++i) {
+    result[i, {0, d}] = matrix[permutation[i], {0, d}];
+  }
+
+  return result;
+}
+
 }  // namespace linalg

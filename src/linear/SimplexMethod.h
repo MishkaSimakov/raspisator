@@ -2,6 +2,7 @@
 #include <variant>
 
 #include "linear/model/LP.h"
+#include "matrix/LU.h"
 #include "matrix/Matrix.h"
 #include "utils/Variant.h"
 
@@ -27,13 +28,16 @@ struct BFS {
   }
 };
 
+// Double, double toil and trouble;
+// Fire burn and caldron bubble.
+// - Macbeth
+//
+// There are a lot of problems with a double. This version of SimplexMethod
+// is trying to be numerically stable.
+
 // Solves cx -> max, Ax = b, x >= 0
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
 // it is assumed that n < d
-
-// Important Note: this method is NOT numerically stable!
-// Therefore, the result may be incorrect when using Field = double or float.
-// Use Rational instead.
 template <typename Field>
 class SimplexMethod {
   Matrix<Field> A_;
@@ -78,91 +82,53 @@ class SimplexMethod {
     return max;
   }
 
-  // bfs is (d, 1) matrix
-  // returns tableau and a vector holding indices of basic variables
-  Matrix<Field> initialize_tableau(BFS<Field> bfs) {
+  // TODO:
+  // it is said in this article that in case of tie
+  // decision variables must have priority over slack variables
+  // https://www.nascollege.org/econtent/ecotent-10-4-20/DR%20K%20K%20KANSAL/L%2010%20M%20COM%2020-4-E.pdf
+  std::pair<size_t, Field> find_entering_variable(
+      const Matrix<Field>& dual_point,
+      const std::vector<size_t>& basic_vars) const {
+    Field min_change = 0;
+    size_t min_change_index = 0;
+
     auto [n, d] = A_.shape();
 
-    auto tableau = Matrix<Field>(n + 1, d + 1);
-
-    // build A_b
-    auto A_b = Matrix<Field>(n, n);
-    auto c_b = Matrix<Field>(1, n);
-
-    for (size_t i = 0; i < bfs.basic_variables.size(); ++i) {
-      // copy i-th column into A_b
-      c_b[0, i] = c_[0, bfs.basic_variables[i]];
-
-      for (size_t j = 0; j < n; ++j) {
-        A_b[j, i] = A_[j, bfs.basic_variables[i]];
-      }
-    }
-
-    //
-    auto inv = A_b.inverse();
-
-    auto X = inv * A_;
-    auto deltas = c_b * X - c_;
-    auto b_x = inv * b_;
-    auto value = c_b * b_x;
-
-    for (size_t i = 0; i < n; ++i) {
-      for (size_t j = 0; j < d; ++j) {
-        tableau[i, j + 1] = X[i, j];
-      }
-    }
-
-    for (size_t i = 0; i < n; ++i) {
-      tableau[i, 0] = b_x[i, 0];
-    }
-
-    for (size_t j = 0; j < d; ++j) {
-      tableau[n, j + 1] = deltas[0, j];
-    }
-
-    tableau[n, 0] = value[0, 0];
-
-    return tableau;
-  }
-
-  static std::pair<size_t, Field> find_entering_variable(
-      const Matrix<Field>& tableau) {
-    Field min_delta_value = 0;
-    size_t min_delta_index = 0;
-
-    // TODO:
-    // it is said in this article that in case of tie
-    // decision variables must have priority over slack variables
-    // https://www.nascollege.org/econtent/ecotent-10-4-20/DR%20K%20K%20KANSAL/L%2010%20M%20COM%2020-4-E.pdf
-    for (size_t j = 0; j < tableau.get_width() - 1; ++j) {
-      Field delta = tableau[tableau.get_height() - 1, j + 1];
-
-      if (delta <= min_delta_value) {
-        min_delta_value = delta;
-        min_delta_index = j;
-      }
-    }
-
-    return std::pair{min_delta_index, min_delta_value};
-  }
-
-  static void pivot(Matrix<Field>& tableau, std::vector<size_t>& basic_vars,
-                    size_t entering_var, size_t leaving_var) {
-    basic_vars[leaving_var] = entering_var;
-    tableau.gaussian_elimination(leaving_var, entering_var + 1);
-  }
-
-  static std::optional<size_t> find_leaving_variable(
-      const Matrix<Field>& tableau, size_t entering_var) {
-    std::optional<Field> min_t_value = std::nullopt;
-    size_t min_t_index = 0;
-
-    for (size_t i = 0; i < tableau.get_height() - 1; ++i) {
-      if (tableau[i, entering_var + 1] <= 0) {
+    for (size_t i = 0; i < d; ++i) {
+      // TODO: store basic vars as a set?
+      if (std::ranges::find(basic_vars, i) != basic_vars.end()) {
         continue;
       }
 
-      Field t = tableau[i, 0] / tableau[i, entering_var + 1];
+      auto change = linalg::dot(dual_point, A_[{0, n}, i]) - c_[0, i];
+
+      if (change < min_change) {
+        min_change_index = i;
+        min_change = change;
+      }
+    }
+
+    return {min_change_index, min_change};
+  }
+
+  static void pivot(std::vector<size_t>& basic_vars, size_t entering_var,
+                    size_t leaving_var) {
+    basic_vars[leaving_var] = entering_var;
+  }
+
+  std::optional<size_t> find_leaving_variable(
+      const Matrix<Field>& point, const Matrix<Field>& entering_coords) const {
+    std::optional<Field> min_t_value = std::nullopt;
+    size_t min_t_index = 0;
+
+    size_t n = A_.get_height();
+
+    for (size_t i = 0; i < n; ++i) {
+      if (!FieldTraits<Field>::is_strictly_positive(entering_coords[i, 0])) {
+        continue;
+      }
+
+      Field t = point[i, 0] / entering_coords[i, 0];
 
       if (!min_t_value || t < *min_t_value) {
         min_t_value = t;
@@ -171,6 +137,67 @@ class SimplexMethod {
     }
 
     return min_t_value ? std::optional{min_t_index} : std::nullopt;
+  }
+
+  auto get_basic_lup(const std::vector<size_t>& basic_vars) {
+    size_t n = basic_vars.size();
+    Matrix<Field> temp(n, n);
+
+    for (size_t i = 0; i < n; ++i) {
+      temp[{0, n}, i] = A_[{0, n}, basic_vars[i]];
+    }
+
+    return linalg::get_lup(temp);
+  }
+
+  auto get_point(const Matrix<Field>& L, const Matrix<Field>& U,
+                 const std::vector<size_t>& P) {
+    auto Pb = linalg::apply_permutation(b_, P);
+
+    // solve Ly = Pb
+    auto y = linalg::solve_lower(L, Pb, std::true_type{});
+
+    // solve Ux = y
+    auto x = linalg::solve_upper(U, y, std::false_type{});
+
+    return x;
+  }
+
+  auto get_entering_coordinates(const Matrix<Field>& L, const Matrix<Field>& U,
+                                const std::vector<size_t>& P,
+                                size_t entering_var) {
+    auto Pb =
+        linalg::apply_permutation(A_[{0, A_.get_height()}, entering_var], P);
+
+    // solve Ly = Pb
+    auto y = linalg::solve_lower(L, Pb, std::true_type{});
+
+    // solve Ux = y
+    auto x = linalg::solve_upper(U, y, std::false_type{});
+
+    return x;
+  }
+
+  auto get_dual_point(const Matrix<Field>& L, const Matrix<Field>& U,
+                      const std::vector<size_t>& P,
+                      const std::vector<size_t>& basic_vars) {
+    size_t n = A_.get_height();
+
+    Matrix<Field> cb(n, 1);
+    for (size_t i = 0; i < n; ++i) {
+      cb[i, 0] = c_[0, basic_vars[i]];
+    }
+
+    // TODO: lots of unnecessary copying here
+    auto z = linalg::solve_lower(linalg::transposed(U), cb, std::false_type{});
+    auto y = linalg::solve_upper(linalg::transposed(L), z, std::true_type{});
+
+    std::vector<size_t> transposed_P(n);
+    for (size_t i = 0; i < n; ++i) {
+      transposed_P[P[i]] = i;
+    }
+
+    return linalg::apply_permutation(y, P);
   }
 
   // finds maximum starting from bfs (basic feasible solution)
@@ -182,36 +209,56 @@ class SimplexMethod {
       throw std::invalid_argument("bfs has wrong shape.");
     }
 
-    auto tableau = initialize_tableau(bfs);
-
     while (true) {
-      auto [entering_var, entering_var_delta] = find_entering_variable(tableau);
+      auto [L, U, P] = get_basic_lup(bfs.basic_variables);
 
-      if (entering_var_delta >= 0) {
+      std::cout << "basic variables" << std::endl;
+      for (auto i : bfs.basic_variables) {
+        std::cout << i << " ";
+      }
+      std::cout << std::endl;
+      //
+      // std::cout << "L\n" << L << "\nU\n" << U << std::endl;
+
+      // obtain point associated with given basic variables by solving
+      // Bu = b
+      auto point = get_point(L, U, P);
+
+      // obtain a solution of a dual problem by solving
+      // B^T u = c_b
+      auto dual_point = get_dual_point(L, U, P, bfs.basic_variables);
+
+      auto [entering_var, change] =
+          find_entering_variable(dual_point, bfs.basic_variables);
+
+      std::cout << change << std::endl;
+
+      if (!FieldTraits<Field>::is_strictly_negative(change)) {
         // solution is found
-        Matrix<Field> point(d, 1, 0);
+        Matrix<Field> extended_point(d, 1, 0);
 
         for (size_t i = 0; i < n; ++i) {
-          point[bfs.basic_variables[i], 0] = tableau[i, 0];
+          extended_point[bfs.basic_variables[i], 0] = point[i, 0];
         }
 
-        Field value = tableau[n, 0];
+        Field value = (c_ * extended_point)[0, 0];
 
-        return FiniteLPSolution{std::move(point),
+        return FiniteLPSolution{std::move(extended_point),
                                 std::move(bfs.basic_variables),
-                                std::move(value), std::move(tableau)};
+                                std::move(value)};
       }
 
-      auto leaving_var = find_leaving_variable(tableau, entering_var);
+      // obtain coordinates of entering variable by solving
+      // By = A_s, where s is the entering variable index
+      auto entering_coords = get_entering_coordinates(L, U, P, entering_var);
+
+      auto leaving_var = find_leaving_variable(point, entering_coords);
 
       if (!leaving_var) {
         return InfiniteSolution{};
       }
 
-      pivot(tableau, bfs.basic_variables, entering_var, *leaving_var);
-
-      std::println("error after pivoting: {}",
-                   estimate_rounding_errors(tableau, bfs.basic_variables));
+      pivot(bfs.basic_variables, entering_var, *leaving_var);
     }
   }
 
@@ -273,13 +320,13 @@ class SimplexMethod {
       // artificial basic variable -> try to pivot
       bool pivoted = false;
 
-      for (size_t j = 0; j < d; ++j) {
-        if (solution.tableau[i, j + 1] != 0) {
-          SimplexMethod::pivot(solution.tableau, solution.basic_variables, j,
-                               i);
-          pivoted = true;
-        }
-      }
+      // TODO: pivoting
+      // for (size_t j = 0; j < d; ++j) {
+      //   if (solution.tableau[i, j + 1] != 0) {
+      //     pivot(solution.tableau, solution.basic_variables, j, i);
+      //     pivoted = true;
+      //   }
+      // }
 
       if (!pivoted) {
         // rows of A are linearly dependent

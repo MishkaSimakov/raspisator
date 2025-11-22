@@ -183,3 +183,51 @@ TEST(MatrixTests, SliceMultiplication) {
 
   ASSERT_EQ(matrix, (Matrix{{1, 84}, {3, 168}}));
 }
+
+TEST(MatrixTests, MatrixFromSlice) {
+  Matrix A = {{1, 2}, {3, 4}};
+
+  {
+    Matrix sliced = A[{0, 2}, 0];
+    ASSERT_EQ(sliced, (Matrix{{1}, {3}}));
+  }
+
+  {
+    Matrix sliced = A[1, {0, 2}];
+    ASSERT_EQ(sliced, (Matrix{{3, 4}}));
+  }
+
+  {
+    const Matrix<int>& const_ref = A;
+    Matrix sliced = const_ref[1, {0, 2}];
+    ASSERT_EQ(sliced, (Matrix{{3, 4}}));
+  }
+}
+
+TEST(MatrixTests, SliceFromSlice) {
+  Matrix A = {{1, 2}, {3, 4}};
+
+  auto slice = A[{0, 2}, 1];
+  ASSERT_EQ((slice[0, 0]), 2);
+  ASSERT_EQ((slice[1, 0]), 4);
+}
+
+TEST(MatrixTests, SliceFromSliceAssignment) {
+  Matrix A = {{1, 2}, {3, 4}};
+
+  auto slice = A[{0, 2}, 1];
+  slice[0, 0] = 123;
+
+  ASSERT_EQ((A[0, 1]), 123);
+}
+
+TEST(MatrixTests, SliceAssignment) {
+  Matrix A = {{0}};
+  Matrix B = {{0, 123}};
+
+  auto B_slice = B[{0, 1}, 1];
+
+  A[0, {0, 1}] = B_slice[0, {0, 1}];
+
+  ASSERT_EQ(A, (Matrix{{123}}));
+}

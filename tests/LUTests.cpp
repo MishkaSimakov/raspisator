@@ -46,19 +46,6 @@ void check_L(const Matrix<Field>& matrix) {
   }
 }
 
-template <typename Field>
-Matrix<Field> apply_permutation(const Matrix<Field>& matrix,
-                                const std::vector<size_t>& permutation) {
-  auto [n, d] = matrix.shape();
-  Matrix<Field> result(n, d);
-
-  for (size_t i = 0; i < n; ++i) {
-    result[permutation[i], {0, d}] = matrix[i, {0, d}];
-  }
-
-  return result;
-}
-
 TEST(LUTests, SimpleLU) {
   Matrix<Rational> A = {{1, 2}, {3, 4}};
 
@@ -113,7 +100,7 @@ TEST(LUTests, SimpleLUP) {
 
   auto [L, U, P] = linalg::get_lup(A);
 
-  auto product = apply_permutation(L * U, P);
+  auto product = linalg::apply_permutation(L * U, P);
   ASSERT_EQ(product, A);
 }
 
@@ -125,8 +112,7 @@ TEST(LUTests, BigLUP) {
   check_L(L);
   check_U(U);
 
-  auto product = apply_permutation(L * U, P);
-  ASSERT_EQ(product, A);
+  ASSERT_EQ(L * U, linalg::apply_permutation(A, P));
 }
 
 TEST(LUTests, BigInPlaceLUP) {
@@ -146,5 +132,109 @@ TEST(LUTests, BigInPlaceLUP) {
     U[i, {i, N}] = A[i, {i, N}];
   }
 
-  ASSERT_EQ(apply_permutation(L * U, P), A_copy);
+  // LU = PA
+  ASSERT_EQ(L * U, linalg::apply_permutation(A_copy, P));
+}
+
+TEST(LUTests, SolveL) {
+  const size_t N = 50;
+
+  auto A = big_matrix(N);
+  auto [L, U, P] = linalg::get_lup(A);
+
+  auto b = Matrix<Rational>(N, 1, 1);
+
+  auto s = linalg::solve_lower(L, b, std::true_type{});
+
+  ASSERT_EQ(s.shape(), (std::pair{N, 1}));
+  ASSERT_EQ(L * s, b);
+}
+
+TEST(LUTests, SolveSmallU) {
+  Matrix<Rational> U = {{1, 2, 3}, {0, 4, 5}, {0, 0, 6}};
+  auto b = Matrix<Rational>(3, 1, 1);
+
+  auto s = linalg::solve_upper(U, b, std::false_type{});
+  Matrix expected = {{Rational{5} / 12}, {Rational{1} / 24}, {Rational{1} / 6}};
+
+  ASSERT_EQ(s.shape(), (std::pair{3, 1}));
+  ASSERT_EQ(s, expected);
+}
+
+TEST(LUTests, SolveBigU) {
+  const size_t N = 40;
+
+  auto A = big_matrix(N);
+  auto [L, U, P] = linalg::get_lup(A);
+
+  auto b = Matrix<Rational>(N, 1, 1);
+
+  auto s = linalg::solve_upper(U, b, std::false_type{});
+
+  ASSERT_EQ(s.shape(), (std::pair{N, 1}));
+  ASSERT_EQ(U * s, b);
+}
+
+TEST(LUTests, SolveUsingLUChain) {
+  const size_t N = 50;
+
+  auto A = big_matrix(N);
+  auto [L, U, P] = linalg::get_lup(A);
+
+  auto b = Matrix<Rational>(N, 1);
+  for (size_t i = 0; i < N; ++i) {
+    b[i, 0] = i;
+  }
+
+  // solving Ax = b
+  // PA = LU
+  // Ax = b iff LUx = Pb
+
+  // calculate Pb
+  auto Pb = linalg::apply_permutation(b, P);
+
+  // solve Ly = Pb
+  auto y = linalg::solve_lower(L, Pb, std::true_type{});
+
+  // solve Ux = y
+  auto x = linalg::solve_upper(U, y, std::false_type{});
+
+  ASSERT_EQ(x.shape(), (std::pair{N, 1}));
+  ASSERT_EQ(A * x, b);
+}
+
+TEST(LUTests, SolveTransposedUsingLUChain) {
+  const size_t N = 50;
+
+  auto A = big_matrix(N);
+  auto [L, U, P] = linalg::get_lup(A);
+
+  auto b = Matrix<Rational>(N, 1);
+  for (size_t i = 0; i < N; ++i) {
+    b[i, 0] = i;
+  }
+
+  // solving A^T x = b
+  // PA = LU
+  // Ax = b iff U^T L^T P^-T x = b
+
+  // solve U^T z = b
+  auto z = linalg::solve_lower(linalg::transposed(U), b, std::false_type{});
+
+  // solve L^T y = z
+  auto y = linalg::solve_upper(linalg::transposed(L), z, std::true_type{});
+
+  // solve P^-T x = y
+  // P^-T x = y iff x = P^T y
+
+  // transpose permutation
+  std::vector<size_t> transposed_P(N);
+  for (size_t i = 0; i < N; ++i) {
+    transposed_P[P[i]] = i;
+  }
+
+  auto x = linalg::apply_permutation(y, P);
+
+  ASSERT_EQ(x.shape(), (std::pair{N, 1}));
+  ASSERT_EQ(linalg::transposed(A) * x, b);
 }

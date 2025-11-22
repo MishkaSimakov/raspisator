@@ -68,6 +68,12 @@ class MatrixSlice {
         throw std::invalid_argument("The index is outside of boundaries.");
       }
 
+      rows_range.first += rows_range_.first;
+      rows_range.second += rows_range_.first;
+
+      cols_range.first += cols_range_.first;
+      cols_range.second += cols_range_.first;
+
       return MatrixSlice(data_, rows_, cols_, rows_range, cols_range);
     }
   }
@@ -206,37 +212,37 @@ class Matrix {
   }
 
  public:
-  Matrix(const Matrix& other)
-      : data_(other.data_),
-        rows_count_(other.rows_count_),
-        cols_count_(other.cols_count_) {
-    std::cout << "Matrix copy" << std::endl;
-  }
-
-  Matrix(Matrix&& other)
-      : data_(std::move(other.data_)),
-        rows_count_(other.rows_count_),
-        cols_count_(other.cols_count_) {
-    std::cout << "Matrix move" << std::endl;
-  }
-
-  Matrix& operator=(const Matrix& other) {
-    std::cout << "Matrix copy assignment" << std::endl;
-    data_ = other.data_;
-    rows_count_ = other.rows_count_;
-    cols_count_ = other.cols_count_;
-
-    return *this;
-  }
-
-  Matrix& operator=(Matrix&& other) {
-    std::cout << "Matrix move assignment" << std::endl;
-    data_ = std::move(other.data_);
-    rows_count_ = other.rows_count_;
-    cols_count_ = other.cols_count_;
-
-    return *this;
-  }
+  // Matrix(const Matrix& other)
+  //     : data_(other.data_),
+  //       rows_count_(other.rows_count_),
+  //       cols_count_(other.cols_count_) {
+  //   std::cout << "Matrix copy" << std::endl;
+  // }
+  //
+  // Matrix(Matrix&& other)
+  //     : data_(std::move(other.data_)),
+  //       rows_count_(other.rows_count_),
+  //       cols_count_(other.cols_count_) {
+  //   std::cout << "Matrix move" << std::endl;
+  // }
+  //
+  // Matrix& operator=(const Matrix& other) {
+  //   std::cout << "Matrix copy assignment" << std::endl;
+  //   data_ = other.data_;
+  //   rows_count_ = other.rows_count_;
+  //   cols_count_ = other.cols_count_;
+  //
+  //   return *this;
+  // }
+  //
+  // Matrix& operator=(Matrix&& other) {
+  //   std::cout << "Matrix move assignment" << std::endl;
+  //   data_ = std::move(other.data_);
+  //   rows_count_ = other.rows_count_;
+  //   cols_count_ = other.cols_count_;
+  //
+  //   return *this;
+  // }
 
   Matrix() : Matrix(0, 0) {}
 
@@ -264,6 +270,16 @@ class Matrix {
       ++row;
       col = 0;
     }
+  }
+
+  Matrix(MatrixSlice<Field> slice)
+      : Matrix(slice.get_height(), slice.get_width()) {
+    MatrixSlice<Field>(*this) = slice;
+  }
+
+  Matrix(MatrixSlice<const Field> slice)
+      : Matrix(slice.get_height(), slice.get_width()) {
+    MatrixSlice<Field>(*this) = slice;
   }
 
   void swap_rows(size_t first, size_t second) {
@@ -496,6 +512,9 @@ class Matrix {
   }
 };
 
+template <class F>
+Matrix(MatrixSlice<F>) -> Matrix<std::remove_const_t<F>>;
+
 template <MatrixLike L, MatrixLike R>
 Matrix<common_field_t<L, R>> operator*(L&& left, R&& right) {
   auto [n1, m1] = left.shape();
@@ -618,6 +637,39 @@ Matrix<common_field_t<Head, Tail...>> hstack(Head&& leftmost, Tail&&... rest) {
 
   adder(leftmost);
   (adder(rest), ...);
+
+  return result;
+}
+
+template <MatrixLike T>
+Matrix<matrix_field_t<T>> transposed(T&& matrix) {
+  auto [n, d] = matrix.shape();
+
+  Matrix<matrix_field_t<T>> result(n, d);
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < d; ++j) {
+      result[j, i] = matrix[i, j];
+    }
+  }
+
+  return result;
+}
+
+template <MatrixLike L, MatrixLike R>
+common_field_t<L, R> dot(L&& left, R&& right) {
+  size_t n = left.get_height();
+
+  if (left.shape() != std::pair{n, 1} || right.shape() != std::pair{n, 1}) {
+    throw DimensionsException(
+        "Matrices must have shape (n, 1) for dot product.");
+  }
+
+  common_field_t<L, R> result;
+
+  for (size_t i = 0; i < n; ++i) {
+    result += left[i, 0] * right[i, 0];
+  }
 
   return result;
 }

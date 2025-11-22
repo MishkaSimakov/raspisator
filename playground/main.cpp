@@ -4,28 +4,13 @@
 #include "linear/BigInteger.h"
 #include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
-#include "linear/SimplexMethodStable.h"
+#include "linear/SimplexMethod.h"
 #include "linear/builder/ProblemBuilder.h"
 #include "problems/Dwarf.h"
-#include "utils/Drawing.h"
 #include "utils/Hashers.h"
+#include "utils/Drawing.h"
 
-using Field = double;
-using Method = SimplexMethodStable<Field>;
-
-template <>
-struct FieldTraits<double> {
-  static double floor(double value) { return std::floor(value); }
-
-  static double abs(double value) { return std::abs(value); }
-
-  static bool is_strictly_positive(double value) { return value > 1e-10; }
-  static bool is_strictly_negative(double value) { return value < -1e-10; }
-
-  static bool is_zero(double value) {
-    return !is_strictly_negative(value) && !is_strictly_positive(value);
-  }
-};
+using Field = Rational;
 
 int main() {
   auto problem = dwarf_problem_small<Field>();
@@ -240,40 +225,35 @@ int main() {
   // solve MILP problem
   auto milp_problem = builder.get_problem();
 
-  // auto solution = BranchAndBound<Field, Method>(milp_problem).solve();
+  auto solution =
+      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem).solve();
 
-  // if (std::holds_alternative<NoFiniteSolution>(solution)) {
-  //   std::println("No finite solution.");
-  // } else {
-  //   auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
-  //
-  //   std::println("Finish production in {} time units.\n",
-  //                -finite_solution.value);
-  //
-  //   auto point = finite_solution.point;
-  //
-  //   for (const auto& unit : problem.get_units()) {
-  //     std::println("schedule for unit {}:", unit.get_id());
-  //
-  //     for (size_t t = 0; t < H; ++t) {
-  //       for (const auto* task : unit.get_tasks() | std::views::keys) {
-  //         Field x =
-  //             builder.extract_variable(point, starts.at({&unit, task, t}));
-  //         Field Q =
-  //             builder.extract_variable(point, quantities.at({&unit, task,
-  //             t}));
-  //
-  //         std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(),
-  //         t,
-  //                      x);
-  //         std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(),
-  //         t,
-  //                      Q);
-  //       }
-  //     }
-  //   }
-  // }
+  if (std::holds_alternative<NoFiniteSolution>(solution)) {
+    std::println("No finite solution.");
+  } else {
+    auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
 
-  Method solver(milp_problem.A, milp_problem.b, milp_problem.c);
-  solver.solve();
+    std::println("Finish production in {} time units.\n",
+                 -finite_solution.value);
+
+    auto point = finite_solution.point;
+
+    for (const auto& unit : problem.get_units()) {
+      std::println("schedule for unit {}:", unit.get_id());
+
+      for (size_t t = 0; t < H; ++t) {
+        for (const auto* task : unit.get_tasks() | std::views::keys) {
+          Field x =
+              builder.extract_variable(point, starts.at({&unit, task, t}));
+          Field Q =
+              builder.extract_variable(point, quantities.at({&unit, task, t}));
+
+          std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       x);
+          std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       Q);
+        }
+      }
+    }
+  }
 }

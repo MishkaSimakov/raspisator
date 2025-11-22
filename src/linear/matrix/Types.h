@@ -26,7 +26,8 @@ template <typename Field>
 struct matrix_field_helper<Matrix<Field>> : std::type_identity<Field> {};
 
 template <typename Field>
-struct matrix_field_helper<MatrixSlice<Field>> : std::type_identity<Field> {};
+struct matrix_field_helper<MatrixSlice<Field>>
+    : std::type_identity<std::decay_t<Field>> {};
 
 template <typename T>
 struct matrix_field : matrix_field_helper<std::decay_t<T>> {};
