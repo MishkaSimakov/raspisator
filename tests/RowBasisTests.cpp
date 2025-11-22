@@ -49,3 +49,49 @@ TEST(RowBasisTests, RowPermutations) {
 
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
 }
+
+TEST(RowBasisTests, CompleteRowBasis1) {
+  Matrix<Rational> matrix = {
+      {1, 0},
+      {0, 0},
+      {0, 1},
+  };
+
+  auto row_basis = linalg::complete_row_basis(matrix, std::vector<size_t>{0});
+
+  ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
+}
+
+TEST(RowBasisTests, CompleteRowBasis2) {
+  Matrix<Rational> matrix = {
+    {1, 0},
+    {0, 0},
+    {0, 1},
+    {0, 0}
+};
+
+  auto row_basis = linalg::complete_row_basis(matrix, std::vector<size_t>{0});
+
+  ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
+}
+
+TEST(RowBasisTests, CompleteRowBasisUnityMatrix) {
+  auto matrix = Matrix<Rational>::unity(50);
+
+  std::vector<size_t> expected(50);
+  std::iota(expected.begin(), expected.end(), 0);
+
+  {
+    std::vector<size_t> partial_basis(25);
+    std::iota(partial_basis.begin(), partial_basis.end(), 0);
+
+    auto row_basis = linalg::complete_row_basis(matrix, partial_basis);
+
+    ASSERT_SETS_EQ(row_basis, expected);
+  }
+
+  {
+    auto row_basis = linalg::complete_row_basis(matrix, expected);
+    ASSERT_SETS_EQ(row_basis, expected);
+  }
+}

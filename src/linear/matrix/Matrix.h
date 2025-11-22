@@ -282,16 +282,6 @@ class Matrix {
     MatrixSlice<Field>(*this) = slice;
   }
 
-  void swap_rows(size_t first, size_t second) {
-    if (first == second) {
-      return;
-    }
-
-    for (size_t j = 0; j < cols_count_; ++j) {
-      std::swap((*this)[first, j], (*this)[second, j]);
-    }
-  }
-
   Matrix get_extended(size_t new_height, size_t new_width,
                       Field fill_value) const {
     if (new_height < rows_count_ || new_width < cols_count_) {

@@ -242,7 +242,6 @@ class BranchAndBound {
 
     auto& finite_solution = std::get<FiniteLPSolution<Field>>(relaxed_solution);
 
-    // std::cout << linalg::transposed(finite_solution.point) << std::endl;
     for (size_t i = 0; i < shifts.size(); ++i) {
       finite_solution.point[i, 0] -= shifts[i];
     }
@@ -261,8 +260,9 @@ class BranchAndBound {
     Field upper_bound = finite_solution.value - total_shift;
 
     // prune branch if all values are integer
-    if (fractional == 0 &&
-        (!lower_bound_ || lower_bound_->first < upper_bound)) {
+    if (!FieldTraits<Field>::is_strictly_positive(fractional) &&
+        (!lower_bound_ || FieldTraits<Field>::is_strictly_positive(
+                              lower_bound_->first - upper_bound))) {
       size_t d = problem_.A.get_width();
 
       Matrix<Field> trimmed_solution(d, 1);
@@ -304,7 +304,7 @@ class BranchAndBound {
     calculate_node(nullptr, NodeType::ROOT);
 
     while (!queue_.empty()) {
-      std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
+      // std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
 
       // node with maximum upper bound
       auto* current_node = queue_.top();
@@ -312,9 +312,9 @@ class BranchAndBound {
 
       current_node->calculated = true;
 
-      std::cout << "left child" << std::endl;
+      // std::cout << "left child" << std::endl;
       calculate_node(current_node, NodeType::LEFT_CHILD);
-      std::cout << "right child" << std::endl;
+      // std::cout << "right child" << std::endl;
       calculate_node(current_node, NodeType::RIGHT_CHILD);
     }
 

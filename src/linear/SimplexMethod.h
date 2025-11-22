@@ -372,52 +372,20 @@ class SimplexMethod {
 
     // Case 2 (b): there are artificial variables amongst basic variables.
     // Trying to replace them with a real ones.
-    Matrix<Field> A_copy(d, n);
-
-    size_t current_row = 0;
-    std::vector<size_t> column_index_mapping(d);
-
-    // first we copy columns, corresponding to basic variables
-    for (size_t i = 0; i < solution.basic_variables.size(); ++i) {
-      if (solution.basic_variables[i] >= d) {
-        continue;
+    std::vector<size_t> real_basic_vars;
+    for (size_t basic_var : solution.basic_variables) {
+      if (basic_var < d) {
+        real_basic_vars.push_back(basic_var);
       }
-
-      for (size_t j = 0; j < n; ++j) {
-        A_copy[i, j] = A_[j, solution.basic_variables[i]];
-      }
-
-      column_index_mapping[current_row] = solution.basic_variables[i];
-
-      ++current_row;
     }
 
-    // then copy remaining columns from A
-    for (size_t i = 0; i < d; ++i) {
-      if (std::ranges::find(solution.basic_variables, i) !=
-          solution.basic_variables.end()) {
-        continue;
-      }
-
-      for (size_t j = 0; j < n; ++j) {
-        A_copy[current_row, j] = A_[j, i];
-      }
-
-      column_index_mapping[current_row] = i;
-
-      ++current_row;
-    }
-
-    auto row_basis = linalg::get_row_basis(std::move(A_copy));
+    auto row_basis =
+        linalg::complete_row_basis(linalg::transposed(A_), real_basic_vars);
 
     if (row_basis.size() < n) {
       // rows of A are linearly dependent
       throw std::runtime_error(
           "Linear dependent rows in A. This case is not implemented yet.");
-    }
-
-    for (size_t i = 0; i < n; ++i) {
-      row_basis[i] = column_index_mapping[row_basis[i]];
     }
 
     return BFS<Field>{solution.point[{0, d}, 0], std::move(row_basis)};

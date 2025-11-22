@@ -84,8 +84,10 @@ Matrix<matrix_field_t<T>> inverse(T&& matrix) {
       throw std::invalid_argument("Matrix must be non-singular.");
     }
 
-    inv.swap_rows(j, maximizing_row);
-    matrix.swap_rows(j, maximizing_row);
+    if (j != maximizing_row) {
+      std::swap(inv[j, {0, m}], inv[maximizing_row, {0, m}]);
+      std::swap(matrix[j, {0, m}], matrix[maximizing_row, {0, m}]);
+    }
 
     linalg::gaussian_elimination(matrix, j, j, subtraction_hook,
                                  multiplication_hook);

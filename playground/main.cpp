@@ -1,259 +1,154 @@
 #include <iostream>
-#include <print>
 
+#include "../src/linear/matrix/RowBasis.h"
 #include "linear/BigInteger.h"
 #include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
 #include "linear/SimplexMethod.h"
-#include "linear/builder/ProblemBuilder.h"
-#include "problems/Dwarf.h"
-#include "utils/Hashers.h"
-#include "utils/Drawing.h"
 
-using Field = Rational;
+using Field = double;
 
 int main() {
-  auto problem = dwarf_problem_smaller<Field>();
+  // MILP formulation is from this paper:
+  // https://arxiv.org/pdf/2504.20017v2
 
-  std::cout << to_graphviz(problem) << std::endl;
+  size_t n = 3;
+  size_t a_min = 1;
 
-  size_t H = 2;  // number of periods
+  size_t a_max = a_min + n * n - 1;
+  size_t variables_count = n * n * n * n;
+  size_t magic_constant = n * (a_min + a_max) / 2;
 
-  ProblemBuilder<Field> builder;
+  auto get_var_index = [n](size_t i, size_t j, size_t k) {
+    return k * n * n + j * n + i;
+  };
 
-  // decision variables
-  auto makespan = builder.new_variable("MS", VariableType::INTEGER);
-  std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
-                     Variable<Field>>
-      quantities;
-  std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
-                     Variable<Field>>
-      starts;
-  std::unordered_map<std::pair<const State*, size_t>, Variable<Field>> stocks;
+  Matrix<Field> A(0, variables_count);
+  Matrix<Field> b(0, 1);
+  Matrix<Field> c(1, variables_count, 0);
 
-  for (const auto& unit : problem.get_units()) {
-    for (const auto* task : unit.get_tasks() | std::views::keys) {
-      for (size_t t = 0; t < H; ++t) {
-        quantities.emplace(
-            std::tuple{&unit, task, t},
-            builder.new_variable(
-                std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER));
-        starts.emplace(
-            std::tuple{&unit, task, t},
-            builder.new_variable(
-                std::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER));
+  // 2.1 a
+  for (size_t k = 0; k < n * n; ++k) {
+    Matrix<Field> constraint(1, variables_count);
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < n; ++j) {
+        constraint[0, get_var_index(i, j, k)] = 1;
       }
+    }
+
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(1));
+  }
+
+  // 2.1 b
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      Matrix<Field> constraint(1, variables_count);
+
+      for (size_t k = 0; k < n * n; ++k) {
+        constraint[0, get_var_index(i, j, k)] = 1;
+      }
+
+      A = linalg::vstack(A, constraint);
+      b = linalg::vstack(b, Matrix<Field>::item(1));
     }
   }
 
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<NonStorableState>(state)) {
-      for (size_t t = 0; t < H; ++t) {
-        stocks.emplace(
-            std::pair{&state, t},
-            builder.new_variable(fmt::format("p({}, {})", state.get_id(), t),
-                                 VariableType::INTEGER));
+  // 2.1 c
+  for (size_t i = 0; i < n; ++i) {
+    Matrix<Field> constraint(1, variables_count);
+
+    for (size_t j = 0; j < n; ++j) {
+      for (size_t k = 0; k < n * n; ++k) {
+        constraint[0, get_var_index(i, j, k)] = k + a_min;
       }
     }
+
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
-  // makespan
-  for (const auto& unit : problem.get_units()) {
-    for (const auto& [task, props] : unit.get_tasks()) {
-      for (size_t t = 0; t < H; ++t) {
-        Field finish_time(t + props.batch_processing_time);
-        builder.add_constraint(makespan >=
-                               finish_time * starts.at({&unit, task, t}));
+  // 2.1 d
+  for (size_t j = 0; j < n; ++j) {
+    Matrix<Field> constraint(1, variables_count);
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t k = 0; k < n * n; ++k) {
+        constraint[0, get_var_index(i, j, k)] = k + a_min;
       }
     }
+
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
-  // batch size limits
-  for (const auto& unit : problem.get_units()) {
-    for (const auto& [task, props] : unit.get_tasks()) {
-      for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(Field(props.batch_min_size) *
-                                   starts.at({&unit, task, t}) <=
-                               quantities.at({&unit, task, t}));
+  // 2.1 e
+  {
+    Matrix<Field> constraint(1, variables_count);
 
-        builder.add_constraint(quantities.at({&unit, task, t}) <=
-                               Field(props.batch_max_size) *
-                                   starts.at({&unit, task, t}));
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t k = 0; k < n * n; ++k) {
+        constraint[0, get_var_index(i, i, k)] = k + a_min;
       }
     }
+
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
-  // stock balance
-  for (const State& state : problem.get_states()) {
-    if (std::holds_alternative<NonStorableState>(state)) {
-      continue;
+  // 2.1 d
+  {
+    Matrix<Field> constraint(1, variables_count);
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t k = 0; k < n * n; ++k) {
+        constraint[0, get_var_index(n - i - 1, i, k)] = k + a_min;
+      }
     }
 
-    for (size_t t = 0; t < H; ++t) {
-      auto new_stock =
-          t != 0 ? Expression(stocks.at({&state, t - 1}))
-                 : std::visit(Overload{[](const auto& state) {
-                                         return Field(state.initial_stock);
-                                       },
-                                       [](NonStorableState) -> Field {
-                                         std::unreachable();
-                                       }},
-                              state);
-
-      for (const auto* task :
-           problem.get_producers_of(state) | std::views::elements<0>) {
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          if (t >= props.batch_processing_time) {
-            new_stock +=
-                quantities.at({unit, task, t - props.batch_processing_time});
-          }
-        }
-      }
-
-      for (const auto& [task, fraction] : problem.get_consumers_of(state)) {
-        Expression<Field> task_consumption(0);
-
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          task_consumption += quantities.at({unit, task, t});
-        }
-
-        new_stock -= task_consumption * fraction;
-      }
-
-      // TODO: external demand + external supply
-
-      builder.add_constraint(new_stock == stocks.at({&state, t}));
-    }
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
-  // stock limits
-  for (size_t t = 0; t < H; ++t) {
-    for (const State& state : problem.get_states()) {
-      if (!std::holds_alternative<NormalState>(state)) {
-        continue;
-      }
-
-      Expression<Field> max_stock(std::get<NormalState>(state).max_level);
-      builder.add_constraint(stocks.at({&state, t}) <= max_stock);
-    }
+  // all variables are integer
+  std::vector<VariableType> variables(variables_count);
+  for (size_t i = 0; i < variables_count; ++i) {
+    variables[i] = VariableType::INTEGER;
   }
 
-  // production of non-storable goods
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<NonStorableState>(state)) {
-      continue;
+  // resulting constraints are not linearly independent
+  // perform row elimination
+  auto row_basis = linalg::get_row_basis(A);
+
+  Matrix<Field> reduced_A(row_basis.size(), variables_count);
+  Matrix<Field> reduced_b(row_basis.size(), 1);
+
+  for (size_t i = 0; i < row_basis.size(); ++i) {
+    for (size_t col = 0; col < variables_count; ++col) {
+      reduced_A[i, col] = A[row_basis[i], col];
     }
 
-    for (size_t t = 0; t < H; ++t) {
-      Expression<Field> production(0);
-
-      for (const auto& [task, fraction] : problem.get_producers_of(state)) {
-        Expression<Field> task_production(0);
-
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          if (t >= props.batch_processing_time) {
-            task_production +=
-                quantities.at({unit, task, t - props.batch_processing_time});
-          }
-        }
-
-        production += task_production * fraction;
-      }
-
-      Expression<Field> consumption(0);
-
-      for (const auto& [task, fraction] : problem.get_consumers_of(state)) {
-        Expression<Field> task_consumption(0);
-
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          task_consumption += quantities.at({unit, task, t});
-        }
-
-        consumption += task_consumption * fraction;
-      }
-
-      builder.add_constraint(consumption == production);
-    }
+    reduced_b[i, 0] = b[row_basis[i], 0];
   }
 
-  // assigning batches to production units
-  for (const auto& unit : problem.get_units()) {
-    for (size_t t = 0; t < H; ++t) {
-      Expression<Field> running_batches_cnt(0);
+  std::cout << reduced_A << std::endl;
+  std::cout << reduced_b << std::endl;
+  std::cout << c << std::endl;
 
-      for (const auto& [task, props] : unit.get_tasks()) {
-        if (props.batch_processing_time >= t) {
-          for (size_t t2 = t - props.batch_processing_time; t2 < t; ++t2) {
-            running_batches_cnt += starts.at({&unit, task, t2});
-          }
-        }
-      }
+  // solve the problem
+  MILPProblem<Field> problem(reduced_A, reduced_b, c, variables);
 
-      builder.add_constraint(running_batches_cnt <= Expression<Field>(1));
-    }
+  BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
+  auto solution = solver.solve();
+
+  std::cout << GraphvizBuilder<Field>().build(solver.get_root()) << std::endl;
+
+  if (std::holds_alternative<FiniteMILPSolution<Field>>(solution)) {
+    std::cout << "solution: "
+              << std::get<FiniteMILPSolution<Field>>(solution).point
+              << std::endl;
   }
 
-  // variables domain
-  for (const auto& unit : problem.get_units()) {
-    for (const auto* task : unit.get_tasks() | std::views::keys) {
-      for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(starts.at({&unit, task, t}) <=
-                               Expression<Field>(1));
-      }
-    }
-  }
-
-  // desired amounts
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<OutputState>(state)) {
-      continue;
-    }
-
-    Expression<Field> desired_amount(
-        std::get<OutputState>(state).desired_amount);
-
-    builder.add_constraint(stocks.at({&state, H - 1}) >= desired_amount);
-  }
-
-  // objective
-  builder.set_objective(-makespan);
-
-  std::cout << builder << std::endl;
-
-  // solve MILP problem
-  auto milp_problem = builder.get_problem();
-
-  auto solution =
-      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem).solve();
-
-  if (std::holds_alternative<NoFiniteSolution>(solution)) {
-    std::println("No finite solution.");
-  } else {
-    auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
-
-    std::println("Finish production in {} time units.\n",
-                 -finite_solution.value);
-
-    auto point = finite_solution.point;
-
-    for (const auto& unit : problem.get_units()) {
-      std::println("schedule for unit {}:", unit.get_id());
-
-      for (size_t t = 0; t < H; ++t) {
-        for (const auto* task : unit.get_tasks() | std::views::keys) {
-          Field x =
-              builder.extract_variable(point, starts.at({&unit, task, t}));
-          Field Q =
-              builder.extract_variable(point, quantities.at({&unit, task, t}));
-
-          std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
-                       x);
-          std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
-                       Q);
-        }
-      }
-    }
-  }
+  return 0;
 }
