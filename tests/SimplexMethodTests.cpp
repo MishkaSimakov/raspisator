@@ -4,6 +4,7 @@
 #include <variant>
 
 #include "linear/BigInteger.h"
+#include "linear/CheckBFS.h"
 #include "linear/SimplexMethod.h"
 #include "linear/matrix/Matrix.h"
 
@@ -135,4 +136,37 @@ TEST(SimplexMethodTests, FullWithFindingBFS) {
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 10);
+}
+
+TEST(SimplexMethodTests, ReconstructBFS) {
+  Matrix<Rational> A = {
+      {1, 1, -1, 1, 0, 0},
+      {1, 14, 10, -15, 0, 0},
+      {0, 0, 0, 0, 1, -1},
+  };
+
+  Matrix<Rational> c = {{1, 2, 3, -4, 0, 0}};
+
+  // all combinations of variables
+  for (size_t i1 = 0; i1 <= 1; ++i1) {
+    for (size_t i2 = 0; i2 <= 1; ++i2) {
+      for (size_t i3 = 0; i3 <= 1; ++i3) {
+        for (size_t i4 = 0; i4 <= 1; ++i4) {
+          if (i1 + i2 + i3 + i4 != 2) {
+            continue;
+          }
+
+          auto old_bfs = BFS<Rational>::construct_nondegenerate(
+              Matrix<Rational>{{i1}, {i2}, {i3}, {i4}, {-10}, {0}});
+
+          auto b = A * old_bfs.point;
+
+          auto bfs = SimplexMethod(A, b, c).reconstruct_bfs(old_bfs, 4);
+
+          ASSERT_TRUE(bfs.has_value());
+          ASSERT_TRUE(check_bfs(A, b, *bfs));
+        }
+      }
+    }
+  }
 }

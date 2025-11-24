@@ -41,6 +41,10 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
     linalg::gaussian_elimination(matrix, current_row, col);
 
     ++current_row;
+
+    if (current_row == std::min(n, d)) {
+      break;
+    }
   }
 
   rows_map.resize(current_row);

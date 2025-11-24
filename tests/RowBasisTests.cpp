@@ -13,6 +13,17 @@ TEST(RowBasisTests, UnityMatrix) {
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1, 2}));
 }
 
+TEST(RowBasisTests, WideMatrix) {
+  auto matrix = Matrix<Rational>(3, 4, 0);
+  for (size_t i = 0; i < 3; ++i) {
+    matrix[i, i] = 1;
+  }
+
+  auto row_basis = linalg::get_row_basis(matrix);
+
+  ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1, 2}));
+}
+
 TEST(RowBasisTests, LinearlyDependentRows) {
   Matrix<Rational> matrix = {{1, 1, 0, 0}, {0, 0, 1, 1}, {1, 1, 1, 1}};
 

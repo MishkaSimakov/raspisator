@@ -37,8 +37,8 @@ int main() {
       }
     }
 
-    A = vstack(A, constraint);
-    b = vstack(b, Matrix<Field>::item(1));
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(1));
   }
 
   // 2.1 b
@@ -50,8 +50,8 @@ int main() {
         constraint[0, get_var_index(i, j, k)] = 1;
       }
 
-      A = vstack(A, constraint);
-      b = vstack(b, Matrix<Field>::item(1));
+      A = linalg::vstack(A, constraint);
+      b = linalg::vstack(b, Matrix<Field>::item(1));
     }
   }
 
@@ -65,8 +65,8 @@ int main() {
       }
     }
 
-    A = vstack(A, constraint);
-    b = vstack(b, Matrix<Field>::item(magic_constant));
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
   // 2.1 d
@@ -79,8 +79,8 @@ int main() {
       }
     }
 
-    A = vstack(A, constraint);
-    b = vstack(b, Matrix<Field>::item(magic_constant));
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
   // 2.1 e
@@ -93,8 +93,8 @@ int main() {
       }
     }
 
-    A = vstack(A, constraint);
-    b = vstack(b, Matrix<Field>::item(magic_constant));
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
   // 2.1 d
@@ -107,19 +107,19 @@ int main() {
       }
     }
 
-    A = vstack(A, constraint);
-    b = vstack(b, Matrix<Field>::item(magic_constant));
+    A = linalg::vstack(A, constraint);
+    b = linalg::vstack(b, Matrix<Field>::item(magic_constant));
   }
 
   // all variables are integer
-  std::vector<size_t> integer(variables_count);
+  std::vector<VariableType> integer(variables_count);
   for (size_t i = 0; i < variables_count; ++i) {
-    integer[i] = i;
+    integer[i] = VariableType::INTEGER;
   }
 
   // resulting constraints are not linearly independent
   // perform row elimination
-  auto row_basis = get_row_basis(A);
+  auto row_basis = linalg::get_row_basis(A);
 
   Matrix<Field> reduced_A(row_basis.size(), variables_count);
   Matrix<Field> reduced_b(row_basis.size(), 1);

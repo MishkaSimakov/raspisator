@@ -10,28 +10,6 @@
 #include "matrix/RowBasis.h"
 #include "utils/Variant.h"
 
-// basic feasible solution
-template <typename Field>
-struct BFS {
-  Matrix<Field> point;
-  std::vector<size_t> basic_variables;
-
-  static BFS construct_nondegenerate(Matrix<Field> point) {
-    if (point.get_width() != 1) {
-      throw std::invalid_argument("shape of the point must be (d, 1).");
-    }
-
-    std::vector<size_t> basic_variables;
-    for (size_t i = 0; i < point.get_height(); ++i) {
-      if (point[i, 0] != 0) {
-        basic_variables.push_back(i);
-      }
-    }
-
-    return BFS(point, basic_variables);
-  }
-};
-
 // Double, double toil and trouble;
 // Fire burn and caldron bubble.
 // - Macbeth
@@ -229,6 +207,9 @@ class SimplexMethod {
     if (bfs.point.shape() != std::pair{d, 1}) {
       throw std::invalid_argument("bfs has wrong shape.");
     }
+    if (bfs.basic_variables.size() != n) {
+      throw std::invalid_argument("bfs has wrong size.");
+    }
 
     while (true) {
       // temporary
@@ -311,6 +292,79 @@ class SimplexMethod {
 
       pivot(bfs.basic_variables, entering_var, *leaving_var);
     }
+  }
+
+  // This function tries to construct bfs using old bfs as a starting point
+  // restrictions on old_bfs:
+  // 1. old_bfs forms the largest linearly independent set of columns
+  // 2. old_bfs satisfies Ax = b
+  // 3. variable with index negative_index is the only
+  //    negative variable in old_bfs
+  std::optional<BFS<Field>> reconstruct_bfs(BFS<Field> old_bfs,
+                                            size_t negative_index) {
+    // replacing one column from bfs with artificial column
+    // TODO: choice of replaced column may be important, investigate this
+
+    auto [n, d] = A_.shape();
+
+    auto A_new = A_.get_extended(n, d + 1, 0);
+    auto c_new = Matrix<Field>(1, d + 1, 0);
+
+    auto bfs_new = old_bfs.point.get_extended(d + 1, 1, 0);
+    bfs_new[d, 0] = old_bfs.point[negative_index, 0] * -1;
+    bfs_new[negative_index, 0] = 0;
+
+    size_t index_in_bfs =
+        std::ranges::find(old_bfs.basic_variables, negative_index) -
+        old_bfs.basic_variables.begin();
+    old_bfs.basic_variables[index_in_bfs] = d;
+
+    c_new[0, d] = -1;
+
+    A_new[{0, n}, d] = A_[{0, n}, negative_index];
+    A_new[{0, n}, d] *= -1;
+
+    auto solver = SimplexMethod(std::move(A_new), b_, std::move(c_new));
+
+    // InfiniteSolution is impossible here
+    auto solution = std::get<FiniteLPSolution<Field>>(
+        solver.solve_from(BFS{bfs_new, old_bfs.basic_variables}));
+
+    // Case 1
+    if (FieldTraits<Field>::is_strictly_negative(solution.value)) {
+      return std::nullopt;
+    }
+
+    // Case 2: try to eliminate artificial variables from basic variables (if
+    // there are any) using pivot operation
+
+    std::ranges::sort(solution.basic_variables);
+
+    // Case 2 (a): all basic variables are real
+    if (solution.basic_variables.back() < d) {
+      return BFS<Field>{solution.point[{0, d}, 0],
+                        std::move(solution.basic_variables)};
+    }
+
+    // Case 2 (b): there are artificial variables amongst basic variables.
+    // Trying to replace them with a real ones.
+    std::vector<size_t> real_basic_vars;
+    for (size_t basic_var : solution.basic_variables) {
+      if (basic_var < d) {
+        real_basic_vars.push_back(basic_var);
+      }
+    }
+
+    auto row_basis =
+        linalg::complete_row_basis(linalg::transposed(A_), real_basic_vars);
+
+    if (row_basis.size() < n) {
+      // rows of A are linearly dependent
+      throw std::runtime_error(
+          "Linear dependent rows in A. This case is not implemented yet.");
+    }
+
+    return BFS<Field>{solution.point[{0, d}, 0], std::move(row_basis)};
   }
 
   // algorithm is taken from

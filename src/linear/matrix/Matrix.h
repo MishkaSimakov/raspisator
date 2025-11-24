@@ -462,11 +462,12 @@ std::ostream& operator<<(std::ostream& os, MatrixLike auto&& matrix) {
   }
 
   for (size_t i = 0; i < n; ++i) {
+    os << "{";
     for (size_t j = 0; j < m; ++j) {
-      os << std::right << std::setw(max_length) << results[i * m + j] << " ";
+      os << std::right << std::setw(max_length) << results[i * m + j] << ", ";
     }
 
-    os << "\n";
+    os << "},\n";
   }
 
   return os;
