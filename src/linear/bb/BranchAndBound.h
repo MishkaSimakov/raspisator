@@ -3,93 +3,20 @@
 #include <optional>
 #include <queue>
 #include <ranges>
-#include <sstream>
 #include <unordered_map>
 
+#include "BranchAndBoundTree.h"
 #include "linear/CheckBFS.h"
+#include "linear/matrix/Matrix.h"
+#include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
 #include "linear/model/MILP.h"
-#include "matrix/Matrix.h"
-#include "matrix/RowBasis.h"
-
-// Branch and Bound nodes
-template <typename Field>
-struct Node {
-  bool calculated = false;
-
-  Field upper_bound;
-
-  size_t branching_variable;
-  Field branching_value;
-
-  Node* parent = nullptr;
-
-  Node* left = nullptr;
-  Node* right = nullptr;
-
-  Matrix<Field> solution;
-  std::vector<size_t> basic_variables;
-};
 
 template <typename Field>
 struct NodeComparator {
-  bool operator()(const Node<Field>* left, const Node<Field>* right) const {
-    return left->upper_bound < right->upper_bound;
-  }
-};
-
-// draws branch and bound tree using graphviz
-template <typename Field>
-class GraphvizBuilder {
- public:
-  std::string build(const Node<Field>* root) {
-    ss_ << "digraph G {\n";
-    ss_ << "  node [shape=box];\n";
-
-    if (root != nullptr) {
-      add_node(root);
-    }
-
-    ss_ << "}\n";
-    return ss_.str();
-  }
-
- private:
-  std::stringstream ss_;
-  std::unordered_map<const Node<Field>*, std::string> ids_;
-
-  std::string getId(const Node<Field>* ptr) {
-    auto it = ids_.find(ptr);
-    if (it != ids_.end()) {
-      return it->second;
-    }
-
-    std::string id = "n" + std::to_string(ids_.size());
-    ids_[ptr] = id;
-    return id;
-  }
-
-  void add_node(const Node<Field>* node) {
-    std::string id = getId(node);
-
-    std::string fill =
-        node->calculated ? ", style=filled, fillcolor=lightblue" : "";
-
-    ss_ << std::format("  {} [label=\"UB={}\\nx_{} <> {}\" {}];\n", id,
-                       node->upper_bound, node->branching_variable,
-                       node->branching_value, fill);
-
-    if (node->left) {
-      ss_ << std::format("  {} -> {} [label=\"left\"];\n", id,
-                         getId(node->left));
-      add_node(node->left);
-    }
-
-    if (node->right) {
-      ss_ << std::format("  {} -> {} [label=\"right\"];\n", id,
-                         getId(node->right));
-      add_node(node->right);
-    }
+  bool operator()(const InteriorNode<Field>* left,
+                  const InteriorNode<Field>* right) const {
+    return left->value < right->value;
   }
 };
 
@@ -98,14 +25,9 @@ template <typename Field, LPSolver<Field> LPSolver>
 class BranchAndBound {
   const MILPProblem<Field> problem_;
 
-  // stores branch and bound tree nodes
-  // root node is nodes_[0]
-  std::deque<Node<Field>> nodes_;
+  BranchAndBoundTree<Field> tree_;
 
-  // maps integer variables indices to corresponding slack variables
-  std::unordered_map<size_t, std::pair<size_t, size_t>> slack_variables_;
-
-  std::priority_queue<Node<Field>*, std::vector<Node<Field>*>,
+  std::priority_queue<InteriorNode<Field>*, std::vector<InteriorNode<Field>*>,
                       NodeComparator<Field>>
       queue_;
 
@@ -143,7 +65,6 @@ class BranchAndBound {
     return max_fractional_index;
   }
 
-  enum class NodeType { LEFT_CHILD, RIGHT_CHILD, ROOT };
   enum class ConstraintType { UPPER, LOWER };
 
   struct Constraint {
@@ -152,41 +73,21 @@ class BranchAndBound {
     Field value;
   };
 
-  // returns path from the root to the given node
-  static std::vector<const Node<Field>*> get_path_from_root(
-      const Node<Field>* node) {
-    std::vector<const Node<Field>*> result;
-
-    while (node != nullptr) {
-      result.push_back(node);
-      node = node->parent;
-    }
-
-    std::ranges::reverse(result);
-
-    return result;
-  }
-
   // returned vector contains constraints from root to child
-  std::vector<Constraint> accumulate_constraints(const Node<Field>* parent,
-                                                 NodeType type) {
+  std::vector<Constraint> accumulate_constraints(
+      const InteriorNode<Field>* parent, NodeRelativeLocation type) {
     std::unordered_map<size_t, size_t> upper_constraints;
     std::unordered_map<size_t, size_t> lower_constraints;
 
     std::vector<Constraint> result;
-    auto path = get_path_from_root(parent);
+    auto [path, directions] = tree_.get_path_to(parent);
+
+    directions.push_back(type);
 
     for (size_t i = 0; i < path.size(); ++i) {
-      const Node<Field>* node = path[i];
+      const InteriorNode<Field>* node = path[i];
 
-      bool is_left_child;
-      if (i + 1 == path.size()) {
-        is_left_child = type == NodeType::LEFT_CHILD;
-      } else {
-        is_left_child = path[i + 1] == node->left;
-      }
-
-      if (is_left_child) {
+      if (directions[i] == NodeRelativeLocation::LEFT_CHILD) {
         if (upper_constraints.contains(node->branching_variable)) {
           result[upper_constraints.at(node->branching_variable)].value =
               node->branching_value;
@@ -214,13 +115,14 @@ class BranchAndBound {
   // they are used to revert constraints
   std::tuple<Matrix<Field>, Matrix<Field>, Matrix<Field>, std::vector<Field>,
              std::optional<BFS<Field>>>
-  apply_constraints(const Node<Field>* node, NodeType type) {
+  apply_constraints(const InteriorNode<Field>* node,
+                    NodeRelativeLocation type) {
     auto [n, d] = problem_.A.shape();
     std::vector<Field> shifts(d, 0);
 
-    if (type == NodeType::ROOT) {
+    if (type == NodeRelativeLocation::ROOT) {
       auto bfs = LPSolver(problem_.A, problem_.b, problem_.c).find_bfs();
-      return {problem_.A, problem_.b, problem_.c, shifts, *bfs};
+      return {problem_.A, problem_.b, problem_.c, shifts, bfs};
     }
 
     auto constraints = accumulate_constraints(node, type);
@@ -265,7 +167,7 @@ class BranchAndBound {
 
     size_t negative_index;
 
-    if (type == NodeType::LEFT_CHILD) {
+    if (type == NodeRelativeLocation::LEFT_CHILD) {
       if (d + upper_count > node->solution.get_height()) {
         // added new column and row
         // if it turns out that this row is linearly dependent with previous
@@ -314,26 +216,20 @@ class BranchAndBound {
     return {A, b, c, shifts, std::move(reconstructed_bfs)};
   }
 
-  enum class NodeCalculationResult {
-    INFINITE_SOLUTION,
-    NO_FEASIBLE_ELEMENTS,
-    INTEGER_SOLUTION,
-    WORSE_THAN_LOWER_BOUND,
-    NORMAL
-  };
-
-  NodeCalculationResult calculate_node(Node<Field>* parent, NodeType type) {
+  void calculate_node(InteriorNode<Field>* parent, NodeRelativeLocation type) {
     auto [A, b, c, shifts, bfs] = apply_constraints(parent, type);
 
     if (!bfs) {
-      return NodeCalculationResult::NO_FEASIBLE_ELEMENTS;
+      tree_.add_node(parent, type, UnfeasibleNode<Field>{});
+      return;
     }
 
     auto relaxed_solution = LPSolver(A, b, c).solve_from(*bfs);
 
     // prune branch if there is no feasible solution
     if (std::holds_alternative<InfiniteSolution>(relaxed_solution)) {
-      return NodeCalculationResult::INFINITE_SOLUTION;
+      tree_.add_node(parent, type, UnfeasibleNode<Field>{});
+      return;
     }
 
     FiniteLPSolution<Field>& finite_solution =
@@ -354,44 +250,37 @@ class BranchAndBound {
     Field floored = FieldTraits<Field>::floor(original_point[br_variable, 0]);
     Field fractional = original_point[br_variable, 0] - floored;
 
-    Field upper_bound = finite_solution.value - total_shift;
+    Field value = finite_solution.value - total_shift;
 
     // prune branch if all values are integer
     if (!FieldTraits<Field>::is_strictly_positive(fractional)) {
       // possibly update lower bound
-      if (!lower_bound_ || upper_bound > lower_bound_->first) {
+      if (!lower_bound_ || value > lower_bound_->first) {
         size_t d = problem_.A.get_width();
 
-        lower_bound_ = std::pair{upper_bound, original_point[{0, d}, 0]};
+        lower_bound_ = std::pair{value, original_point[{0, d}, 0]};
       }
 
-      return NodeCalculationResult::INTEGER_SOLUTION;
+      tree_.add_node(parent, type, IntegerSolutionNode{value});
+      return;
     }
 
     // prune branch if upper bound is worse than current best solution
-    if (lower_bound_ && upper_bound <= lower_bound_->first) {
-      return NodeCalculationResult::WORSE_THAN_LOWER_BOUND;
+    if (lower_bound_ && value <= lower_bound_->first) {
+      tree_.add_node(parent, type, BoundedNode{value});
+      return;
     }
 
-    Node<Field>& child = nodes_.emplace_back();
+    auto& child = tree_.add_node(parent, type, InteriorNode<Field>{});
 
     child.solution = finite_solution.point;
     child.basic_variables = finite_solution.basic_variables;
 
-    child.parent = parent;
     child.branching_variable = br_variable;
     child.branching_value = floored;
-    child.upper_bound = upper_bound;
-
-    if (type == NodeType::LEFT_CHILD) {
-      parent->left = &child;
-    } else if (type == NodeType::RIGHT_CHILD) {
-      parent->right = &child;
-    }
+    child.value = value;
 
     queue_.push(&child);
-
-    return NodeCalculationResult::NORMAL;
   }
 
  public:
@@ -399,7 +288,7 @@ class BranchAndBound {
 
   MILPSolution<Field> solve() {
     // solve problem
-    calculate_node(nullptr, NodeType::ROOT);
+    calculate_node(nullptr, NodeRelativeLocation::ROOT);
 
     while (!queue_.empty()) {
       // node with maximum upper bound
@@ -408,15 +297,13 @@ class BranchAndBound {
 
       if (lower_bound_) {
         std::println("LB: {}; UB: {}", lower_bound_->first,
-                     current_node->upper_bound);
+                     current_node->value);
       } else {
-        std::println("LB: *; UB: {}", current_node->upper_bound);
+        std::println("LB: *; UB: {}", current_node->value);
       }
 
-      current_node->calculated = true;
-
-      calculate_node(current_node, NodeType::LEFT_CHILD);
-      calculate_node(current_node, NodeType::RIGHT_CHILD);
+      calculate_node(current_node, NodeRelativeLocation::LEFT_CHILD);
+      calculate_node(current_node, NodeRelativeLocation::RIGHT_CHILD);
     }
 
     if (!lower_bound_) {
@@ -426,5 +313,5 @@ class BranchAndBound {
     return FiniteMILPSolution{lower_bound_->second, lower_bound_->first};
   }
 
-  const Node<Field>* get_root() const { return &nodes_[0]; }
+  const BranchAndBoundTree<Field>& get_tree() const { return tree_; }
 };
