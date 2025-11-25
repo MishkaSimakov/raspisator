@@ -212,38 +212,6 @@ class Matrix {
   }
 
  public:
-  // Matrix(const Matrix& other)
-  //     : data_(other.data_),
-  //       rows_count_(other.rows_count_),
-  //       cols_count_(other.cols_count_) {
-  //   std::cout << "Matrix copy" << std::endl;
-  // }
-  //
-  // Matrix(Matrix&& other)
-  //     : data_(std::move(other.data_)),
-  //       rows_count_(other.rows_count_),
-  //       cols_count_(other.cols_count_) {
-  //   std::cout << "Matrix move" << std::endl;
-  // }
-  //
-  // Matrix& operator=(const Matrix& other) {
-  //   std::cout << "Matrix copy assignment" << std::endl;
-  //   data_ = other.data_;
-  //   rows_count_ = other.rows_count_;
-  //   cols_count_ = other.cols_count_;
-  //
-  //   return *this;
-  // }
-  //
-  // Matrix& operator=(Matrix&& other) {
-  //   std::cout << "Matrix move assignment" << std::endl;
-  //   data_ = std::move(other.data_);
-  //   rows_count_ = other.rows_count_;
-  //   cols_count_ = other.cols_count_;
-  //
-  //   return *this;
-  // }
-
   Matrix() : Matrix(0, 0) {}
 
   Matrix(size_t rows, size_t cols)

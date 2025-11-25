@@ -125,6 +125,22 @@ class ProblemBuilder {
     // }
   }
 
+  static std::pair<Matrix<Field>, Matrix<Field>> remove_linear_dependent(
+      const Matrix<Field>& A, const Matrix<Field>& b) {
+    size_t d = A.get_width();
+    auto row_basis = linalg::get_row_basis(A);
+
+    Matrix<Field> reduced_A(row_basis.size(), d);
+    Matrix<Field> reduced_b(row_basis.size(), 1);
+
+    for (size_t i = 0; i < row_basis.size(); ++i) {
+      reduced_A[i, {0, d}] = A[row_basis[i], {0, d}];
+      reduced_b[i, 0] = b[row_basis[i], 0];
+    }
+
+    return {std::move(reduced_A), std::move(reduced_b)};
+  }
+
  public:
   explicit ProblemBuilder() = default;
 
@@ -155,8 +171,6 @@ class ProblemBuilder {
   MILPProblem<Field> get_problem() {
     normalize();
 
-    std::cout << *this << std::endl;
-
     Matrix<Field> A(constraints_.size(), variables_.size(), 0);
     Matrix<Field> b(constraints_.size(), 1, 0);
     Matrix<Field> c(1, variables_.size(), 0);
@@ -178,7 +192,9 @@ class ProblemBuilder {
       types[i] = variables_[i].second;
     }
 
-    return {A, b, c, types};
+    auto [reduced_A, reduced_b] = remove_linear_dependent(A, b);
+
+    return {reduced_A, reduced_b, c, types};
   }
 
   //

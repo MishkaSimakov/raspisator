@@ -111,8 +111,6 @@ class BranchAndBound {
 
   std::optional<std::pair<Field, Matrix<Field>>> lower_bound_;
 
-  BFS<Field> base_bfs_;
-
   static Matrix<Field> floor_solution(const Matrix<Field>& point) {
     auto result = Matrix<Field>::zeros_like(point);
 
@@ -280,11 +278,23 @@ class BranchAndBound {
         bfs.basic_variables.push_back(d + upper_count - 1);
       }
 
-      bfs.point[d + upper_count - 1, 0] =
+      size_t slack_index = 0;
+      for (const Constraint& constraint : constraints) {
+        if (constraint.type == ConstraintType::UPPER) {
+          if (constraint.variable_index == node->branching_variable) {
+            break;
+          }
+
+          ++slack_index;
+        }
+      }
+
+      bfs.point[d + slack_index, 0] =
           bfs.point[node->branching_variable, 0] - node->branching_value;
-      negative_index = d + upper_count - 1;
+      negative_index = d + slack_index;
     } else {
-      bfs.point[node->branching_variable, 0] += shifts[node->branching_variable];
+      bfs.point[node->branching_variable, 0] +=
+          shifts[node->branching_variable];
       negative_index = node->branching_variable;
     }
 
@@ -298,7 +308,8 @@ class BranchAndBound {
     // }
     // std::cout << std::endl;
 
-    auto reconstructed_bfs = LPSolver(A, b, c).reconstruct_bfs(bfs, negative_index);
+    auto solver = LPSolver(A, b, c);
+    auto reconstructed_bfs = solver.reconstruct_bfs(bfs, negative_index);
 
     return {A, b, c, shifts, std::move(reconstructed_bfs)};
   }
@@ -315,17 +326,8 @@ class BranchAndBound {
     auto [A, b, c, shifts, bfs] = apply_constraints(parent, type);
 
     if (!bfs) {
-      // std::cout << "no feasible elements" << std::endl;
       return NodeCalculationResult::NO_FEASIBLE_ELEMENTS;
     }
-
-    // std::cout << "A | b" << std::endl;
-    // std::cout << linalg::hstack(A, b) << std::endl;
-    // std::cout << "bfs: " << linalg::transposed(bfs->point) << std::endl;
-
-    // assert(check_bfs(A, b, *bfs));
-    // std::cout << "c:\n" << c << std::endl;
-    // std::cout << "A | b:\n" << linalg::hstack(A, b) << std::endl;
 
     auto relaxed_solution = LPSolver(A, b, c).solve_from(*bfs);
 
@@ -333,16 +335,9 @@ class BranchAndBound {
     if (std::holds_alternative<InfiniteSolution>(relaxed_solution)) {
       return NodeCalculationResult::INFINITE_SOLUTION;
     }
-    // if (std::holds_alternative<NoFeasibleElements>(relaxed_solution)) {
-    // return NodeCalculationResult::NO_FEASIBLE_ELEMENTS;
-    // }
 
     FiniteLPSolution<Field>& finite_solution =
         std::get<FiniteLPSolution<Field>>(relaxed_solution);
-
-    // assert(check_bfs(
-    //     A, b,
-    //     BFS<Field>{finite_solution.point, finite_solution.basic_variables}));
 
     auto original_point = finite_solution.point;
     for (size_t i = 0; i < shifts.size(); ++i) {
@@ -403,23 +398,20 @@ class BranchAndBound {
   explicit BranchAndBound(MILPProblem<Field> problem) : problem_(problem) {}
 
   MILPSolution<Field> solve() {
-    // initialize base bfs
-    auto bfs = LPSolver(problem_.A, problem_.b, problem_.c).find_bfs();
-    if (!bfs) {
-      return NoFiniteSolution{};
-    }
-
-    base_bfs_ = *bfs;
-
     // solve problem
     calculate_node(nullptr, NodeType::ROOT);
 
     while (!queue_.empty()) {
-      std::cout << GraphvizBuilder<Field>().build(&nodes_[0]) << std::endl;
-
       // node with maximum upper bound
       auto* current_node = queue_.top();
       queue_.pop();
+
+      if (lower_bound_) {
+        std::println("LB: {}; UB: {}", lower_bound_->first,
+                     current_node->upper_bound);
+      } else {
+        std::println("LB: *; UB: {}", current_node->upper_bound);
+      }
 
       current_node->calculated = true;
 

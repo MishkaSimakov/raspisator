@@ -317,6 +317,13 @@ class SimplexMethod {
     size_t index_in_bfs =
         std::ranges::find(old_bfs.basic_variables, negative_index) -
         old_bfs.basic_variables.begin();
+
+    if (index_in_bfs == old_bfs.basic_variables.size()) {
+      throw std::invalid_argument(
+          "Negative index is not among basic variables. This means that "
+          "provided bfs is incorrect.");
+    }
+
     old_bfs.basic_variables[index_in_bfs] = d;
 
     c_new[0, d] = -1;
@@ -324,7 +331,7 @@ class SimplexMethod {
     A_new[{0, n}, d] = A_[{0, n}, negative_index];
     A_new[{0, n}, d] *= -1;
 
-    auto solver = SimplexMethod(std::move(A_new), b_, std::move(c_new));
+    auto solver = SimplexMethod(A_new, b_, c_new);
 
     // InfiniteSolution is impossible here
     auto solution = std::get<FiniteLPSolution<Field>>(
@@ -420,8 +427,7 @@ class SimplexMethod {
 
     // Case 2 (a): all basic variables are real
     if (solution.basic_variables.back() < d) {
-      return BFS<Field>{solution.point[{0, d}, 0],
-                        std::move(solution.basic_variables)};
+      return BFS<Field>{solution.point[{0, d}, 0], solution.basic_variables};
     }
 
     // Case 2 (b): there are artificial variables amongst basic variables.

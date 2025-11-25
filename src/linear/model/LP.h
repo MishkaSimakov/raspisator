@@ -28,7 +28,7 @@ using LPSolution =
 template <typename Field>
 struct BFS {
   Matrix<Field> point;
-  std::vector<size_t> basic_variables;
+  std::vector<size_t> basic_variables{};
 
   static BFS construct_nondegenerate(Matrix<Field> point) {
     if (point.get_width() != 1) {
