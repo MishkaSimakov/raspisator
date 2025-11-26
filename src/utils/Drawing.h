@@ -2,8 +2,8 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
-#include <string>
 #include <format>
+#include <string>
 
 #include "model/STN.h"
 #include "utils/Variant.h"
@@ -11,7 +11,7 @@
 using namespace std::string_literals;
 
 template <typename Field>
-std::string to_graphviz(const STN<Field>& stn) {
+std::vector<std::string> translate_states(const STN<Field>& stn) {
   const auto& states = stn.get_states();
 
   std::vector<std::string> result(states.size());
@@ -35,7 +35,8 @@ std::string to_graphviz(const STN<Field>& stn) {
   return result;
 }
 
-std::vector<std::string> translate_tasks(const STN& stn) {
+template<typename Field>
+std::vector<std::string> translate_tasks(const STN<Field>& stn) {
   const auto& tasks = stn.get_tasks();
 
   std::vector<std::string> result(tasks.size());
@@ -58,7 +59,8 @@ std::vector<std::string> translate_tasks(const STN& stn) {
   return result;
 }
 
-std::vector<std::string> translate_arcs(const STN& stn) {
+template<typename Field>
+std::vector<std::string> translate_arcs(const STN<Field>& stn) {
   const auto& tasks = stn.get_tasks();
 
   std::vector<std::string> result;
@@ -66,19 +68,20 @@ std::vector<std::string> translate_arcs(const STN& stn) {
   for (size_t i = 0; i < tasks.size(); ++i) {
     size_t id = tasks[i].get_id();
 
-    for (const State* input : tasks[i].get_inputs()) {
-      result.push_back(std::format("S{} -> T{}", input->get_id(), id));
+    for (const auto& [input, fraction] : tasks[i].get_inputs()) {
+      result.push_back(std::format("S{} -> T{} [label=\"{}\"];", input->get_id(), id, fraction));
     }
 
-    for (const State* output : tasks[i].get_outputs()) {
-      result.push_back(std::format("T{} -> S{}", id, output->get_id()));
+    for (const auto& [output, fraction] : tasks[i].get_outputs()) {
+      result.push_back(std::format("T{} -> S{} [label=\"{}\"];", id, output->get_id(), fraction));
     }
   }
 
   return result;
 }
 
-std::string to_graphviz(const STN& stn) {
+template<typename Field>
+std::string to_graphviz(const STN<Field>& stn) {
   constexpr auto graph_template =
       "digraph process_flow {{\n"
       "rankdir=LR;\n"
