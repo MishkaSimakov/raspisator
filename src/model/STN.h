@@ -33,6 +33,15 @@ class STN {
   }
 
  public:
+  STN() = default;
+
+  // move only
+  STN(const STN&) = delete;
+  STN& operator=(const STN&) = delete;
+
+  STN(STN&&) = default;
+  STN& operator=(STN&&) = default;
+
   Task<Field>* add(Task<Field> task) {
     task.set_id(tasks_.size());
     tasks_.emplace_back(task);
@@ -46,8 +55,7 @@ class STN {
   }
 
   State* add(State state) {
-    std::visit([id = states_.size()](auto& state) { state.id_ = id; },
-               state);
+    std::visit([id = states_.size()](auto& state) { state.id_ = id; }, state);
     states_.emplace_back(state);
     return &states_.back();
   }
