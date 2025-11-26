@@ -200,16 +200,6 @@ class BranchAndBound {
       negative_index = node->branching_variable;
     }
 
-    // std::cout << "a:\n" << A << std::endl;
-    // std::cout << "b:\n" << b << std::endl;
-    // std::cout << "c:\n" << c << std::endl;
-    //
-    // std::cout << linalg::transposed(bfs.point) << std::endl;
-    // for (size_t i : bfs.basic_variables) {
-    //   std::cout << i << " ";
-    // }
-    // std::cout << std::endl;
-
     auto solver = LPSolver(A, b, c);
     auto reconstructed_bfs = solver.reconstruct_bfs(bfs, negative_index);
 
