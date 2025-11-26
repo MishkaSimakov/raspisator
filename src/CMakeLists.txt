@@ -1,4 +1,4 @@
-add_library(raspisator linear/Matrix.cpp)
+add_library(raspisator INTERFACE)
 
-target_include_directories(raspisator PUBLIC .)
-target_link_libraries(raspisator PUBLIC fmt::fmt)
+target_include_directories(raspisator INTERFACE .)
+target_link_libraries(raspisator INTERFACE fmt::fmt)

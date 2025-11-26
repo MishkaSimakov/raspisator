@@ -8,7 +8,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "Matrix.h"
+#include "matrix/Matrix.h"
 
 template <typename Field>
 class MPSReader {
