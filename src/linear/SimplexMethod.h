@@ -15,7 +15,7 @@
 // - Macbeth
 //
 // There are a lot of problems with a double. This version of SimplexMethod
-// is trying to be numerically stable.
+// is trying to address them. It is trying to be numerically stable at least.
 
 // Solves cx -> max, Ax = b, x >= 0
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
@@ -84,15 +84,11 @@ class SimplexMethod {
 
       auto change = linalg::dot(dual_point, A_[{0, n}, i]) - c_[0, i];
 
-      // std::cout << change << " ";
-
       if (change < min_change) {
         min_change_index = i;
         min_change = change;
       }
     }
-
-    // std::cout << std::endl;
 
     return {min_change_index, min_change};
   }
@@ -122,8 +118,6 @@ class SimplexMethod {
       }
     }
 
-    // std::println("min t: {}", *min_t_value);
-
     return min_t_value ? std::optional{min_t_index} : std::nullopt;
   }
 
@@ -144,7 +138,6 @@ class SimplexMethod {
 
     // solve Ly = Pb
     auto y = linalg::solve_lower(L, Pb, std::true_type{});
-    // std::cout << "y" << y << std::endl;
 
     // solve Ux = y
     auto x = linalg::solve_upper(U, y, std::false_type{});
@@ -184,10 +177,9 @@ class SimplexMethod {
     // TODO: lots of unnecessary copying here
     // U^T z = cb
     auto z = linalg::solve_lower(linalg::transposed(U), cb, std::false_type{});
-    // assert(linalg::transposed(U) * z == cb);
+
     // L^T y = z
     auto y = linalg::solve_upper(linalg::transposed(L), z, std::true_type{});
-    // assert(linalg::transposed(L) * y == z);
 
     // P^-T x = y
     // x = P^T y
@@ -222,22 +214,10 @@ class SimplexMethod {
       //
 
       auto [L, U, P] = get_basic_lup(bfs.basic_variables);
-      // std::cout << L << "\n" << U << std::endl;
-
-      // std::cout << "basic variables" << std::endl;
-      // for (auto i : bfs.basic_variables) {
-      // std::cout << i << " ";
-      // }
-      // std::cout << std::endl;
-      //
-      // std::cout << "L\n" << L << "\nU\n" << U << std::endl;
 
       // obtain point associated with given basic variables by solving
       // Bu = b
       auto point = get_point(L, U, P);
-
-      // std::cout << point << std::endl;
-      // assert(B * point == b_);
 
       // obtain a solution of a dual problem by solving
       // B^T u = c_b
@@ -247,12 +227,8 @@ class SimplexMethod {
         cb[i, 0] = c_[0, bfs.basic_variables[i]];
       }
 
-      // assert(linalg::transposed(B) * dual_point == cb);
-
       auto [entering_var, change] =
           find_entering_variable(dual_point, bfs.basic_variables);
-
-      // std::cout << change << std::endl;
 
       if (!FieldTraits<Field>::is_strictly_negative(change)) {
         // solution is found
@@ -264,21 +240,10 @@ class SimplexMethod {
 
         Field value = (c_ * extended_point)[0, 0];
 
-        // std::cout << extended_point << std::endl;
-
         return FiniteLPSolution{std::move(extended_point),
                                 std::move(bfs.basic_variables),
                                 std::move(value)};
       }
-
-      // temporary
-      // Matrix<Field> extended_point(d, 1, 0);
-      // for (size_t i = 0; i < n; ++i) {
-      //   extended_point[bfs.basic_variables[i], 0] = point[i, 0];
-      // }
-      // Field value = (c_ * extended_point)[0, 0];
-      //
-      // std::cout << "value: " << value << std::endl;
 
       // obtain coordinates of entering variable by solving
       // By = A_s, where s is the entering variable index
@@ -388,8 +353,6 @@ class SimplexMethod {
       }
     }
 
-    // std::cout << b_ << std::endl;
-
     // add artificial variables
     auto A_new = A_.get_extended(n, d + n, 0);
     auto c_new = Matrix<Field>(1, d + n, 0);
@@ -458,9 +421,6 @@ class SimplexMethod {
     if (!bfs.has_value()) {
       return NoFeasibleElements{};
     }
-
-    // std::cout << "found bfs" << std::endl;
-    // std::cout << bfs->point << std::endl;
 
     return variant_cast<LPSolution<Field>>(solve_from(*bfs));
   }

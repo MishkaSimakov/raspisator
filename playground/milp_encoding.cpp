@@ -1,16 +1,17 @@
 #include <iostream>
 #include <print>
 
+#include "../src/linear/bb/BranchAndBound.h"
 #include "linear/BigInteger.h"
-#include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
 #include "linear/SimplexMethod.h"
+#include "linear/bb/Drawer.h"
 #include "linear/builder/ProblemBuilder.h"
 #include "problems/Dwarf.h"
 #include "utils/Drawing.h"
 #include "utils/Hashers.h"
 
-using Field = Rational;
+using Field = double;
 
 int main() {
   auto problem = dwarf_problem_normal<Field>();
@@ -224,8 +225,10 @@ int main() {
   // solve MILP problem
   auto milp_problem = builder.get_problem();
 
-  auto solution =
-      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem).solve();
+  auto solver = BranchAndBound<Field, SimplexMethod<Field>>(milp_problem);
+  auto solution = solver.solve();
+
+  std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
 
   if (std::holds_alternative<NoFiniteSolution>(solution)) {
     std::println("No finite solution.");

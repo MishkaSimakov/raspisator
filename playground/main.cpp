@@ -1,10 +1,11 @@
 #include <iostream>
 
+#include "../src/linear/bb/BranchAndBound.h"
 #include "../src/linear/matrix/RowBasis.h"
 #include "linear/BigInteger.h"
-#include "linear/BranchAndBound.h"
 #include "linear/MPS.h"
 #include "linear/SimplexMethod.h"
+#include "linear/bb/Drawer.h"
 #include "linear/builder/ProblemBuilder.h"
 
 using Field = double;
@@ -116,7 +117,7 @@ int main() {
   BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
   auto solution = solver.solve();
 
-  std::cout << GraphvizBuilder<Field>().build(solver.get_root()) << std::endl;
+  std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
 
   if (std::holds_alternative<FiniteMILPSolution<Field>>(solution)) {
     auto point = std::get<FiniteMILPSolution<Field>>(solution).point;

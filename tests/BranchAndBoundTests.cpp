@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "linear/matrix/Matrix.h"
+#include "../src/linear/bb/BranchAndBound.h"
 #include "linear/BigInteger.h"
-#include "linear/BranchAndBound.h"
 #include "linear/SimplexMethod.h"
+#include "linear/matrix/Matrix.h"
 
 TEST(BranchAndBoundTests, SimpleProblems) {
   // problems are from:
