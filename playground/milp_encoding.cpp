@@ -7,8 +7,8 @@
 #include "linear/SimplexMethod.h"
 #include "linear/builder/ProblemBuilder.h"
 #include "problems/Dwarf.h"
-#include "utils/Hashers.h"
 #include "utils/Drawing.h"
+#include "utils/Hashers.h"
 
 using Field = Rational;
 
@@ -211,8 +211,7 @@ int main() {
       continue;
     }
 
-    Expression<Field> desired_amount(
-        std::get<OutputState>(state).desired_amount);
+    Expression<Field> desired_amount(std::get<OutputState>(state).target);
 
     builder.add_constraint(stocks.at({&state, H - 1}) >= desired_amount);
   }

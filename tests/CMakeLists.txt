@@ -8,6 +8,7 @@ target_sources(tests PUBLIC
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
         RowBasisTests.cpp
+        SolutionCheckingTests.cpp
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
         LUTests.cpp

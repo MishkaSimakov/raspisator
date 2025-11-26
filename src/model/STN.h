@@ -33,25 +33,40 @@ class STN {
   }
 
  public:
+  STN() = default;
+
+  // move only
+  STN(const STN&) = delete;
+  STN& operator=(const STN&) = delete;
+
+  STN(STN&&) = default;
+  STN& operator=(STN&&) = default;
+
   Task<Field>* add(Task<Field> task) {
-    task.set_id(tasks_.size() + 1);
-    return &tasks_.emplace_back(task);
+    task.set_id(tasks_.size());
+    tasks_.emplace_back(task);
+    return &tasks_.back();
   }
 
   Unit<Field>* add(Unit<Field> unit) {
-    unit.set_id(units_.size() + 1);
-    return &units_.emplace_back(unit);
+    unit.set_id(units_.size());
+    units_.emplace_back(unit);
+    return &units_.back();
   }
 
   State* add(State state) {
-    std::visit([id = states_.size() + 1](auto& state) { state.id_ = id; },
-               state);
-    return &states_.emplace_back(state);
+    std::visit([id = states_.size()](auto& state) { state.id_ = id; }, state);
+    states_.emplace_back(state);
+    return &states_.back();
   }
 
   const std::deque<State>& get_states() const { return states_; }
   const std::deque<Task<Field>>& get_tasks() const { return tasks_; }
   const std::deque<Unit<Field>>& get_units() const { return units_; }
+
+  const State* get_state_by_id(size_t id) const { return &states_.at(id); }
+  const Task<Field>* get_task_by_id(size_t id) const { return &tasks_.at(id); }
+  const Unit<Field>* get_unit_by_id(size_t id) const { return &units_.at(id); }
 
   std::vector<std::pair<const Task<Field>*, Field>> get_producers_of(
       const State& state) const {
