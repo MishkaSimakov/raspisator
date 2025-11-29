@@ -56,30 +56,51 @@ double max_difference(const CSCMatrix<double>& left,
 }
 
 int main() {
-  size_t density_multiplier = 3;
+  for (size_t i = 0; i < 500; ++i) {
+    auto matrix = linalg::to_dense(sparse_matrix_1<double>(1'000, 1));
 
-  std::println("size,error");
-
-  for (size_t N = 10; N < 75; ++N) {
-    for (size_t i = 0; i < 10; ++i) {
-      auto A_rational = sparse_matrix_1<Rational>(N, density_multiplier, i);
-      auto A_double = sparse_matrix_1<double>(N, density_multiplier, i);
-
-      auto [rational_L, rational_U, rational_P] = linalg::sparse_lu(A_rational);
-      auto [double_L, double_U, double_P] = linalg::sparse_lu(A_double);
-
-      double error = std::max(max_difference(double_L, rational_L),
-                              max_difference(double_U, rational_U));
-
-      std::println("{},{}", N, error);
-    }
+    auto [L, U, P] = linalg::get_lup(matrix);
   }
 
+  // auto [L, U, P] = linalg::sparse_lu(matrix);
+
+  // size_t density_multiplier = 3;
+  //
+  // std::println("size,error");
+  //
+  // for (size_t N = 10; N < 75; ++N) {
+  //   for (size_t i = 0; i < 10; ++i) {
+  //     auto A_rational = sparse_matrix_1<Rational>(N, density_multiplier, i);
+  //     auto A_double = sparse_matrix_1<double>(N, density_multiplier, i);
+  //
+  //     auto [rational_L, rational_U, rational_P] =
+  //     linalg::sparse_lu(A_rational); auto [double_L, double_U, double_P] =
+  //     linalg::sparse_lu(A_double);
+  //
+  //     double error = std::max(max_difference(double_L, rational_L),
+  //                             max_difference(double_U, rational_U));
+  //
+  //     std::println("{},{}", N, error);
+  //   }
+  // }
+
   // auto matrix = sparse_matrix_1<Rational>(5, 1);
+  // auto dense = Matrix<Rational>{
+  //   {2, 1, 1, 0},
+  //   {4, 3, 3, 1},
+  //   {8, 7, 9, 5},
+  //   {6, 7, 9, 8}
+  // };
+  //
+  // auto matrix = CSCMatrix(dense);
   //
   // std::cout << matrix << std::endl;
   //
   // auto [L, U, P] = linalg::sparse_lu(matrix);
+  //
+  // std::cout << "original L:\n" << L << std::endl;
+  // std::cout << "original U:\n" << U << std::endl;
+  //
   //
   // auto dense_L = linalg::to_dense(L);
   // auto dense_U = linalg::to_dense(U);
@@ -99,8 +120,7 @@ int main() {
   // }
   // std::cout << std::endl;
   //
-  // std::cout << "P^-1 LU:\n" << linalg::apply_permutation(CSCMatrix(dense_L * dense_U), P)
-  //           << std::endl;
+  // std::cout << "PA:\n" << linalg::apply_permutation(matrix, P) << std::endl;
 
   // std::filesystem::remove_all("matrices");
   // std::filesystem::create_directory("matrices");

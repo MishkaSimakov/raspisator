@@ -2,8 +2,11 @@
 
 #include <random>
 
+#include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/sparse/LU.h"
+
+static size_t N = 1'000;
 
 CSCMatrix<double> sparse_matrix_1(size_t N, size_t density_multiplier) {
   auto A = Matrix<double>::unity(N);
@@ -23,16 +26,28 @@ CSCMatrix<double> sparse_matrix_1(size_t N, size_t density_multiplier) {
 }
 
 static void SparseMatrix(benchmark::State& state) {
-  auto matrix = sparse_matrix_1(100, 5);
+  auto matrix = sparse_matrix_1(N, state.range(0));
 
   for (auto _ : state) {
-    auto [L, U] = linalg::sparse_lu(matrix);
+    auto [L, U, P] = linalg::sparse_lu(matrix);
 
     benchmark::DoNotOptimize(L);
     benchmark::DoNotOptimize(U);
   }
 }
 
-BENCHMARK(SparseMatrix);
+static void DenseMatrix(benchmark::State& state) {
+  auto matrix = linalg::to_dense(sparse_matrix_1(N, state.range(0)));
+
+  for (auto _ : state) {
+    auto [L, U, P] = linalg::get_lup(matrix);
+
+    benchmark::DoNotOptimize(L);
+    benchmark::DoNotOptimize(U);
+  }
+}
+
+BENCHMARK(SparseMatrix)->RangeMultiplier(2)->Range(1, N);
+BENCHMARK(DenseMatrix)->RangeMultiplier(2)->Range(1, N);
 
 BENCHMARK_MAIN();

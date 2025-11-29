@@ -1,3 +1,3 @@
-add_executable(BenchmarkSparseLU linear/SparseLU.cpp)
+add_executable(BenchmarkLU linear/LU.cpp)
 
-target_link_libraries(BenchmarkSparseLU benchmark::benchmark raspisator)
+target_link_libraries(BenchmarkLU benchmark::benchmark raspisator)

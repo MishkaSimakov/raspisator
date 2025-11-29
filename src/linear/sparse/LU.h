@@ -27,6 +27,33 @@ CSCMatrix<Field> apply_permutation(const CSCMatrix<Field>& matrix,
 }
 
 template <typename Field>
+CSCMatrix<Field> apply_partial_permutation(
+    const CSCMatrix<Field>& matrix, const std::vector<size_t>& permutation) {
+  auto [n, d] = matrix.shape();
+
+  size_t valid_count = 0;
+  for (size_t i : permutation) {
+    if (i < d) {
+      ++valid_count;
+    }
+  }
+
+  CSCMatrix<Field> result(valid_count);
+
+  for (size_t col = 0; col < d; ++col) {
+    result.add_column();
+
+    for (const auto& [row, value] : matrix.get_column(col)) {
+      if (permutation[row] < d) {
+        result.push_to_last_column(permutation[row], value);
+      }
+    }
+  }
+
+  return result;
+}
+
+template <typename Field>
 void dfs(const CSCMatrix<Field>& L, size_t start,
          const std::vector<size_t>& rows_permutation,
          std::vector<size_t>& nonzero_indices, std::vector<bool>& visited,
@@ -37,18 +64,19 @@ void dfs(const CSCMatrix<Field>& L, size_t start,
 
   auto [n, d] = L.shape();
 
+  // current is a row index in A numeration
   size_t current = start;
   parent[current] = n;
   visited[current] = true;
 
   while (current != n) {
-    if (current >= d) {
+    if (rows_permutation[current] == n) {
       nonzero_indices.push_back(current);
       current = parent[current];
       continue;
     }
 
-    const auto& children = L.get_column(current);
+    const auto& children = L.get_column(rows_permutation[current]);
 
     // if we visited all children, then exit the current node
     if (child[current] >= children.size()) {
@@ -79,7 +107,7 @@ void dfs(const CSCMatrix<Field>& L, size_t start,
 // - L and U does not store zeros
 template <typename Field>
 std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
-    CSCMatrix<Field> A) {
+    const CSCMatrix<Field>& A) {
   size_t n = A.shape().first;
   if (n != A.shape().second) {
     throw std::invalid_argument("Matrix A must be square.");
@@ -88,8 +116,7 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
   CSCMatrix<Field> L(n);
   CSCMatrix<Field> U(n);
 
-  std::vector<size_t> rows_permutation(n);
-  std::iota(rows_permutation.begin(), rows_permutation.end(), 0);
+  std::vector<size_t> rows_permutation(n, n);
 
   std::vector<Field> dense(n, 0);
   std::vector<size_t> nonzero_indices;
@@ -108,33 +135,28 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
       dfs(L, index, rows_permutation, nonzero_indices, visited, parent, child);
     }
 
-    assert(std::set(nonzero_indices.begin(), nonzero_indices.end()).size() == nonzero_indices.size());
+    assert(std::set(nonzero_indices.begin(), nonzero_indices.end()).size() ==
+           nonzero_indices.size());
 
     // TODO: it seems that this two loops can be merged
     // compute u_j
-    for (size_t row : std::views::reverse(nonzero_indices)) {
-      if (row >= j) {
-        continue;
-      }
+    Field largest_value;
+    size_t largest_value_row;
 
-      for (const auto& [index, value] : L.get_column(row)) {
-        dense[index] -= dense[row] * value;
-      }
-    }
-
-    size_t largest_element_row = j;
     for (size_t row : std::views::reverse(nonzero_indices)) {
-      if (row >= j) {
-        if (FieldTraits<Field>::abs(dense[largest_element_row]) <
-            FieldTraits<Field>::abs(dense[row])) {
-          largest_element_row = row;
+      if (rows_permutation[row] == n) {
+        if (largest_value < FieldTraits<Field>::abs(dense[row])) {
+          largest_value = FieldTraits<Field>::abs(dense[row]);
+          largest_value_row = row;
+        }
+      } else {
+        for (const auto& [index, value] : L.get_column(rows_permutation[row])) {
+          dense[index] -= dense[row] * value;
         }
       }
     }
 
-    A.swap_rows(largest_element_row, j);
-    std::swap(rows_permutation[j], rows_permutation[largest_element_row]);
-    L.swap_rows(largest_element_row, j);
+    rows_permutation[largest_value_row] = j;
 
     Field diagonal_element;
     // copy dense into appropriate sparse columns of U and L
@@ -143,20 +165,13 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
 
     for (size_t row : nonzero_indices) {
       // apply rows permutation
-      size_t permuted_row = row;
-      if (row == largest_element_row) {
-        permuted_row = j;
-      } else if (row == j) {
-        permuted_row = largest_element_row;
-      }
-
-      if (permuted_row > j) {
-        L.push_to_last_column(permuted_row, dense[row]);
+      if (rows_permutation[row] == n) {
+        L.push_to_last_column(row, dense[row]);
       } else {
-        U.push_to_last_column(permuted_row, dense[row]);
+        U.push_to_last_column(row, dense[row]);
       }
 
-      if (permuted_row == j) {
+      if (rows_permutation[row] == j) {
         diagonal_element = dense[row];
       }
 
@@ -169,17 +184,15 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
     }
 
     nonzero_indices.clear();
-
-    // std::println("----- j = {} -----", j);
-    // std::cout << A << std::endl;
   }
 
-  std::vector<size_t> inverse(rows_permutation.size());
-  for (size_t i = 0; i < rows_permutation.size(); ++i) {
-    inverse[rows_permutation[i]] = i;
-  }
+  // apply P^-T to L and U
+  // L -> P^-T L, U -> P^-T U
+  // since P is a permutation matrix, P^-T = P
 
-  return {std::move(L), std::move(U), std::move(inverse)};
+  return {linalg::apply_permutation(L, rows_permutation),
+          linalg::apply_permutation(U, rows_permutation),
+          std::move(rows_permutation)};
 }
 
 }  // namespace linalg
