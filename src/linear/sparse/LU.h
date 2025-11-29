@@ -1,8 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <numeric>
-#include <set>
+#include <vector>
 
 #include "CSCMatrix.h"
 
@@ -20,33 +18,6 @@ CSCMatrix<Field> apply_permutation(const CSCMatrix<Field>& matrix,
 
     for (const auto& [row, value] : matrix.get_column(col)) {
       result.push_to_last_column(permutation[row], value);
-    }
-  }
-
-  return result;
-}
-
-template <typename Field>
-CSCMatrix<Field> apply_partial_permutation(
-    const CSCMatrix<Field>& matrix, const std::vector<size_t>& permutation) {
-  auto [n, d] = matrix.shape();
-
-  size_t valid_count = 0;
-  for (size_t i : permutation) {
-    if (i < d) {
-      ++valid_count;
-    }
-  }
-
-  CSCMatrix<Field> result(valid_count);
-
-  for (size_t col = 0; col < d; ++col) {
-    result.add_column();
-
-    for (const auto& [row, value] : matrix.get_column(col)) {
-      if (permutation[row] < d) {
-        result.push_to_last_column(permutation[row], value);
-      }
     }
   }
 
@@ -105,6 +76,7 @@ void dfs(const CSCMatrix<Field>& L, size_t start,
 // - P[i] = j means that i-th row in A is j-th row in PA
 // - LU = PA
 // - L and U does not store zeros
+// - L does not store ones on the main diagonal
 template <typename Field>
 std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
     const CSCMatrix<Field>& A) {
@@ -127,19 +99,11 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
   std::vector<size_t> child(n, 0);
 
   for (size_t j = 0; j < n; ++j) {
-    // dense vector representation of computed column
-
-    // TODO: non-recursive
     for (const auto& [index, value] : A.get_column(j)) {
       dense[index] = value;
       dfs(L, index, rows_permutation, nonzero_indices, visited, parent, child);
     }
 
-    assert(std::set(nonzero_indices.begin(), nonzero_indices.end()).size() ==
-           nonzero_indices.size());
-
-    // TODO: it seems that this two loops can be merged
-    // compute u_j
     Field largest_value;
     size_t largest_value_row;
 
@@ -186,13 +150,96 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
     nonzero_indices.clear();
   }
 
-  // apply P^-T to L and U
-  // L -> P^-T L, U -> P^-T U
-  // since P is a permutation matrix, P^-T = P
-
   return {linalg::apply_permutation(L, rows_permutation),
           linalg::apply_permutation(U, rows_permutation),
           std::move(rows_permutation)};
+}
+
+// solves Ax = b, where PA = LU
+// L must be without ones on the main diagonal
+template <typename Field>
+Matrix<Field> solve_linear(const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
+                           const std::vector<size_t>& P,
+                           const Matrix<Field>& b) {
+  auto [n, _] = L.shape();
+
+  // construct Pb
+  Matrix<Field> result(n, 1);
+  for (size_t i = 0; i < n; ++i) {
+    result[P[i], 0] = b[i, 0];
+  }
+
+  // solve Ly = Pb
+  for (size_t col = 0; col < n; ++col) {
+    for (const auto& [row, value] : L.get_column(col)) {
+      result[row, 0] -= result[col, 0] * value;
+    }
+  }
+
+  // solve Ux = y
+  for (size_t i = 0; i < n; ++i) {
+    size_t col = n - i - 1;
+
+    for (const auto& [row, value] : U.get_column(col)) {
+      if (row == col) {
+        result[col, 0] /= value;
+        break;
+      }
+    }
+
+    for (const auto& [row, value] : U.get_column(col)) {
+      if (row != col) {
+        result[row, 0] -= result[col, 0] * value;
+      }
+    }
+  }
+
+  return result;
+}
+
+// solves A^T x = b, where PA = LU
+// L must be without ones on the main diagonal
+template <typename Field>
+Matrix<Field> solve_transposed_linear(const CSCMatrix<Field>& L,
+                                      const CSCMatrix<Field>& U,
+                                      const std::vector<size_t>& P,
+                                      const Matrix<Field>& b) {
+  auto [n, _] = L.shape();
+
+  // copy b
+  Matrix<Field> result = b;
+
+  // solve U^T y = b
+  for (size_t col = 0; col < n; ++col) {
+    Field diagonal;
+
+    for (const auto& [row, value] : U.get_column(col)) {
+      if (row != col) {
+        result[col, 0] -= value * result[row, 0];
+      } else {
+        diagonal = value;
+      }
+    }
+
+    result[col, 0] /= diagonal;
+  }
+
+  // solve (L^T P) x = y
+  for (size_t i = 0; i < n; ++i) {
+    size_t col = n - i - 1;
+
+    for (const auto& [row, value] : L.get_column(col)) {
+      result[col, 0] -= result[row, 0] * value;
+    }
+  }
+
+  // TODO: this copying can be eliminated
+  Matrix<Field> permuted(n, 1);
+  for (size_t i = 0; i < n; ++i) {
+    permuted[i, 0] = result[P[i], 0];
+  }
+
+  return permuted;
 }
 
 }  // namespace linalg
