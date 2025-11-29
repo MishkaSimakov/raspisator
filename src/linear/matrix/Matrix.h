@@ -442,6 +442,18 @@ std::ostream& operator<<(std::ostream& os, MatrixLike auto&& matrix) {
 }
 
 namespace linalg {
+void to_numpy(std::ostream& os, MatrixLike auto&& matrix) {
+  auto [n, m] = matrix.shape();
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < m; ++j) {
+      os << matrix[i, j] << " ";
+    }
+
+    os << "\n";
+  }
+}
+
 template <MatrixLike Head, MatrixLike... Tail>
 Matrix<common_field_t<Head, Tail...>> vstack(Head&& topmost, Tail&&... rest) {
   if (((topmost.get_width() != rest.get_width()) || ...)) {

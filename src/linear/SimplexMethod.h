@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <fstream>
 #include <ranges>
 #include <variant>
 
@@ -204,16 +205,21 @@ class SimplexMethod {
     }
 
     while (true) {
-      // temporary
-      size_t n = bfs.basic_variables.size();
-      Matrix<Field> B(n, n);
-
-      for (size_t i = 0; i < n; ++i) {
-        B[{0, n}, i] = A_[{0, n}, bfs.basic_variables[i]];
-      }
-      //
-
       auto [L, U, P] = get_basic_lup(bfs.basic_variables);
+
+      // temp
+      auto time = std::chrono::system_clock::now().time_since_epoch() /
+                    std::chrono::milliseconds(1);
+      {
+        std::ofstream os(std::format("matrices/L_{}.txt", time));
+
+        linalg::to_numpy(os, L);
+      }
+      {
+        std::ofstream os(std::format("matrices/U_{}.txt", time));
+
+        linalg::to_numpy(os, U);
+      }
 
       // obtain point associated with given basic variables by solving
       // Bu = b
