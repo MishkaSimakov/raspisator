@@ -6,6 +6,7 @@
 #include "linear/MPS.h"
 #include "linear/SimplexMethod.h"
 #include "linear/builder/ProblemBuilder.h"
+#include "linear/bb/Drawer.h"
 
 using Field = double;
 
@@ -116,7 +117,7 @@ int main() {
   BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
   auto solution = solver.solve();
 
-  std::cout << GraphvizBuilder<Field>().build(solver.get_root()) << std::endl;
+  std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
 
   if (std::holds_alternative<FiniteMILPSolution<Field>>(solution)) {
     auto point = std::get<FiniteMILPSolution<Field>>(solution).point;

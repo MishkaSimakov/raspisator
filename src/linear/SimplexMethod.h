@@ -9,6 +9,7 @@
 #include "matrix/LU.h"
 #include "matrix/Matrix.h"
 #include "matrix/RowBasis.h"
+#include "sparse/LU.h"
 #include "utils/Variant.h"
 
 // Double, double toil and trouble;
@@ -24,14 +25,16 @@
 template <typename Field>
 class SimplexMethod {
   Matrix<Field> A_;
+  CSCMatrix<Field> A_sparse_;
+
   Matrix<Field> b_;
   Matrix<Field> c_;
 
  public:
   SimplexMethod(Matrix<Field> A, Matrix<Field> b, Matrix<Field> c)
-      : A_(std::move(A)), b_(std::move(b)), c_(std::move(c)) {
+      : A_(std::move(A)), A_sparse_(A_), b_(std::move(b)), c_(std::move(c)) {
     // check sizes
-    auto [n, d] = A_.shape();
+    auto [n, d] = A_sparse_.shape();
 
     if (n >= d) {
       throw std::invalid_argument(
@@ -49,14 +52,14 @@ class SimplexMethod {
 
   Field estimate_rounding_errors(const Matrix<Field>& tableau,
                                  const std::vector<size_t>& basic_vars) const {
-    auto [n, d] = A_.shape();
+    auto [n, d] = A_sparse_.shape();
 
     auto x = Matrix<Field>(d, 1);
     for (size_t i = 0; i < n; ++i) {
       x[basic_vars[i], 0] = tableau[i, 0];
     }
 
-    auto error = A_ * x - b_;
+    auto error = linalg::to_dense(A_sparse_) * x - b_;
 
     Field max = 0;
     for (size_t i = 0; i < n; ++i) {
@@ -75,7 +78,7 @@ class SimplexMethod {
     Field min_change = 0;
     size_t min_change_index = 0;
 
-    auto [n, d] = A_.shape();
+    auto [n, d] = A_sparse_.shape();
 
     for (size_t i = 0; i < d; ++i) {
       // TODO: store basic vars as a set?
@@ -83,7 +86,10 @@ class SimplexMethod {
         continue;
       }
 
-      auto change = linalg::dot(dual_point, A_[{0, n}, i]) - c_[0, i];
+      Field change = -c_[0, i];
+      for (const auto& [row, value] : A_sparse_.get_column(i)) {
+        change += dual_point[row, 0] * value;
+      }
 
       if (change < min_change) {
         min_change_index = i;
@@ -104,7 +110,7 @@ class SimplexMethod {
     std::optional<Field> min_t_value = std::nullopt;
     size_t min_t_index = 0;
 
-    size_t n = A_.get_height();
+    size_t n = A_sparse_.shape().first;
 
     for (size_t i = 0; i < n; ++i) {
       if (!FieldTraits<Field>::is_strictly_positive(entering_coords[i, 0])) {
@@ -122,17 +128,6 @@ class SimplexMethod {
     return min_t_value ? std::optional{min_t_index} : std::nullopt;
   }
 
-  auto get_basic_lup(const std::vector<size_t>& basic_vars) {
-    size_t n = basic_vars.size();
-    Matrix<Field> temp(n, n);
-
-    for (size_t i = 0; i < n; ++i) {
-      temp[{0, n}, i] = A_[{0, n}, basic_vars[i]];
-    }
-
-    return linalg::get_lup(temp);
-  }
-
   auto get_point(const Matrix<Field>& L, const Matrix<Field>& U,
                  const std::vector<size_t>& P) {
     auto Pb = linalg::apply_permutation(b_, P);
@@ -146,56 +141,37 @@ class SimplexMethod {
     return x;
   }
 
-  auto get_entering_coordinates(const Matrix<Field>& L, const Matrix<Field>& U,
+  auto get_entering_coordinates(const CSCMatrix<Field>& L,
+                                const CSCMatrix<Field>& U,
                                 const std::vector<size_t>& P,
                                 size_t entering_var) {
-    auto Pb =
-        linalg::apply_permutation(A_[{0, A_.get_height()}, entering_var], P);
+    size_t n = A_sparse_.shape().first;
+    Matrix<Field> b(n, 1);
 
-    // solve Ly = Pb
-    auto y = linalg::solve_lower(L, Pb, std::true_type{});
+    for (const auto& [row, value] : A_sparse_.get_column(entering_var)) {
+      b[row, 0] = value;
+    }
 
-    // solve Ux = y
-    auto x = linalg::solve_upper(U, y, std::false_type{});
-
-    return x;
+    return linalg::solve_linear(L, U, P, b);
   }
 
-  auto get_dual_point(const Matrix<Field>& L, const Matrix<Field>& U,
+  auto get_dual_point(const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
                       const std::vector<size_t>& P,
                       const std::vector<size_t>& basic_vars) {
-    size_t n = A_.get_height();
+    size_t n = A_sparse_.shape().first;
 
     Matrix<Field> cb(n, 1);
     for (size_t i = 0; i < n; ++i) {
       cb[i, 0] = c_[0, basic_vars[i]];
     }
 
-    // PB = LU
-    // solving (P^-1 LU)^T x = cb
-    // U^T L^T P^-T x = cb
-
-    // TODO: lots of unnecessary copying here
-    // U^T z = cb
-    auto z = linalg::solve_lower(linalg::transposed(U), cb, std::false_type{});
-
-    // L^T y = z
-    auto y = linalg::solve_upper(linalg::transposed(L), z, std::true_type{});
-
-    // P^-T x = y
-    // x = P^T y
-    std::vector<size_t> transposed_P(n);
-    for (size_t i = 0; i < n; ++i) {
-      transposed_P[P[i]] = i;
-    }
-
-    return linalg::apply_permutation(y, transposed_P);
+    return linalg::solve_transposed_linear(L, U, P, cb);
   }
 
   // finds maximum starting from bfs (basic feasible solution)
   std::variant<FiniteLPSolution<Field>, InfiniteSolution> solve_from(
       BFS<Field> bfs) {
-    auto [n, d] = A_.shape();
+    auto [n, d] = A_sparse_.shape();
 
     if (bfs.point.shape() != std::pair{d, 1}) {
       throw std::invalid_argument("bfs has wrong shape.");
@@ -205,33 +181,15 @@ class SimplexMethod {
     }
 
     while (true) {
-      auto [L, U, P] = get_basic_lup(bfs.basic_variables);
-
-      // temp
-      auto time = std::chrono::system_clock::now().time_since_epoch() /
-                    std::chrono::milliseconds(1);
-      {
-        std::ofstream os(std::format("matrices/L_{}.txt", time));
-
-        linalg::to_numpy(os, L);
-      }
-      {
-        std::ofstream os(std::format("matrices/U_{}.txt", time));
-
-        linalg::to_numpy(os, U);
-      }
+      auto [L, U, P] = linalg::sparse_lup(A_sparse_, bfs.basic_variables);
 
       // obtain point associated with given basic variables by solving
       // Bu = b
-      auto point = get_point(L, U, P);
+      auto point = linalg::solve_linear(L, U, P, b_);
 
       // obtain a solution of a dual problem by solving
       // B^T u = c_b
       auto dual_point = get_dual_point(L, U, P, bfs.basic_variables);
-      Matrix<Field> cb(n, 1);
-      for (size_t i = 0; i < n; ++i) {
-        cb[i, 0] = c_[0, bfs.basic_variables[i]];
-      }
 
       auto [entering_var, change] =
           find_entering_variable(dual_point, bfs.basic_variables);
@@ -276,7 +234,7 @@ class SimplexMethod {
     // replacing one column from bfs with artificial column
     // TODO: choice of replaced column may be important, investigate this
 
-    auto [n, d] = A_.shape();
+    auto [n, d] = A_sparse_.shape();
 
     auto A_new = A_.get_extended(n, d + 1, 0);
     auto c_new = Matrix<Field>(1, d + 1, 0);
@@ -348,14 +306,19 @@ class SimplexMethod {
   // algorithm is taken from
   // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
   std::optional<BFS<Field>> find_bfs() {
-    auto [n, d] = A_.shape();
+    auto [n, d] = A_sparse_.shape();
 
     // ensure that b >= 0
+    for (size_t col = 0; col < d; ++col) {
+      for (std::pair<size_t, Field>& element : A_sparse_.get_column(col)) {
+        if (b_[element.first, 0] < 0) {
+          element.second *= -1;
+        }
+      }
+    }
     for (size_t i = 0; i < n; ++i) {
       if (b_[i, 0] < 0) {
-        // multiply whole equation by -1
         b_[i, 0] *= -1;
-        A_[i, {0, d}] *= -1;
       }
     }
 

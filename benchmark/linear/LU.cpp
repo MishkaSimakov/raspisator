@@ -1,8 +1,9 @@
+#include "linear/matrix/LU.h"
+
 #include <benchmark/benchmark.h>
 
 #include <random>
 
-#include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/sparse/LU.h"
 
@@ -27,9 +28,11 @@ CSCMatrix<double> sparse_matrix_1(size_t N, size_t density_multiplier) {
 
 static void SparseMatrix(benchmark::State& state) {
   auto matrix = sparse_matrix_1(N, state.range(0));
+  std::vector<size_t> columns(N);
+  std::iota(columns.begin(), columns.end(), 0);
 
   for (auto _ : state) {
-    auto [L, U, P] = linalg::sparse_lu(matrix);
+    auto [L, U, P] = linalg::sparse_lup(matrix, columns);
 
     benchmark::DoNotOptimize(L);
     benchmark::DoNotOptimize(U);

@@ -538,7 +538,7 @@ common_field_t<L, R> dot(L&& left, R&& right) {
         "Matrices must have shape (n, 1) for dot product.");
   }
 
-  common_field_t<L, R> result;
+  common_field_t<L, R> result = 0;
 
   for (size_t i = 0; i < n; ++i) {
     result += left[i, 0] * right[i, 0];

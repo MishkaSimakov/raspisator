@@ -56,7 +56,10 @@ TEST_P(CommonLUTests, SparseDecomposeThenCompose) {
   auto [_, matrix] = GetParam();
   auto sparse = CSCMatrix<Rational>(matrix);
 
-  auto [L, U, P] = linalg::sparse_lu(sparse);
+  std::vector<size_t> columns(matrix.get_width());
+  std::iota(columns.begin(), columns.end(), 0);
+
+  auto [L, U, P] = linalg::sparse_lup(sparse, columns);
   auto dense_L = linalg::to_dense(L);
   auto dense_U = linalg::to_dense(U);
 

@@ -6,6 +6,10 @@
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
 
+inline Matrix<Rational> unity_matrix(size_t N) {
+  return Matrix<Rational>::unity(N);
+}
+
 inline Matrix<Rational> big_dense_matrix(size_t N) {
   Matrix<Rational> A(N, N);
 
@@ -54,6 +58,7 @@ inline Matrix<Rational> sparse_matrix(size_t N, size_t density_multiplier) {
 inline std::vector<std::pair<std::string, Matrix<Rational>>> test_matrices() {
   std::vector<std::pair<std::string, Matrix<Rational>>> result;
 
+  result.emplace_back("unity", unity_matrix(50));
   result.emplace_back("small_matrix1", small_matrix1());
   result.emplace_back("small_matrix2", small_matrix2());
   result.emplace_back("big_dense_matrix", big_dense_matrix(50));

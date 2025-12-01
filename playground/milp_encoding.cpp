@@ -225,13 +225,17 @@ int main() {
   // solve MILP problem
   auto milp_problem = builder.get_problem();
 
-  auto solver = BranchAndBound<Field, SimplexMethod<Field>>(milp_problem);
+  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 1000};
+  auto solver =
+      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem, settings);
   auto solution = solver.solve();
 
   std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
 
   if (std::holds_alternative<NoFiniteSolution>(solution)) {
     std::println("No finite solution.");
+  } else if (std::holds_alternative<ReachedNodesLimit>(solution)) {
+    std::println("Reached nodes limit.");
   } else {
     auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
 

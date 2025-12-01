@@ -72,16 +72,19 @@ void dfs(const CSCMatrix<Field>& L, size_t start,
 }
 
 // LUP decomposition for sparse matrices.
+// First it selects only given columns from A.
 // Returns L and U as sparse matrices and permutation P such that:
 // - P[i] = j means that i-th row in A is j-th row in PA
 // - LU = PA
 // - L and U does not store zeros
 // - L does not store ones on the main diagonal
+// Note: It is not checked whether A is non-singular, but A must be
+// non-singular for algorithm to work.
 template <typename Field>
-std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
-    const CSCMatrix<Field>& A) {
+std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lup(
+    const CSCMatrix<Field>& A, const std::vector<size_t>& columns) {
   size_t n = A.shape().first;
-  if (n != A.shape().second) {
+  if (n != columns.size()) {
     throw std::invalid_argument("Matrix A must be square.");
   }
 
@@ -99,12 +102,12 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lu(
   std::vector<size_t> child(n, 0);
 
   for (size_t j = 0; j < n; ++j) {
-    for (const auto& [index, value] : A.get_column(j)) {
+    for (const auto& [index, value] : A.get_column(columns[j])) {
       dense[index] = value;
       dfs(L, index, rows_permutation, nonzero_indices, visited, parent, child);
     }
 
-    Field largest_value;
+    Field largest_value = 0;
     size_t largest_value_row;
 
     for (size_t row : std::views::reverse(nonzero_indices)) {

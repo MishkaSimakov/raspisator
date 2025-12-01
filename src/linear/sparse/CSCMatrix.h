@@ -28,7 +28,7 @@ class CSCMatrix {
  public:
   // creates (height, 0) sparse matrix
   explicit CSCMatrix(size_t height)
-      : rows_cnt_(height), index_pointers_(1, 0) {}
+      : index_pointers_(1, 0), rows_cnt_(height) {}
 
   explicit CSCMatrix(const Matrix<Field>& matrix)
       : index_pointers_(matrix.get_width() + 1),
@@ -49,6 +49,24 @@ class CSCMatrix {
 
       index_pointers_[col + 1] = nonzero_cnt;
     }
+  }
+
+  static CSCMatrix from_columns(const Matrix<Field>& dense,
+                                const std::vector<size_t>& columns) {
+    auto [n, d] = dense.shape();
+    CSCMatrix result(n);
+
+    for (size_t col : columns) {
+      result.add_column();
+
+      for (size_t row = 0; row < n; ++row) {
+        if (FieldTraits<Field>::is_nonzero(dense[row, col])) {
+          result.push_to_last_column(row, dense[row, col]);
+        }
+      }
+    }
+
+    return result;
   }
 
   std::pair<size_t, size_t> shape() const {

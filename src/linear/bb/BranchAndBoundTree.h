@@ -125,4 +125,6 @@ class BranchAndBoundTree {
 
     return &nodes_[0];
   }
+
+  size_t size() const { return nodes_.size(); }
 };

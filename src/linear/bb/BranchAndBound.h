@@ -20,10 +20,16 @@ struct NodeComparator {
   }
 };
 
+template <typename Field>
+struct BranchAndBoundSettings {
+  std::optional<size_t> max_nodes = std::nullopt;
+};
+
 // TODO: implement more efficient version for binary variables
 template <typename Field, LPSolver<Field> LPSolver>
 class BranchAndBound {
   const MILPProblem<Field> problem_;
+  const BranchAndBoundSettings<Field> settings_;
 
   BranchAndBoundTree<Field> tree_;
 
@@ -170,12 +176,6 @@ class BranchAndBound {
     if (type == NodeRelativeLocation::LEFT_CHILD) {
       if (d + upper_count > node->solution.get_height()) {
         // added new column and row
-        // if it turns out that this row is linearly dependent with previous
-        // rows then this branch is unfeasible
-        if (linalg::get_row_basis(A).size() != n + upper_count) {
-          return {A, b, c, shifts, std::nullopt};
-        }
-
         // add it to basic variables
         bfs.basic_variables.push_back(d + upper_count - 1);
       }
@@ -274,7 +274,9 @@ class BranchAndBound {
   }
 
  public:
-  explicit BranchAndBound(MILPProblem<Field> problem) : problem_(problem) {}
+  explicit BranchAndBound(MILPProblem<Field> problem,
+                          BranchAndBoundSettings<Field> settings = {})
+      : problem_(problem), settings_(settings) {}
 
   MILPSolution<Field> solve() {
     // solve problem
@@ -294,6 +296,11 @@ class BranchAndBound {
 
       calculate_node(current_node, NodeRelativeLocation::LEFT_CHILD);
       calculate_node(current_node, NodeRelativeLocation::RIGHT_CHILD);
+
+      if (settings_.max_nodes.has_value() &&
+          tree_.size() > *settings_.max_nodes) {
+        return ReachedNodesLimit{};
+      }
     }
 
     if (!lower_bound_) {
