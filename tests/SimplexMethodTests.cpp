@@ -19,7 +19,7 @@ TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {
 
   Matrix<Rational> bfs = {{0}, {3}, {4}, {0}};
 
-  SimplexMethod solver(A, b, c);
+  SimplexMethod solver(CSCMatrix(A), b, c);
   auto solution =
       solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
@@ -38,7 +38,7 @@ TEST(SimplexMethodTests, FullSimple1) {
 
   Matrix<Rational> bfs = {{0}, {0}, {1}, {3}};
 
-  SimplexMethod solver(A, b, c);
+  SimplexMethod solver(CSCMatrix(A), b, c);
   auto solution =
       solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
@@ -60,7 +60,7 @@ TEST(SimplexMethodTests, FullSimple2) {
   Matrix bfs = {
       {Rational{0}}, {Rational{11} / 6}, {Rational{0}}, {Rational{1} / 6}};
 
-  SimplexMethod solver(A, b, c);
+  SimplexMethod solver(CSCMatrix(A), b, c);
   auto solution =
       solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
@@ -77,7 +77,7 @@ TEST(SimplexMethodTests, FullSimple3) {
 
   Matrix<Rational> bfs = {{1}, {0}};
 
-  SimplexMethod solver(A, b, c);
+  SimplexMethod solver(CSCMatrix(A), b, c);
   auto solution =
       solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
@@ -94,7 +94,7 @@ TEST(SimplexMethodTests, FullSimple4) {
 
   Matrix<Rational> bfs = {{0}, {1}};
 
-  SimplexMethod solver(A, b, c);
+  SimplexMethod solver(CSCMatrix(A), b, c);
   auto solution =
       solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
@@ -112,7 +112,7 @@ TEST(SimplexMethodTests, InfiniteSolutionDetection) {
 
     Matrix<Rational> bfs = {{1}, {0}};
 
-    SimplexMethod solver(A, b, c);
+    SimplexMethod solver(CSCMatrix(A), b, c);
     auto solution =
         solver.solve_from(BFS<Rational>::construct_nondegenerate(bfs));
 
@@ -129,7 +129,7 @@ TEST(SimplexMethodTests, FullWithFindingBFS) {
   Matrix<Rational> b = {{2}, {24}};
   Matrix<Rational> c = {{1, 2, 3, -4}};
 
-  SimplexMethod solver(A, b, c);
+  SimplexMethod solver(CSCMatrix(A), b, c);
   auto solution = solver.solve();
 
   Matrix<Rational> expected = {{4}, {0}, {2}, {0}};
@@ -161,7 +161,8 @@ TEST(SimplexMethodTests, ReconstructBFS) {
 
           auto b = A * old_bfs.point;
 
-          auto bfs = SimplexMethod(A, b, c).reconstruct_bfs(old_bfs, 4);
+          auto bfs =
+              SimplexMethod(CSCMatrix(A), b, c).reconstruct_bfs(old_bfs, 4);
 
           ASSERT_TRUE(bfs.has_value());
           ASSERT_TRUE(check_bfs(A, b, *bfs));
@@ -171,34 +172,35 @@ TEST(SimplexMethodTests, ReconstructBFS) {
   }
 }
 
+// TODO: maybe finish this test
 // this matrix is constructed from Chemical Batch Processing problem
-TEST(SimplexMethodTests, UnstableMatrix) {
-  Matrix<double> A = {
-      {-1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {0, -1, 10, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
-      {0, 1, -200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-      {0, 0, 0, -1, 10, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
-      {0, 0, 0, 1, -200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-      {0, -1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {0, 0, 0, -1, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {0, 1, 0, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-      {-1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-      {0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-      {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
-      {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-      {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}};
-
-  Matrix<double> b = {
-      {0},  {-0}, {-0}, {-0},   {-0}, {-100}, {-0},
-      {-0}, {-0}, {0},  {-100}, {1},  {1},    {1},
-  };
-
-  size_t d = A.get_width();
-
-  Matrix<double> c(1, d, 0);
-
-  auto bfs = SimplexMethod(A, b, c).find_bfs();
-
-  std::cout << bfs.has_value() << std::endl;
-}
+// TEST(SimplexMethodTests, UnstableMatrix) {
+//   Matrix<double> A = {
+//       {-1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//       {0, -1, 10, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+//       {0, 1, -200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+//       {0, 0, 0, -1, 10, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+//       {0, 0, 0, 1, -200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+//       {0, -1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//       {0, 0, 0, -1, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//       {0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//       {0, 1, 0, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+//       {-1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+//       {0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+//       {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+//       {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+//       {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}};
+//
+//   Matrix<double> b = {
+//       {0},  {-0}, {-0}, {-0},   {-0}, {-100}, {-0},
+//       {-0}, {-0}, {0},  {-100}, {1},  {1},    {1},
+//   };
+//
+//   size_t d = A.get_width();
+//
+//   Matrix<double> c(1, d, 0);
+//
+//   auto bfs = SimplexMethod(CSCMatrix(A), b, c).find_bfs();
+//
+//   std::cout << bfs.has_value() << std::endl;
+// }

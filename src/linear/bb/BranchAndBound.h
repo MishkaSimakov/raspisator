@@ -127,7 +127,7 @@ class BranchAndBound {
     std::vector<Field> shifts(d, 0);
 
     if (type == NodeRelativeLocation::ROOT) {
-      auto bfs = LPSolver(problem_.A, problem_.b, problem_.c).find_bfs();
+      auto bfs = LPSolver(CSCMatrix(problem_.A), problem_.b, problem_.c).find_bfs();
       return {problem_.A, problem_.b, problem_.c, shifts, bfs};
     }
 
@@ -200,7 +200,7 @@ class BranchAndBound {
       negative_index = node->branching_variable;
     }
 
-    auto solver = LPSolver(A, b, c);
+    auto solver = LPSolver(CSCMatrix(A), b, c);
     auto reconstructed_bfs = solver.reconstruct_bfs(bfs, negative_index);
 
     return {A, b, c, shifts, std::move(reconstructed_bfs)};
@@ -214,7 +214,7 @@ class BranchAndBound {
       return;
     }
 
-    auto relaxed_solution = LPSolver(A, b, c).solve_from(*bfs);
+    auto relaxed_solution = LPSolver(CSCMatrix(A), b, c).solve_from(*bfs);
 
     // prune branch if there is no feasible solution
     if (std::holds_alternative<InfiniteSolution>(relaxed_solution)) {

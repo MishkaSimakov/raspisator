@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "linear/matrix/Matrix.h"
+#include "linear/sparse/CSCMatrix.h"
 
 template <typename Field>
 struct FiniteLPSolution {
@@ -48,7 +49,7 @@ struct BFS {
 
 template <typename T, typename Field>
 concept LPSolver = requires(T solver) {
-  requires std::constructible_from<T, Matrix<Field>, Matrix<Field>,
+  requires std::constructible_from<T, CSCMatrix<Field>, Matrix<Field>,
                                    Matrix<Field>>;
   { solver.solve() } -> std::same_as<LPSolution<Field>>;
 

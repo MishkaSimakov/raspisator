@@ -24,17 +24,16 @@
 // it is assumed that n < d
 template <typename Field>
 class SimplexMethod {
-  Matrix<Field> A_;
-  CSCMatrix<Field> A_sparse_;
+  CSCMatrix<Field> A_;
 
   Matrix<Field> b_;
   Matrix<Field> c_;
 
  public:
-  SimplexMethod(Matrix<Field> A, Matrix<Field> b, Matrix<Field> c)
-      : A_(std::move(A)), A_sparse_(A_), b_(std::move(b)), c_(std::move(c)) {
+  SimplexMethod(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c)
+      : A_(std::move(A)), b_(std::move(b)), c_(std::move(c)) {
     // check sizes
-    auto [n, d] = A_sparse_.shape();
+    auto [n, d] = A_.shape();
 
     if (n >= d) {
       throw std::invalid_argument(
@@ -52,14 +51,14 @@ class SimplexMethod {
 
   Field estimate_rounding_errors(const Matrix<Field>& tableau,
                                  const std::vector<size_t>& basic_vars) const {
-    auto [n, d] = A_sparse_.shape();
+    auto [n, d] = A_.shape();
 
     auto x = Matrix<Field>(d, 1);
     for (size_t i = 0; i < n; ++i) {
       x[basic_vars[i], 0] = tableau[i, 0];
     }
 
-    auto error = linalg::to_dense(A_sparse_) * x - b_;
+    auto error = linalg::to_dense(A_) * x - b_;
 
     Field max = 0;
     for (size_t i = 0; i < n; ++i) {
@@ -78,7 +77,7 @@ class SimplexMethod {
     Field min_change = 0;
     size_t min_change_index = 0;
 
-    auto [n, d] = A_sparse_.shape();
+    auto [n, d] = A_.shape();
 
     for (size_t i = 0; i < d; ++i) {
       // TODO: store basic vars as a set?
@@ -87,7 +86,7 @@ class SimplexMethod {
       }
 
       Field change = -c_[0, i];
-      for (const auto& [row, value] : A_sparse_.get_column(i)) {
+      for (const auto& [row, value] : A_.get_column(i)) {
         change += dual_point[row, 0] * value;
       }
 
@@ -110,7 +109,7 @@ class SimplexMethod {
     std::optional<Field> min_t_value = std::nullopt;
     size_t min_t_index = 0;
 
-    size_t n = A_sparse_.shape().first;
+    size_t n = A_.shape().first;
 
     for (size_t i = 0; i < n; ++i) {
       if (!FieldTraits<Field>::is_strictly_positive(entering_coords[i, 0])) {
@@ -145,10 +144,10 @@ class SimplexMethod {
                                 const CSCMatrix<Field>& U,
                                 const std::vector<size_t>& P,
                                 size_t entering_var) {
-    size_t n = A_sparse_.shape().first;
+    size_t n = A_.shape().first;
     Matrix<Field> b(n, 1);
 
-    for (const auto& [row, value] : A_sparse_.get_column(entering_var)) {
+    for (const auto& [row, value] : A_.get_column(entering_var)) {
       b[row, 0] = value;
     }
 
@@ -158,7 +157,7 @@ class SimplexMethod {
   auto get_dual_point(const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
                       const std::vector<size_t>& P,
                       const std::vector<size_t>& basic_vars) {
-    size_t n = A_sparse_.shape().first;
+    size_t n = A_.shape().first;
 
     Matrix<Field> cb(n, 1);
     for (size_t i = 0; i < n; ++i) {
@@ -171,7 +170,7 @@ class SimplexMethod {
   // finds maximum starting from bfs (basic feasible solution)
   std::variant<FiniteLPSolution<Field>, InfiniteSolution> solve_from(
       BFS<Field> bfs) {
-    auto [n, d] = A_sparse_.shape();
+    auto [n, d] = A_.shape();
 
     if (bfs.point.shape() != std::pair{d, 1}) {
       throw std::invalid_argument("bfs has wrong shape.");
@@ -181,7 +180,7 @@ class SimplexMethod {
     }
 
     while (true) {
-      auto [L, U, P] = linalg::sparse_lup(A_sparse_, bfs.basic_variables);
+      auto [L, U, P] = linalg::sparse_lup(A_, bfs.basic_variables);
 
       // obtain point associated with given basic variables by solving
       // Bu = b
@@ -234,10 +233,10 @@ class SimplexMethod {
     // replacing one column from bfs with artificial column
     // TODO: choice of replaced column may be important, investigate this
 
-    auto [n, d] = A_sparse_.shape();
+    auto [n, d] = A_.shape();
 
-    auto A_new = A_.get_extended(n, d + 1, 0);
     auto c_new = Matrix<Field>(1, d + 1, 0);
+    c_new[0, d] = -1;
 
     auto bfs_new = old_bfs.point.get_extended(d + 1, 1, 0);
     bfs_new[d, 0] = old_bfs.point[negative_index, 0] * -1;
@@ -255,10 +254,11 @@ class SimplexMethod {
 
     old_bfs.basic_variables[index_in_bfs] = d;
 
-    c_new[0, d] = -1;
-
-    A_new[{0, n}, d] = A_[{0, n}, negative_index];
-    A_new[{0, n}, d] *= -1;
+    CSCMatrix<Field> A_new(A_);
+    A_new.add_column();
+    for (const auto& [row, value] : A_.get_column(negative_index)) {
+      A_new.push_to_last_column(row, -value);
+    }
 
     auto solver = SimplexMethod(A_new, b_, c_new);
 
@@ -291,8 +291,8 @@ class SimplexMethod {
       }
     }
 
-    auto row_basis =
-        linalg::complete_row_basis(linalg::transposed(A_), real_basic_vars);
+    auto row_basis = linalg::complete_row_basis(
+        linalg::to_dense_transposed(A_), real_basic_vars);
 
     if (row_basis.size() < n) {
       // rows of A are linearly dependent
@@ -306,13 +306,14 @@ class SimplexMethod {
   // algorithm is taken from
   // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
   std::optional<BFS<Field>> find_bfs() {
-    auto [n, d] = A_sparse_.shape();
+    auto [n, d] = A_.shape();
 
     // ensure that b >= 0
     for (size_t col = 0; col < d; ++col) {
-      for (std::pair<size_t, Field>& element : A_sparse_.get_column(col)) {
-        if (b_[element.first, 0] < 0) {
-          element.second *= -1;
+      for (std::tuple<size_t&, Field&> element : A_.get_column(col)) {
+        auto& [row, value] = element;
+        if (b_[row, 0] < 0) {
+          value *= -1;
         }
       }
     }
@@ -323,13 +324,16 @@ class SimplexMethod {
     }
 
     // add artificial variables
-    auto A_new = A_.get_extended(n, d + n, 0);
+    CSCMatrix<Field> A_new(A_);
     auto c_new = Matrix<Field>(1, d + n, 0);
     auto bfs_new = Matrix<Field>(d + n, 1, 0);
 
     for (size_t i = 0; i < n; ++i) {
-      A_new[i, i + d] = 1;
       c_new[0, i + d] = -1;
+    }
+    for (size_t i = 0; i < n; ++i) {
+      A_new.add_column();
+      A_new.push_to_last_column(i, 1);
     }
 
     for (size_t i = 0; i < n; ++i) {
@@ -371,8 +375,8 @@ class SimplexMethod {
       }
     }
 
-    auto row_basis =
-        linalg::complete_row_basis(linalg::transposed(A_), real_basic_vars);
+    auto row_basis = linalg::complete_row_basis(
+        linalg::to_dense_transposed(A_), real_basic_vars);
 
     if (row_basis.size() < n) {
       // rows of A are linearly dependent

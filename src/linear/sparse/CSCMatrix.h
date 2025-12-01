@@ -129,17 +129,8 @@ class CSCMatrix {
     data_.push_back(value);
   }
 
-  // temporary
-  void swap_rows(size_t i, size_t j) {
-    for (size_t col = 0; col < (*this).shape().second; ++col) {
-      for (size_t& row : get_column(col) | std::views::keys) {
-        if (row == i) {
-          row = j;
-        } else if (row == j) {
-          row = i;
-        }
-      }
-    }
+  size_t nonzero_count() const {
+    return data_.size();
   }
 };
 
@@ -172,6 +163,20 @@ Matrix<Field> to_dense(const CSCMatrix<Field>& sparse) {
   for (size_t col = 0; col < m; ++col) {
     for (const auto& [row, value] : sparse.get_column(col)) {
       result[row, col] = value;
+    }
+  }
+
+  return result;
+}
+
+template <typename Field>
+Matrix<Field> to_dense_transposed(const CSCMatrix<Field>& sparse) {
+  auto [n, m] = sparse.shape();
+  Matrix<Field> result(m, n);
+
+  for (size_t col = 0; col < m; ++col) {
+    for (const auto& [row, value] : sparse.get_column(col)) {
+      result[col, row] = value;
     }
   }
 

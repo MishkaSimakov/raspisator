@@ -21,7 +21,7 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   auto problem = builder.get_problem();
 
   auto solution = std::get<FiniteLPSolution<Rational>>(
-      SimplexMethod(problem.A, problem.b, problem.c).solve());
+      SimplexMethod(CSCMatrix(problem.A), problem.b, problem.c).solve());
 
   // check solution
   Rational x_value = builder.extract_variable(solution.point, x);

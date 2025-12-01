@@ -19,7 +19,7 @@ TEST(DegenerateSimplexMethodTests, SimpleTest) {
   Matrix<Rational> b = {{1}, {0}};
   Matrix<Rational> c = {{1, 0, 0}};
 
-  auto bfs = SimplexMethod(A, b, c).find_bfs();
+  auto bfs = SimplexMethod(CSCMatrix(A), b, c).find_bfs();
 
   ASSERT_TRUE(bfs.has_value());
   ASSERT_SETS_EQ(bfs->basic_variables, (std::vector<size_t>{0, 1}));
@@ -37,7 +37,7 @@ TEST(DegenerateSimplexMethodTests, ZerosInb1) {
   Matrix<Rational> b(N, 1, 0);
   Matrix<Rational> c(1, N + 1, 1);
 
-  auto bfs = SimplexMethod(A, b, c).find_bfs();
+  auto bfs = SimplexMethod(CSCMatrix(A), b, c).find_bfs();
 
   ASSERT_TRUE(bfs.has_value());
 
@@ -60,7 +60,7 @@ TEST(DegenerateSimplexMethodTests, ZerosInb2) {
   Matrix<Rational> b(2 * N, 1, 0);
   Matrix<Rational> c(1, 3 * N, 1);
 
-  auto bfs = SimplexMethod(A, b, c).find_bfs();
+  auto bfs = SimplexMethod(CSCMatrix(A), b, c).find_bfs();
 
   ASSERT_TRUE(bfs.has_value());
 
