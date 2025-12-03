@@ -3,7 +3,6 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        SimplexMethodTests.cpp
         MatrixTests.cpp
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
@@ -12,6 +11,9 @@ target_sources(tests PUBLIC
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
         NumericalStabilityTests.cpp
+
+        simplex/RandomTests.cpp
+        simplex/SmallTests.cpp
 
         LU/CommonTests.cpp
         LU/SparseLUTests.cpp

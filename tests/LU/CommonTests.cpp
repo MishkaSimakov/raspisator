@@ -46,8 +46,8 @@ TEST_P(CommonLUTests, DenseDecomposeThenCompose) {
 
   auto [L, U] = linalg::get_lu(matrix);
 
-  check_L(L);
-  check_U(U);
+  ASSERT_NO_FATAL_FAILURE(check_L(dense_L));
+  ASSERT_NO_FATAL_FAILURE(check_U(dense_U));
 
   ASSERT_EQ(L * U, matrix);
 }
@@ -68,8 +68,8 @@ TEST_P(CommonLUTests, SparseDecomposeThenCompose) {
     dense_L[i, i] = 1;
   }
 
-  check_L(dense_L);
-  check_U(dense_U);
+  ASSERT_NO_FATAL_FAILURE(check_L(dense_L));
+  ASSERT_NO_FATAL_FAILURE(check_U(dense_U));
 
   auto expected = linalg::to_dense(linalg::apply_permutation(sparse, P));
 
