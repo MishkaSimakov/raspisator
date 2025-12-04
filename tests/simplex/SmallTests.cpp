@@ -1,12 +1,21 @@
 #include <gtest/gtest.h>
 
-#include <iostream>
 #include <variant>
 
 #include "linear/BigInteger.h"
 #include "linear/BoundedSimplexMethod.h"
 #include "linear/CheckBFS.h"
 #include "linear/matrix/Matrix.h"
+
+template <typename Field>
+auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
+                 const Matrix<Field>& c, const std::vector<Field>& lower,
+                 const std::vector<Field>& upper,
+                 const std::vector<size_t>& basic_variables) {
+  BoundedSimplexMethod solver(CSCMatrix(A), b, c);
+  solver.setup_warm_start(basic_variables);
+  return solver.dual(lower, upper);
+}
 
 TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {
   Matrix<Rational> A = {
@@ -17,17 +26,14 @@ TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {
   Matrix<Rational> b = {{1}, {3}};
   Matrix<Rational> c = {{2, 1, 1, -1}};
 
-  Matrix<Rational> point = {{0}, {3}, {4}, {0}};
-  std::vector vars = {VariableState::AT_LOWER, VariableState::BASIC,
-                      VariableState::BASIC, VariableState::AT_LOWER};
-
   std::vector<Rational> lower = {0, 0, 0, 0};
   std::vector<Rational> upper = {10, 10, 10, 10};
 
-  SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-  auto solution = solver.solve_from(point, vars);
+  auto solution = run_simplex(A, b, c, lower, upper, {1, 2});
 
-  ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, point);
+  Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
+
+  ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
 }
 
@@ -40,15 +46,10 @@ TEST(SimplexMethodTests, FullSimple1) {
   Matrix<Rational> b = {{1}, {3}};
   Matrix<Rational> c = {{2, 1, 1, -1}};
 
-  Matrix<Rational> point = {{0}, {0}, {1}, {3}};
-  std::vector vars = {VariableState::AT_LOWER, VariableState::AT_LOWER,
-                      VariableState::BASIC, VariableState::BASIC};
-
   std::vector<Rational> lower = {0, 0, 0, 0};
   std::vector<Rational> upper = {10, 10, 10, 10};
 
-  SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-  auto solution = solver.solve_from(point, vars);
+  auto solution = run_simplex(A, b, c, lower, upper, {2, 3});
 
   Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
 
@@ -65,16 +66,10 @@ TEST(SimplexMethodTests, FullSimple2) {
   Matrix<Rational> b = {{2}, {24}};
   Matrix<Rational> c = {{1, 2, 3, -4}};
 
-  Matrix point = {
-      {Rational{0}}, {Rational{11} / 6}, {Rational{0}}, {Rational{1} / 6}};
-  std::vector vars = {VariableState::AT_LOWER, VariableState::BASIC,
-                      VariableState::AT_LOWER, VariableState::BASIC};
-
   std::vector<Rational> lower = {0, 0, 0, 0};
   std::vector<Rational> upper = {10, 10, 10, 10};
 
-  SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-  auto solution = solver.solve_from(point, vars);
+  auto solution = run_simplex(A, b, c, lower, upper, {1, 3});
 
   Matrix<Rational> expected = {{4}, {0}, {2}, {0}};
 
@@ -87,14 +82,10 @@ TEST(SimplexMethodTests, FullSimple3) {
   Matrix<Rational> b = {{1}};
   Matrix<Rational> c = {{1, 2}};
 
-  Matrix<Rational> point = {{1}, {0}};
-  std::vector vars = {VariableState::BASIC, VariableState::AT_LOWER};
-
   std::vector<Rational> lower = {0, 0};
   std::vector<Rational> upper = {10, 10};
 
-  SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-  auto solution = solver.solve_from(point, vars);
+  auto solution = run_simplex(A, b, c, lower, upper, {0});
 
   Matrix<Rational> expected = {{0}, {1}};
 
@@ -107,14 +98,10 @@ TEST(SimplexMethodTests, FullSimple4) {
   Matrix<Rational> b = {{1}};
   Matrix<Rational> c = {{2, 1}};
 
-  Matrix<Rational> point = {{0}, {1}};
-  std::vector vars = {VariableState::AT_LOWER, VariableState::BASIC};
-
   std::vector<Rational> lower = {0, 0};
   std::vector<Rational> upper = {10, 10};
 
-  SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-  auto solution = solver.solve_from(point, vars);
+  auto solution = run_simplex(A, b, c, lower, upper, {1});
 
   Matrix<Rational> expected = {{1}, {0}};
 
@@ -223,7 +210,7 @@ TEST(SimplexMethodTests, FullSimple4) {
 //   std::cout << bfs.has_value() << std::endl;
 // }
 
-TEST(SimplexMethod, NonTrivialBounds) {
+TEST(SimplexMethodTests, NonTrivialBounds) {
   Matrix<Rational> A = {
       {1, -1, 1, 0},
       {2, 1, 0, 1},
@@ -239,44 +226,30 @@ TEST(SimplexMethod, NonTrivialBounds) {
   Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
 
   {
-    std::vector vars = {VariableState::AT_LOWER, VariableState::AT_LOWER,
-                        VariableState::BASIC, VariableState::BASIC};
-
-    SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-    auto solution = solver.solve_from(point, vars);
+    auto solution = run_simplex(A, b, c, lower, upper, {2, 3});
 
     ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
     ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
   }
 
   {
-    std::vector vars = {VariableState::AT_LOWER, VariableState::BASIC,
-                        VariableState::AT_LOWER, VariableState::BASIC};
-
-    SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-    auto solution = solver.solve_from(point, vars);
+    auto solution = run_simplex(A, b, c, lower, upper, {2, 3});
 
     ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
     ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
   }
 }
 
-TEST(SimplexMethod, NonTrivialBounds2) {
+TEST(SimplexMethodTests, NonTrivialBounds2) {
   Matrix<Rational> A = {{1, 1, 1, 0, 0, 0}};
 
   Matrix<Rational> b = {{1}};
   Matrix<Rational> c = {{1, 0, 0, 1, 1, 1}};
 
-  Matrix<Rational> point = {{0}, {0}, {1}, {1}, {1}, {1}};
-  std::vector vars = {VariableState::AT_LOWER, VariableState::AT_LOWER,
-                      VariableState::BASIC,    VariableState::AT_UPPER,
-                      VariableState::AT_UPPER, VariableState::AT_UPPER};
-
   std::vector<Rational> lower = {0, 0, 0, 0, 0, 0};
   std::vector<Rational> upper = {1, 1, 1, 1, 1, 1};
 
-  SimplexMethod solver(CSCMatrix(A), b, c, lower, upper);
-  auto solution = solver.solve_from(point, vars);
+  auto solution = run_simplex(A, b, c, lower, upper, {2});
 
   Matrix<Rational> expected = {{1}, {0}, {0}, {1}, {1}, {1}};
 

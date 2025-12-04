@@ -35,7 +35,6 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
     auto c = linalg::random<Rational>(1, d, elements_generator);
 
     Matrix<Rational> point(d, 1);
-    std::vector<VariableState> variables(d);
 
     std::vector<Rational> lower(d);
     std::vector<Rational> upper(d);
@@ -50,17 +49,13 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
       lower[i] = first;
       upper[i] = second;
 
-      variables[i] = VariableState::BASIC;
-
       point[i, 0] = std::uniform_int_distribution<int>(first, second)(engine);
     }
 
     for (size_t i = n; i < d; ++i) {
       if (coin_distribution(engine) == 0) {
-        variables[i] = VariableState::AT_LOWER;
         point[i, 0] = lower[i];
       } else {
-        variables[i] = VariableState::AT_UPPER;
         point[i, 0] = upper[i];
       }
     }
@@ -68,9 +63,13 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
     auto A = linalg::hstack(A_basic, A_nonbasic);
     auto b = A * point;
 
+    std::vector<size_t> basic_variables(n);
+    std::iota(basic_variables.begin(), basic_variables.end(), 0);
+
     // calculate solution
-    auto solution = SimplexMethod(CSCMatrix(A), b, c, lower, upper)
-                        .solve_from(point, variables);
+    auto solver = BoundedSimplexMethod(CSCMatrix(A), b, c);
+    solver.setup_warm_start(basic_variables);
+    auto solution = solver.dual(lower, upper);
 
     // check solution
     auto finite_solution = std::get<FiniteLPSolution<Rational>>(solution);

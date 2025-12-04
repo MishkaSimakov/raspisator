@@ -9,7 +9,13 @@
 
 template <typename Field>
 class ProblemBuilder {
-  std::vector<std::pair<std::string, VariableType>> variables_;
+  struct VariableInfo {
+    VariableType type;
+    Field lower_bound;
+    Field upper_bound;
+  };
+
+  std::vector<std::pair<std::string, VariableInfo>> variables_;
 
   std::vector<Constraint<Field>> constraints_;
   Expression<Field> objective_;
@@ -101,8 +107,9 @@ class ProblemBuilder {
       }
 
       // now it is <= constraint
+      // TODO: slack variable upper bound
       auto slack_var = new_variable(fmt::format("slack({})", slack_index),
-                                    VariableType::SLACK);
+                                    VariableType::SLACK, 0, 1'000'000);
       ++slack_index;
 
       constraint.lhs_ += slack_var;
@@ -144,9 +151,10 @@ class ProblemBuilder {
  public:
   explicit ProblemBuilder() = default;
 
-  Variable<Field> new_variable(std::string_view name, VariableType type) {
+  Variable<Field> new_variable(std::string_view name, VariableType type,
+                               Field lower_bound, Field upper_bound) {
     size_t index = variables_.size();
-    variables_.emplace_back(name, type);
+    variables_.emplace_back(name, VariableInfo{type, lower_bound, upper_bound});
 
     return Variable<Field>{index};
   }
@@ -189,12 +197,21 @@ class ProblemBuilder {
 
     std::vector<VariableType> types(variables_.size());
     for (size_t i = 0; i < variables_.size(); ++i) {
-      types[i] = variables_[i].second;
+      types[i] = variables_[i].second.type;
     }
 
     auto [reduced_A, reduced_b] = remove_linear_dependent(A, b);
 
-    return {reduced_A, reduced_b, c, types};
+    // bounds
+    std::vector<Field> lower_bounds(variables_.size());
+    std::vector<Field> upper_bounds(variables_.size());
+
+    for (size_t i = 0; i < variables_.size(); ++i) {
+      lower_bounds[i] = variables_[i].second.lower_bound;
+      upper_bounds[i] = variables_[i].second.upper_bound;
+    }
+
+    return {reduced_A, reduced_b, c, types, lower_bounds, upper_bounds};
   }
 
   //

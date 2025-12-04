@@ -6,7 +6,7 @@
 
 enum class VariableType { INTEGER, SLACK, REAL };
 
-// c x -> max, s.t. Ax = b, x >= 0
+// c x -> max, s.t. Ax = b, l <= x <= u
 // and all integer_indices variables are integer
 template <typename Field>
 struct MILPProblem {
@@ -15,6 +15,8 @@ struct MILPProblem {
   Matrix<Field> c;
 
   std::vector<VariableType> variables_;
+  std::vector<Field> lower_bounds;
+  std::vector<Field> upper_bounds;
 };
 
 template <typename Field>

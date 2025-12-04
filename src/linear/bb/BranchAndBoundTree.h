@@ -62,7 +62,7 @@ class BranchAndBoundTree {
   std::deque<Node<Field>> nodes_;
 
  public:
-  // returns path from root to the given node and directions on this path
+  // returns path from given node to the root and directions along this path
   static std::pair<std::vector<const InteriorNode<Field>*>,
                    std::vector<NodeRelativeLocation>>
   get_path_to(const InteriorNode<Field>* node) {
@@ -84,9 +84,6 @@ class BranchAndBoundTree {
 
       node = parent;
     }
-
-    std::ranges::reverse(nodes);
-    std::ranges::reverse(directions);
 
     return {std::move(nodes), std::move(directions)};
   }

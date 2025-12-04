@@ -227,7 +227,7 @@ int main() {
 
   auto settings = BranchAndBoundSettings<Field>{.max_nodes = 1000};
   auto solver =
-      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem, settings);
+      BranchAndBound<Field, BoundedSimplexMethod<Field>>(milp_problem, settings);
   auto solution = solver.solve();
 
   std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;

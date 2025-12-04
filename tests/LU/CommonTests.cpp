@@ -46,8 +46,8 @@ TEST_P(CommonLUTests, DenseDecomposeThenCompose) {
 
   auto [L, U] = linalg::get_lu(matrix);
 
-  ASSERT_NO_FATAL_FAILURE(check_L(dense_L));
-  ASSERT_NO_FATAL_FAILURE(check_U(dense_U));
+  ASSERT_NO_FATAL_FAILURE(check_L(L));
+  ASSERT_NO_FATAL_FAILURE(check_U(U));
 
   ASSERT_EQ(L * U, matrix);
 }

@@ -23,11 +23,12 @@ int main() {
   std::cout << to_graphviz(problem) << std::endl;
 
   size_t H = 5;  // number of periods
+  const Field cGlobalMaxStock = 1'000;
 
   ProblemBuilder<Field> builder;
 
   // decision variables
-  auto makespan = builder.new_variable("MS", VariableType::INTEGER);
+  auto makespan = builder.new_variable("MS", VariableType::INTEGER, 0, H);
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
                      Variable<Field>>
       quantities;
@@ -37,29 +38,37 @@ int main() {
   std::unordered_map<std::pair<const State*, size_t>, Variable<Field>> stocks;
 
   for (const auto& unit : problem.get_units()) {
-    for (const auto* task : unit.get_tasks() | std::views::keys) {
+    for (const auto& [task, info] : unit.get_tasks()) {
       for (size_t t = 0; t < H; ++t) {
         quantities.emplace(
             std::tuple{&unit, task, t},
             builder.new_variable(
                 std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER));
+                VariableType::INTEGER, 0, info.batch_max_size));
         starts.emplace(
             std::tuple{&unit, task, t},
             builder.new_variable(
                 std::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER));
+                VariableType::INTEGER, 0, 1));
       }
     }
   }
 
   for (const State& state : problem.get_states()) {
     if (!std::holds_alternative<NonStorableState>(state)) {
+      Field max_stock = std::visit(
+          Overload{
+              [](const NormalState& state) -> Field { return state.max_level; },
+              [cGlobalMaxStock](const auto&) -> Field {
+                return cGlobalMaxStock;
+              }},
+          state);
+
       for (size_t t = 0; t < H; ++t) {
         stocks.emplace(
             std::pair{&state, t},
             builder.new_variable(fmt::format("p({}, {})", state.get_id(), t),
-                                 VariableType::INTEGER));
+                                 VariableType::INTEGER, 0, max_stock));
       }
     }
   }
@@ -133,17 +142,7 @@ int main() {
     }
   }
 
-  // stock limits
-  for (size_t t = 0; t < H; ++t) {
-    for (const State& state : problem.get_states()) {
-      if (!std::holds_alternative<NormalState>(state)) {
-        continue;
-      }
-
-      Expression<Field> max_stock(std::get<NormalState>(state).max_level);
-      builder.add_constraint(stocks.at({&state, t}) <= max_stock);
-    }
-  }
+  // stock limits are incorporated into bounds
 
   // production of non-storable goods
   for (const State& state : problem.get_states()) {
@@ -200,15 +199,7 @@ int main() {
     }
   }
 
-  // variables domain
-  for (const auto& unit : problem.get_units()) {
-    for (const auto* task : unit.get_tasks() | std::views::keys) {
-      for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(starts.at({&unit, task, t}) <=
-                               Expression<Field>(1));
-      }
-    }
-  }
+  // variables domain are incorporated into bounds
 
   // desired amounts
   for (const State& state : problem.get_states()) {
@@ -230,8 +221,8 @@ int main() {
   auto milp_problem = builder.get_problem();
 
   auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
-  auto solver =
-      BranchAndBound<Field, SimplexMethod<Field>>(milp_problem, settings);
+  auto solver = BranchAndBound<Field, BoundedSimplexMethod<Field>>(milp_problem,
+                                                                   settings);
   auto solution = solver.solve();
 
   std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
