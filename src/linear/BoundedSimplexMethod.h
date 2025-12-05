@@ -13,8 +13,6 @@
 #include "sparse/LU.h"
 #include "utils/Variant.h"
 
-enum class VariableState { AT_LOWER, AT_UPPER, BASIC };
-
 // Double, double toil and trouble;
 // Fire burn and caldron bubble.
 // - Macbeth
@@ -26,6 +24,9 @@ enum class VariableState { AT_LOWER, AT_UPPER, BASIC };
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
 // l, u are (d, 1) matrices
 // it is assumed that n < d
+
+// This version is specifically tuned for sparse A and c matrices
+// b is not assumed to be sparse
 template <typename Field>
 class BoundedSimplexMethod {
   CSCMatrix<Field> A_;
@@ -38,6 +39,11 @@ class BoundedSimplexMethod {
 
   std::vector<Field> l_;
   std::vector<Field> u_;
+  linalg::LUPA<Field> lupa_;
+
+  CSCMatrix<Field> L_;
+  CSCMatrix<Field> U_;
+  std::vector<size_t> P_;
 
   FiniteLPSolution<Field> construct_finite_solution(
       Matrix<Field> point, std::vector<size_t> basic_vars) {
@@ -59,7 +65,7 @@ class BoundedSimplexMethod {
     Field value = (c_ * result)[0, 0];
 
     return FiniteLPSolution{std::move(result), std::move(basic_vars),
-                            std::move(value)};
+                            std::move(value), variables_};
   }
 
   std::optional<std::pair<size_t, VariableState>> get_dual_leaving_variable(
@@ -164,7 +170,11 @@ class BoundedSimplexMethod {
         b_(std::move(b)),
         c_(std::move(c)),
         variables_(A_.shape().second),
-        basic_variables_(A.shape().first) {
+        basic_variables_(A.shape().first),
+        lupa_(A_),
+        L_(A_.shape().first),
+        U_(A_.shape().first),
+        P_(A.shape().first) {
     // check sizes
     auto [n, d] = A_.shape();
 
@@ -189,13 +199,13 @@ class BoundedSimplexMethod {
       throw std::invalid_argument("Wrong basic variables count.");
     }
 
-    auto [L, U, P] = linalg::sparse_lup(A_, basic_variables);
+    lupa_.get_lup(basic_variables, L_, U_, P_);
 
     Matrix<Field> cb(n, 1);
     for (size_t i = 0; i < n; ++i) {
       cb[i, 0] = c_[0, basic_variables[i]];
     }
-    auto r = linalg::solve_transposed_linear(L, U, P, cb);
+    auto r = linalg::solve_transposed_linear(L_, U_, P_, cb);
 
     for (size_t i = 0; i < d; ++i) {
       Field reduced_cost = c_[0, i];
@@ -239,7 +249,7 @@ class BoundedSimplexMethod {
     }
 
     while (true) {
-      auto [L, U, P] = linalg::sparse_lup(A_, basic_vars);
+      lupa_.get_lup(basic_vars, L_, U_, P_);
 
       Matrix<Field> b(b_);
       for (size_t col = 0; col < d; ++col) {
@@ -253,7 +263,7 @@ class BoundedSimplexMethod {
           }
         }
       }
-      auto point = linalg::solve_linear(L, U, P, b);
+      auto point = linalg::solve_linear(L_, U_, P_, b);
 
       auto leaving = get_dual_leaving_variable(point, basic_vars);
 
@@ -262,7 +272,7 @@ class BoundedSimplexMethod {
                                          std::move(basic_vars));
       }
 
-      auto entering = get_dual_entering_variable(L, U, P, leaving->first,
+      auto entering = get_dual_entering_variable(L_, U_, P_, leaving->first,
                                                  leaving->second, basic_vars);
 
       if (!entering.has_value()) {

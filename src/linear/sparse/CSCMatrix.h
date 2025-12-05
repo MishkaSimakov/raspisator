@@ -15,8 +15,6 @@
 // - What?
 // - Oh, don't be so dense!
 
-static size_t misses = 0;
-
 template <typename Field>
 class CSCMatrix {
   std::vector<Field> data_;
@@ -119,7 +117,6 @@ class CSCMatrix {
 
   void push_to_last_column(size_t row, const Field& value) {
     if (!FieldTraits<Field>::is_nonzero(value)) {
-      ++misses;
       return;
     }
 
@@ -129,8 +126,14 @@ class CSCMatrix {
     data_.push_back(value);
   }
 
-  size_t nonzero_count() const {
-    return data_.size();
+  size_t nonzero_count() const { return data_.size(); }
+
+  void clear() {
+    data_.clear();
+    indices_.clear();
+    index_pointers_.clear();
+
+    index_pointers_.push_back(0);
   }
 };
 

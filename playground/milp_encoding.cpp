@@ -1,233 +1,40 @@
 #include <iostream>
 #include <print>
 
-#include "../src/linear/bb/BranchAndBound.h"
+#include "encoding/UniformTimeDiscretization.h"
 #include "linear/BigInteger.h"
 #include "linear/MPS.h"
 #include "linear/SimplexMethod.h"
+#include "linear/bb/BranchAndBound.h"
 #include "linear/bb/Drawer.h"
 #include "linear/builder/ProblemBuilder.h"
+#include "model/Solution.h"
+#include "problems/Blomer.h"
 #include "problems/Dwarf.h"
 #include "utils/Drawing.h"
-#include "utils/Hashers.h"
 
 using Field = double;
 
 int main() {
-  auto problem = dwarf_problem_normal<Field>();
+  std::chrono::steady_clock::time_point begin =
+      std::chrono::steady_clock::now();
+
+  size_t H = 10;
+
+  auto problem = blomer_problem<Field>();
 
   std::cout << to_graphviz(problem) << std::endl;
 
-  size_t H = 4;  // number of periods
+  auto encoding = to_uniform_time_milp(problem, H);
 
-  ProblemBuilder<Field> builder;
-
-  // decision variables
-  auto makespan = builder.new_variable("MS", VariableType::INTEGER);
-  std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
-                     Variable<Field>>
-      quantities;
-  std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
-                     Variable<Field>>
-      starts;
-  std::unordered_map<std::pair<const State*, size_t>, Variable<Field>> stocks;
-
-  for (const auto& unit : problem.get_units()) {
-    for (const auto* task : unit.get_tasks() | std::views::keys) {
-      for (size_t t = 0; t < H; ++t) {
-        quantities.emplace(
-            std::tuple{&unit, task, t},
-            builder.new_variable(
-                std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER));
-        starts.emplace(
-            std::tuple{&unit, task, t},
-            builder.new_variable(
-                std::format("x({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER));
-      }
-    }
-  }
-
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<NonStorableState>(state)) {
-      for (size_t t = 0; t < H; ++t) {
-        stocks.emplace(
-            std::pair{&state, t},
-            builder.new_variable(fmt::format("p({}, {})", state.get_id(), t),
-                                 VariableType::INTEGER));
-      }
-    }
-  }
-
-  // makespan
-  for (const auto& unit : problem.get_units()) {
-    for (const auto& [task, props] : unit.get_tasks()) {
-      for (size_t t = 0; t < H; ++t) {
-        Field finish_time(t + props.batch_processing_time);
-        builder.add_constraint(makespan >=
-                               finish_time * starts.at({&unit, task, t}));
-      }
-    }
-  }
-
-  // batch size limits
-  for (const auto& unit : problem.get_units()) {
-    for (const auto& [task, props] : unit.get_tasks()) {
-      for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(Field(props.batch_min_size) *
-                                   starts.at({&unit, task, t}) <=
-                               quantities.at({&unit, task, t}));
-
-        builder.add_constraint(quantities.at({&unit, task, t}) <=
-                               Field(props.batch_max_size) *
-                                   starts.at({&unit, task, t}));
-      }
-    }
-  }
-
-  // stock balance
-  for (const State& state : problem.get_states()) {
-    if (std::holds_alternative<NonStorableState>(state)) {
-      continue;
-    }
-
-    for (size_t t = 0; t < H; ++t) {
-      auto new_stock =
-          t != 0 ? Expression(stocks.at({&state, t - 1}))
-                 : std::visit(Overload{[](const auto& state) {
-                                         return Field(state.initial_stock);
-                                       },
-                                       [](NonStorableState) -> Field {
-                                         std::unreachable();
-                                       }},
-                              state);
-
-      for (const auto* task :
-           problem.get_producers_of(state) | std::views::elements<0>) {
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          if (t >= props.batch_processing_time) {
-            new_stock +=
-                quantities.at({unit, task, t - props.batch_processing_time});
-          }
-        }
-      }
-
-      for (const auto& [task, fraction] : problem.get_consumers_of(state)) {
-        Expression<Field> task_consumption(0);
-
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          task_consumption += quantities.at({unit, task, t});
-        }
-
-        new_stock -= task_consumption * fraction;
-      }
-
-      // TODO: external demand + external supply
-
-      builder.add_constraint(new_stock == stocks.at({&state, t}));
-    }
-  }
-
-  // stock limits
-  for (size_t t = 0; t < H; ++t) {
-    for (const State& state : problem.get_states()) {
-      if (!std::holds_alternative<NormalState>(state)) {
-        continue;
-      }
-
-      Expression<Field> max_stock(std::get<NormalState>(state).max_level);
-      builder.add_constraint(stocks.at({&state, t}) <= max_stock);
-    }
-  }
-
-  // production of non-storable goods
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<NonStorableState>(state)) {
-      continue;
-    }
-
-    for (size_t t = 0; t < H; ++t) {
-      Expression<Field> production(0);
-
-      for (const auto& [task, fraction] : problem.get_producers_of(state)) {
-        Expression<Field> task_production(0);
-
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          if (t >= props.batch_processing_time) {
-            task_production +=
-                quantities.at({unit, task, t - props.batch_processing_time});
-          }
-        }
-
-        production += task_production * fraction;
-      }
-
-      Expression<Field> consumption(0);
-
-      for (const auto& [task, fraction] : problem.get_consumers_of(state)) {
-        Expression<Field> task_consumption(0);
-
-        for (const auto& [unit, props] : problem.get_task_units(*task)) {
-          task_consumption += quantities.at({unit, task, t});
-        }
-
-        consumption += task_consumption * fraction;
-      }
-
-      builder.add_constraint(consumption == production);
-    }
-  }
-
-  // assigning batches to production units
-  for (const auto& unit : problem.get_units()) {
-    for (size_t t = 0; t < H; ++t) {
-      Expression<Field> running_batches_cnt(0);
-
-      for (const auto& [task, props] : unit.get_tasks()) {
-        if (props.batch_processing_time >= t) {
-          for (size_t t2 = t - props.batch_processing_time; t2 < t; ++t2) {
-            running_batches_cnt += starts.at({&unit, task, t2});
-          }
-        }
-      }
-
-      builder.add_constraint(running_batches_cnt <= Expression<Field>(1));
-    }
-  }
-
-  // variables domain
-  for (const auto& unit : problem.get_units()) {
-    for (const auto* task : unit.get_tasks() | std::views::keys) {
-      for (size_t t = 0; t < H; ++t) {
-        builder.add_constraint(starts.at({&unit, task, t}) <=
-                               Expression<Field>(1));
-      }
-    }
-  }
-
-  // desired amounts
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<OutputState>(state)) {
-      continue;
-    }
-
-    Expression<Field> desired_amount(std::get<OutputState>(state).target);
-
-    builder.add_constraint(stocks.at({&state, H - 1}) >= desired_amount);
-  }
-
-  // objective
-  builder.set_objective(-makespan);
-
-  std::cout << builder << std::endl;
+  std::cout << encoding.builder << std::endl;
 
   // solve MILP problem
-  auto milp_problem = builder.get_problem();
+  auto milp_problem = encoding.builder.get_problem();
 
-  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 1000};
-  auto solver =
-      BranchAndBound<Field, BoundedSimplexMethod<Field>>(milp_problem, settings);
+  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
+  auto solver = BranchAndBound<Field, BoundedSimplexMethod<Field>>(milp_problem,
+                                                                   settings);
   auto solution = solver.solve();
 
   std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
@@ -249,10 +56,10 @@ int main() {
 
       for (size_t t = 0; t < H; ++t) {
         for (const auto* task : unit.get_tasks() | std::views::keys) {
-          Field x =
-              builder.extract_variable(point, starts.at({&unit, task, t}));
-          Field Q =
-              builder.extract_variable(point, quantities.at({&unit, task, t}));
+          Field x = encoding.builder.extract_variable(
+              point, encoding.starts.at({&unit, task, t}));
+          Field Q = encoding.builder.extract_variable(
+              point, encoding.quantities.at({&unit, task, t}));
 
           std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
                        x);
@@ -262,4 +69,11 @@ int main() {
       }
     }
   }
+
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  std::println(
+      "Overall: {}",
+      std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));
 }
+
+// Overall: 4478023834ns

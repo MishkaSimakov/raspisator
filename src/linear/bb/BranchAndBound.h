@@ -104,7 +104,7 @@ class BranchAndBound {
           linalg::get_row_basis(linalg::transposed(problem_.A));
       lp_solver_.setup_warm_start(columns_basis);
     } else {
-      lp_solver_.setup_warm_start(parent->basic_variables);
+      lp_solver_.setup_warm_start(parent->variables);
     }
 
     auto relaxed_solution = lp_solver_.dual(lower_bounds, upper_bounds);
@@ -145,9 +145,7 @@ class BranchAndBound {
 
     auto& child = tree_.add_node(parent, type, InteriorNode<Field>{});
 
-    child.solution = point;
-    child.basic_variables = finite_solution.basic_variables;
-
+    child.variables = finite_solution.variables;
     child.branching_variable = br_variable;
     child.branching_value = floored;
     child.value = value;

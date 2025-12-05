@@ -5,8 +5,6 @@
 #include "STN.h"
 #include "utils/Variant.h"
 
-namespace {
-
 template <typename Field>
 struct Event {
   size_t unit_id;
@@ -15,8 +13,6 @@ struct Event {
   size_t time;
   bool is_start;
 };
-
-}  // namespace
 
 template <typename Field>
 struct TaskInstance {
@@ -41,7 +37,9 @@ class Solution {
   size_t current_time = 0;
 
   static bool compare_events(Event a, Event b) {
-    if (a.time == b.time) return a.is_start < b.is_start;
+    if (a.time == b.time) {
+      return a.is_start < b.is_start;
+    }
     return a.time < b.time;
   }
 

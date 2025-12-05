@@ -84,3 +84,35 @@ TEST(SparseLUTests, DoubleMatrix) {
     }
   }
 }
+
+TEST(SparseLUTests, LUPATest) {
+  size_t N = 10;
+
+  auto matrix = sparse_matrix(N, 5);
+  auto sparse = CSCMatrix(matrix);
+
+  linalg::LUPA<Rational> lupa(sparse);
+
+  std::vector<size_t> columns(matrix.get_width());
+  std::iota(columns.begin(), columns.end(), 0);
+
+  CSCMatrix<Rational> L(N);
+  CSCMatrix<Rational> U(N);
+  std::vector<size_t> P(N);
+
+  for (size_t i = 0; i < 5; ++i) {
+    lupa.get_lup(columns, L, U, P);
+
+    auto dense_L = linalg::to_dense(L);
+    auto dense_U = linalg::to_dense(U);
+
+    // add ones on the diagonal
+    for (size_t i = 0; i < matrix.get_height(); ++i) {
+      dense_L[i, i] = 1;
+    }
+
+    auto expected = linalg::to_dense(linalg::apply_permutation(sparse, P));
+
+    ASSERT_EQ(dense_L * dense_U, expected);
+  }
+}

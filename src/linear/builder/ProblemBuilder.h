@@ -5,6 +5,7 @@
 #include "Constraint.h"
 #include "Expression.h"
 #include "Variable.h"
+#include "linear/matrix/RowBasis.h"
 #include "linear/model/MILP.h"
 
 template <typename Field>
@@ -108,7 +109,7 @@ class ProblemBuilder {
 
       // now it is <= constraint
       // TODO: slack variable upper bound
-      auto slack_var = new_variable(fmt::format("slack({})", slack_index),
+      auto slack_var = new_variable(std::format("slack({})", slack_index),
                                     VariableType::SLACK, 0, 1'000'000);
       ++slack_index;
 
@@ -217,7 +218,7 @@ class ProblemBuilder {
   //
   friend std::ostream& operator<<(std::ostream& os,
                                   const ProblemBuilder& builder) {
-    os << fmt::format("problem builder with {} variables and {} constraints\n",
+    os << std::format("problem builder with {} variables and {} constraints\n",
                       builder.variables_.size(), builder.constraints_.size());
 
     for (const Constraint<Field>& constraint : builder.constraints_) {

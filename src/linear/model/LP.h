@@ -8,13 +8,15 @@
 #include "linear/matrix/Matrix.h"
 #include "linear/sparse/CSCMatrix.h"
 
+enum class VariableState { AT_LOWER, AT_UPPER, BASIC };
+
 template <typename Field>
 struct FiniteLPSolution {
   Matrix<Field> point;
   std::vector<size_t> basic_variables;
   Field value;
 
-  Matrix<Field> tableau;
+  std::vector<VariableState> variables;
 };
 
 struct InfiniteSolution {};

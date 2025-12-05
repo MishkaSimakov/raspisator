@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "linear/matrix/Matrix.h"
+#include "linear/model/LP.h"
 
 // Branch and Bound nodes
 template <typename Field>
@@ -21,8 +22,7 @@ struct InteriorNode {
   Node<Field>* right = nullptr;
 
   Field value;
-  Matrix<Field> solution;
-  std::vector<size_t> basic_variables;
+  std::vector<VariableState> variables;
 };
 
 template <typename Field>
