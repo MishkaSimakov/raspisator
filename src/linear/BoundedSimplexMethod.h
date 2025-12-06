@@ -93,6 +93,29 @@ class BoundedSimplexMethod {
     return result;
   }
 
+  Matrix<Field> get_reduced_costs(const CSCMatrix<Field>& L,
+                                  const CSCMatrix<Field>& U,
+                                  const std::vector<size_t>& P,
+                                  const std::vector<size_t>& basic_vars) {
+    auto [n, d] = A_.shape();
+
+    Matrix<Field> result = linalg::transposed(c_);
+
+    Matrix<Field> cb(n, 1);
+    for (size_t i = 0; i < n; ++i) {
+      cb[i, 0] = c_[0, basic_vars[i]];
+    }
+    linalg::solve_transposed_linear_inplace(L, U, P, cb);
+
+    for (size_t i = 0; i < d; ++i) {
+      for (const auto& [row, value] : A_.get_column(i)) {
+        result[i, 0] -= value * cb[P[row], 0];
+      }
+    }
+
+    return result;
+  }
+
   std::optional<size_t> get_dual_entering_variable(
       const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
       const std::vector<size_t>& P, size_t entering_var,
@@ -102,15 +125,11 @@ class BoundedSimplexMethod {
     Field min_ratio = 0;
     std::optional<size_t> result = std::nullopt;
 
-    Matrix<Field> cb(n, 1);
-    for (size_t i = 0; i < n; ++i) {
-      cb[i, 0] = c_[0, basic_vars[i]];
-    }
-    auto r = linalg::solve_transposed_linear(L, U, P, cb);
+    auto reduced_costs = get_reduced_costs(L, U, P, basic_vars);
 
     Matrix<Field> e(n, 1, 0);
     e[entering_var, 0] = 1;
-    auto y = linalg::solve_transposed_linear(L, U, P, e);
+    linalg::solve_transposed_linear_inplace(L, U, P, e);
 
     for (size_t i = 0; i < d; ++i) {
       if (variables_[i] == VariableState::BASIC) {
@@ -119,24 +138,19 @@ class BoundedSimplexMethod {
 
       Field coef = 0;
       for (const auto& [row, value] : A_.get_column(i)) {
-        coef += y[row, 0] * value;
+        coef += e[P[row], 0] * value;
       }
 
       if (!FieldTraits<Field>::is_nonzero(coef)) {
         continue;
       }
 
-      Field reduced_cost = c_[0, i];
-      for (const auto& [row, value] : A_.get_column(i)) {
-        reduced_cost -= value * r[row, 0];
-      }
-
       assert((variables_[i] == VariableState::AT_LOWER &&
-              !FieldTraits<Field>::is_strictly_positive(reduced_cost)) ||
+              !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0])) ||
              (variables_[i] == VariableState::AT_UPPER &&
-              !FieldTraits<Field>::is_strictly_negative(reduced_cost)));
+              !FieldTraits<Field>::is_strictly_negative(reduced_costs[i, 0])));
 
-      Field ratio = reduced_cost / coef;
+      Field ratio = reduced_costs[i, 0] / coef;
 
       if (leaving_state == VariableState::AT_UPPER) {
         ratio *= -1;
@@ -192,6 +206,10 @@ class BoundedSimplexMethod {
     }
   }
 
+  const std::vector<VariableState>& get_variables_states() const {
+    return variables_;
+  }
+
   void setup_warm_start(const std::vector<size_t>& basic_variables) {
     auto [n, d] = A_.shape();
 
@@ -201,19 +219,10 @@ class BoundedSimplexMethod {
 
     lupa_.get_lup(basic_variables, L_, U_, P_);
 
-    Matrix<Field> cb(n, 1);
-    for (size_t i = 0; i < n; ++i) {
-      cb[i, 0] = c_[0, basic_variables[i]];
-    }
-    auto r = linalg::solve_transposed_linear(L_, U_, P_, cb);
+    auto reduced_costs = get_reduced_costs(L_, U_, P_, basic_variables);
 
     for (size_t i = 0; i < d; ++i) {
-      Field reduced_cost = c_[0, i];
-      for (const auto& [row, value] : A_.get_column(i)) {
-        reduced_cost -= value * r[row, 0];
-      }
-
-      if (reduced_cost <= 0) {
+      if (reduced_costs[i, 0] <= 0) {
         variables_[i] = VariableState::AT_LOWER;
       } else {
         variables_[i] = VariableState::AT_UPPER;

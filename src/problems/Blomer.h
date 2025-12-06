@@ -3,7 +3,7 @@
 
 // figure 2 in Blomer et al., 2000
 template <typename Field>
-STN<Field> blomer_problem() {
+STN<Field> small_blomer_problem(Field target1, Field target2) {
   STN<Field> stn;
 
   // States
@@ -15,8 +15,8 @@ STN<Field> blomer_problem() {
   auto* state6 = stn.add(NonStorableState{});
   auto* state7 = stn.add(NormalState{0, 0, 150});
   auto* state8 = stn.add(NonStorableState{});
-  auto* state9 = stn.add(OutputState{0, 0});
-  auto* state10 = stn.add(OutputState{0, 10});
+  auto* state9 = stn.add(OutputState{0, static_cast<size_t>(target1)});
+  auto* state10 = stn.add(OutputState{0, static_cast<size_t>(target2)});
 
   // Units
   auto* unit1 = stn.add(Unit<Field>{});

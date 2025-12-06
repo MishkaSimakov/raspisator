@@ -234,16 +234,15 @@ Matrix<Field> solve_linear(const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
 }
 
 // solves A^T x = b, where PA = LU
+// uses memory of b as output
 // L must be without ones on the main diagonal
+// returns a point y, such that x[i] = y[P[i]]
 template <typename Field>
-Matrix<Field> solve_transposed_linear(const CSCMatrix<Field>& L,
-                                      const CSCMatrix<Field>& U,
-                                      const std::vector<size_t>& P,
-                                      const Matrix<Field>& b) {
+void solve_transposed_linear_inplace(const CSCMatrix<Field>& L,
+                                     const CSCMatrix<Field>& U,
+                                     const std::vector<size_t>& P,
+                                     Matrix<Field>& b) {
   auto [n, _] = L.shape();
-
-  // copy b
-  Matrix<Field> result = b;
 
   // solve U^T y = b
   for (size_t col = 0; col < n; ++col) {
@@ -251,13 +250,13 @@ Matrix<Field> solve_transposed_linear(const CSCMatrix<Field>& L,
 
     for (const auto& [row, value] : U.get_column(col)) {
       if (row != col) {
-        result[col, 0] -= value * result[row, 0];
+        b[col, 0] -= value * b[row, 0];
       } else {
         diagonal = value;
       }
     }
 
-    result[col, 0] /= diagonal;
+    b[col, 0] /= diagonal;
   }
 
   // solve (L^T P) x = y
@@ -265,17 +264,21 @@ Matrix<Field> solve_transposed_linear(const CSCMatrix<Field>& L,
     size_t col = n - i - 1;
 
     for (const auto& [row, value] : L.get_column(col)) {
-      result[col, 0] -= result[row, 0] * value;
+      b[col, 0] -= b[row, 0] * value;
     }
   }
+}
 
-  // TODO: this copying can be eliminated
-  Matrix<Field> permuted(n, 1);
-  for (size_t i = 0; i < n; ++i) {
-    permuted[i, 0] = result[P[i], 0];
-  }
-
-  return permuted;
+// same as solve_transposed_linear_inplace, but returns solution in a newly
+// allocated memory
+template <typename Field>
+Matrix<Field> solve_transposed_linear(const CSCMatrix<Field>& L,
+                                      const CSCMatrix<Field>& U,
+                                      const std::vector<size_t>& P,
+                                      const Matrix<Field>& b) {
+  auto copy = b;
+  solve_transposed_linear_inplace(L, U, P, copy);
+  return copy;
 }
 
 }  // namespace linalg

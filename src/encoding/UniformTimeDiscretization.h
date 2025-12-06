@@ -29,7 +29,7 @@ struct ProblemEncoding {
 template <typename Field>
 ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
                                             size_t max_periods) {
-  const Field cGlobalMaxStock = 1'000;
+  const Field cGlobalMaxStock = 1000;
 
   ProblemBuilder<Field> builder;
 

@@ -5,6 +5,7 @@
 
 #include "BranchAndBoundTree.h"
 #include "linear/BoundedSimplexMethod.h"
+#include "linear/bb/Settings.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/model/LP.h"
 #include "linear/model/MILP.h"
@@ -15,11 +16,6 @@ struct NodeComparator {
                   const InteriorNode<Field>* right) const {
     return left->value < right->value;
   }
-};
-
-template <typename Field>
-struct BranchAndBoundSettings {
-  std::optional<size_t> max_nodes = std::nullopt;
 };
 
 // TODO: implement more efficient version for binary variables

@@ -1,12 +1,11 @@
+#include <chrono>
 #include <iostream>
 #include <print>
 
 #include "encoding/UniformTimeDiscretization.h"
-#include "linear/BigInteger.h"
-#include "linear/MPS.h"
-#include "linear/SimplexMethod.h"
-#include "linear/bb/BranchAndBound.h"
-#include "linear/bb/Drawer.h"
+#include "linear/bb/PseudoCost.h"
+#include "linear/bb/Settings.h"
+#include "linear/bb/TreeStoringAccountant.h"
 #include "linear/builder/ProblemBuilder.h"
 #include "model/Solution.h"
 #include "problems/Blomer.h"
@@ -21,7 +20,7 @@ int main() {
 
   size_t H = 10;
 
-  auto problem = blomer_problem<Field>();
+  auto problem = small_blomer_problem<Field>();
 
   std::cout << to_graphviz(problem) << std::endl;
 
@@ -32,12 +31,12 @@ int main() {
   // solve MILP problem
   auto milp_problem = encoding.builder.get_problem();
 
-  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
-  auto solver = BranchAndBound<Field, BoundedSimplexMethod<Field>>(milp_problem,
-                                                                   settings);
+  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 100'000};
+  auto solver = PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>>(
+      milp_problem, settings);
   auto solution = solver.solve();
 
-  std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
+  std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
   if (std::holds_alternative<NoFiniteSolution>(solution)) {
     std::println("No finite solution.");
