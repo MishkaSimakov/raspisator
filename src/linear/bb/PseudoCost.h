@@ -72,7 +72,8 @@ class PseudoCostBranchAndBound {
     return false;
   }
 
-  // double score_branching_variable(const Node& node, const Matrix<Field>& point,
+  // double score_branching_variable(const Node& node, const Matrix<Field>&
+  // point,
   //                                 size_t index) const {
   //   // most infeasible branching
   //   // branch on the variable, whose fractional value is closest to 0.5
@@ -101,33 +102,51 @@ class PseudoCostBranchAndBound {
            kScoreFactor * std::max(*left_score, *right_score);
   }
 
-  double score_branching_variable(const Node& node, const Matrix<Field>&
-  point,
+  double score_branching_variable(const Node& node, const Matrix<Field>& point,
                                   size_t index) {
     // full strong branching
     auto score_function = Overload{
-        [](NoFeasibleElements) -> std::optional<Field> { return std::nullopt;
-        },
+        [](NoFeasibleElements) -> std::optional<Field> { return std::nullopt; },
         [](const FiniteLPSolution<Field>& solution) -> std::optional<Field> {
           return solution.value;
         },
     };
 
     // calculate left node
+    std::optional<double> left_score;
     auto tight_upper = node.upper;
     tight_upper[index] = FieldTraits<Field>::floor(point[index, 0]);
 
-    lp_solver_.setup_warm_start(node.variables_states);
-    std::optional<double> left_score =
-        std::visit(score_function, lp_solver_.dual(node.lower, tight_upper));
+    try {
+      lp_solver_.setup_warm_start(node.variables_states);
+      left_score =
+          std::visit(score_function, lp_solver_.dual(node.lower, tight_upper));
+    } catch (...) {
+      std::cout << index << " " << FieldTraits<Field>::floor(point[index, 0]) << std::endl;
+      lp_solver_.setup_warm_start(node.variables_states);
+
+      std::ofstream os(std::format("simplex_core_dump_{}.h", 0));
+      lp_solver_.dump_state(os, 0, node.lower, tight_upper);
+      throw;
+    }
 
     // calculate right node
     auto tight_lower = node.lower;
     tight_lower[index] = FieldTraits<Field>::floor(point[index, 0]) + 1;
 
-    lp_solver_.setup_warm_start(node.variables_states);
-    std::optional<double> right_score =
-        std::visit(score_function, lp_solver_.dual(tight_lower, node.upper));
+    std::optional<double> right_score;
+    try {
+      lp_solver_.setup_warm_start(node.variables_states);
+      right_score =
+          std::visit(score_function, lp_solver_.dual(tight_lower, node.upper));
+    } catch (...) {
+      std::cout << index << " " << FieldTraits<Field>::floor(point[index, 0]) << std::endl;
+      lp_solver_.setup_warm_start(node.variables_states);
+
+      std::ofstream os(std::format("simplex_core_dump_{}.h", 0));
+      lp_solver_.dump_state(os, 0, tight_lower, node.upper);
+      throw;
+    }
 
     return merge_score(left_score, right_score);
   }
@@ -194,6 +213,10 @@ class PseudoCostBranchAndBound {
         lp_solver_(CSCMatrix(problem.A), problem.b, problem.c),
         variables_(problem.variables_),
         settings_(settings) {
+    std::cout << problem.A << std::endl;
+    std::cout << problem.b << std::endl;
+    std::cout << problem.c << std::endl;
+
     Node root;
 
     root.id = ++total_nodes_count_;
@@ -218,8 +241,8 @@ class PseudoCostBranchAndBound {
 
       Node current = waiting_.back();
       waiting_.pop_back();
-
       lp_solver_.setup_warm_start(current.variables_states);
+
       auto relaxed_solution = lp_solver_.dual(current.lower, current.upper);
 
       if (std::holds_alternative<NoFeasibleElements>(relaxed_solution)) {

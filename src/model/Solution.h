@@ -106,9 +106,9 @@ class Solution {
     // fmt::println("event time: {}, current_time: {}", e.time, current_time);
     // if e happens at current time, overflowed states might be relaxed in e, so
     // no need to worry
-    if (e.time == current_time) return true;
-
-    bool okay = true;
+    if (e.time == current_time) {
+      return true;
+    }
 
     for (const State& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];

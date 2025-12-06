@@ -68,25 +68,61 @@ class BoundedSimplexMethod {
                             std::move(value), variables_};
   }
 
+  // largest violation variable selection
+  // std::optional<std::pair<size_t, VariableState>> get_dual_leaving_variable(
+  //     const Matrix<Field>& point, const std::vector<size_t>& basic_vars)
+  //     const {
+  //   auto [n, d] = A_.shape();
+  //
+  //   std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
+  //   Field largest_violation = 0;
+  //
+  //   for (size_t i = 0; i < n; ++i) {
+  //     Field lower_violation = l_[basic_vars[i]] - point[i, 0];
+  //     Field upper_violation = point[i, 0] - u_[basic_vars[i]];
+  //
+  //     if (FieldTraits<Field>::is_strictly_positive(lower_violation -
+  //                                                  largest_violation)) {
+  //       result = {i, VariableState::AT_LOWER};
+  //       largest_violation = lower_violation;
+  //                                                  } else if
+  //                                                  (FieldTraits<Field>::is_strictly_positive(upper_violation
+  //                                                  -
+  //                                                                                                      largest_violation)) {
+  //                                                    result = {i,
+  //                                                    VariableState::AT_UPPER};
+  //                                                    largest_violation =
+  //                                                    upper_violation;
+  //                                                                                                      }
+  //   }
+  //
+  //   return result;
+  // }
+
+  // Although it seems reasonable to choose always variable with the largest
+  // boundaries violation, this approach leads to cycling. To avoid cycling
+  // Bland's rule is adopted.
   std::optional<std::pair<size_t, VariableState>> get_dual_leaving_variable(
       const Matrix<Field>& point, const std::vector<size_t>& basic_vars) const {
     auto [n, d] = A_.shape();
 
     std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
-    Field largest_violation = 0;
+    size_t smallest_violating_index = 2 * d;
 
     for (size_t i = 0; i < n; ++i) {
       Field lower_violation = l_[basic_vars[i]] - point[i, 0];
       Field upper_violation = point[i, 0] - u_[basic_vars[i]];
 
-      if (FieldTraits<Field>::is_strictly_positive(lower_violation -
-                                                   largest_violation)) {
-        result = {i, VariableState::AT_LOWER};
-        largest_violation = lower_violation;
-      } else if (FieldTraits<Field>::is_strictly_positive(upper_violation -
-                                                          largest_violation)) {
-        result = {i, VariableState::AT_UPPER};
-        largest_violation = upper_violation;
+      if (FieldTraits<Field>::is_strictly_positive(lower_violation)) {
+        if (basic_vars[i] < smallest_violating_index) {
+          result = {i, VariableState::AT_LOWER};
+          smallest_violating_index = basic_vars[i];
+        }
+      } else if (FieldTraits<Field>::is_strictly_positive(upper_violation)) {
+        if (basic_vars[i] + d < smallest_violating_index) {
+          result = {i, VariableState::AT_UPPER};
+          smallest_violating_index = basic_vars[i] + d;
+        }
       }
     }
 
@@ -206,6 +242,43 @@ class BoundedSimplexMethod {
     }
   }
 
+  void dump_state(std::ostream& os, size_t dump_id,
+                  const std::vector<Field>& lower,
+                  const std::vector<Field>& upper) {
+    os << "namespace SimplexDump_" << dump_id << " {\n";
+
+    os << "Matrix<Field> A = {" << linalg::to_dense(A_) << "};\n";
+    os << "Matrix<Field> b = {" << b_ << "};\n";
+    os << "Matrix<Field> c = {" << c_ << "};\n";
+
+    os << "std::vector<Field> upper = {";
+    for (auto value : upper) {
+      os << value << ", ";
+    }
+    os << "};\n";
+
+    os << "std::vector<Field> lower = {";
+    for (auto value : lower) {
+      os << value << ", ";
+    }
+    os << "};\n";
+
+    os << "std::vector<VariableState> states = {";
+    for (auto state : variables_) {
+      if (state == VariableState::BASIC) {
+        os << "VariableState::BASIC, ";
+      } else if (state == VariableState::AT_LOWER) {
+        os << "VariableState::AT_LOWER, ";
+      } else {
+        os << "VariableState::AT_UPPER, ";
+      }
+    }
+    os << "};\n";
+    os << "}\n";
+
+    os << std::flush;
+  }
+
   const std::vector<VariableState>& get_variables_states() const {
     return variables_;
   }
@@ -257,7 +330,23 @@ class BoundedSimplexMethod {
       throw std::invalid_argument("Wrong number of basic variables.");
     }
 
+    size_t iteration = 0;
     while (true) {
+      ++iteration;
+
+      if (iteration > 500) {
+        {
+          size_t since_epoch =
+              std::chrono::system_clock::now().time_since_epoch() /
+              std::chrono::milliseconds(1);
+
+          std::ofstream os(std::format("simplex_core_dump_{}.h", since_epoch));
+          dump_state(os, since_epoch, l_, u_);
+        }
+
+        throw std::runtime_error("Cycling!");
+      }
+
       lupa_.get_lup(basic_vars, L_, U_, P_);
 
       Matrix<Field> b(b_);

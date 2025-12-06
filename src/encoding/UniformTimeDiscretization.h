@@ -51,7 +51,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
             std::tuple{&unit, task, t},
             builder.new_variable(
                 std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER, 0, info.batch_max_size));
+                VariableType::REAL, 0, info.batch_max_size));
         starts.emplace(
             std::tuple{&unit, task, t},
             builder.new_variable(
@@ -123,14 +123,17 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
                                        }},
                               state);
 
-      for (const auto* task :
-           problem.get_producers_of(state) | std::views::elements<0>) {
+      for (const auto& [task, fraction] : problem.get_producers_of(state)) {
+        Expression<Field> task_production(0);
+
         for (const auto& [unit, props] : problem.get_task_units(*task)) {
           if (t >= props.batch_processing_time) {
-            new_stock +=
+            task_production +=
                 quantities.at({unit, task, t - props.batch_processing_time});
           }
         }
+
+        new_stock += task_production * fraction;
       }
 
       for (const auto& [task, fraction] : problem.get_consumers_of(state)) {
@@ -195,7 +198,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
       Expression<Field> running_batches_cnt(0);
 
       for (const auto& [task, props] : unit.get_tasks()) {
-        if (props.batch_processing_time >= t) {
+        if (props.batch_processing_time <= t) {
           for (size_t t2 = t - props.batch_processing_time; t2 < t; ++t2) {
             running_batches_cnt += starts.at({&unit, task, t2});
           }

@@ -2,6 +2,7 @@
 
 #include <random>
 
+#include "Assertions.h"
 #include "linear/BigInteger.h"
 #include "linear/BoundedSimplexMethod.h"
 #include "linear/matrix/Matrix.h"
@@ -25,6 +26,8 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
   };
 
   for (size_t iteration = 0; iteration < kIterations; ++iteration) {
+    std::cout << "#" << iteration << std::endl;
+
     // generate an LP-problem
     size_t n = height_distribution(engine);
     size_t d = n + width_increase_distribution(engine);
@@ -38,7 +41,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
 
     std::vector<Rational> lower(d);
     std::vector<Rational> upper(d);
-    for (size_t i = 0; i < n; ++i) {
+    for (size_t i = 0; i < d; ++i) {
       int first = elements_generator();
       int second = elements_generator();
 
@@ -50,14 +53,6 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
       upper[i] = second;
 
       point[i, 0] = std::uniform_int_distribution<int>(first, second)(engine);
-    }
-
-    for (size_t i = n; i < d; ++i) {
-      if (coin_distribution(engine) == 0) {
-        point[i, 0] = lower[i];
-      } else {
-        point[i, 0] = upper[i];
-      }
     }
 
     auto A = linalg::hstack(A_basic, A_nonbasic);
@@ -74,19 +69,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
     // check solution
     auto finite_solution = std::get<FiniteLPSolution<Rational>>(solution);
 
-    ASSERT_EQ(A * finite_solution.point, b);
-
-    for (size_t i = 0; i < d; ++i) {
-      ASSERT_TRUE((lower[i] <= finite_solution.point[i, 0]));
-      ASSERT_TRUE((finite_solution.point[i, 0] <= upper[i]));
-
-      if (std::ranges::find(finite_solution.basic_variables, i) ==
-          finite_solution.basic_variables.end()) {
-        ASSERT_TRUE((lower[i] == finite_solution.point[i, 0] ||
-                     finite_solution.point[i, 0] == upper[i]));
-      }
-    }
-
-    // TODO: check reduced costs
+    ASSERT_NO_FATAL_FAILURE(
+        validate_simplex_solution(A, b, c, lower, upper, finite_solution));
   }
 }

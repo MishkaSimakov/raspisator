@@ -1,6 +1,7 @@
 #include <chrono>
 #include <iostream>
 #include <print>
+#include <fstream>
 
 #include "encoding/UniformTimeDiscretization.h"
 #include "linear/bb/PseudoCost.h"
@@ -18,9 +19,9 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 10;
+  size_t H = 9;
 
-  auto problem = small_blomer_problem<Field>(100, 50);
+  auto problem = small_blomer_problem<Field>(10, 10);
 
   std::cout << to_graphviz(problem) << std::endl;
 
@@ -38,6 +39,7 @@ int main() {
 
   std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
+  // print solution
   if (std::holds_alternative<NoFiniteSolution>(solution)) {
     std::println("No finite solution.");
   } else if (std::holds_alternative<ReachedNodesLimit>(solution)) {
@@ -50,8 +52,11 @@ int main() {
 
     auto point = finite_solution.point;
 
+    Solution checker(&problem);
+
     for (const auto& unit : problem.get_units()) {
       std::println("schedule for unit {}:", unit.get_id());
+      std::println("(unit, task, time)");
 
       for (size_t t = 0; t < H; ++t) {
         for (const auto* task : unit.get_tasks() | std::views::keys) {
@@ -60,12 +65,21 @@ int main() {
           Field Q = encoding.builder.extract_variable(
               point, encoding.quantities.at({&unit, task, t}));
 
+          if (FieldTraits<Field>::is_strictly_positive(x)) {
+            checker.add_instance(
+                TaskInstance{unit.get_id(), task->get_id(), Q, t});
+          }
+
           std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
                        x);
           std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
                        Q);
         }
       }
+    }
+
+    if (!checker.check()) {
+      throw std::runtime_error("Invalid solution!");
     }
   }
 

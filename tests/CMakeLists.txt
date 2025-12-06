@@ -14,6 +14,7 @@ target_sources(tests PUBLIC
 
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
+        simplex/BigTests.cpp
 
         LU/CommonTests.cpp
         LU/SparseLUTests.cpp
