@@ -1,7 +1,7 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <print>
-#include <fstream>
 
 #include "encoding/UniformTimeDiscretization.h"
 #include "linear/bb/PseudoCost.h"
@@ -19,7 +19,7 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 9;
+  size_t H = 10;
 
   auto problem = small_blomer_problem<Field>(10, 10);
 
@@ -32,12 +32,22 @@ int main() {
   // solve MILP problem
   auto milp_problem = encoding.builder.get_problem();
 
-  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 1'000};
+  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
   auto solver = PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>>(
       milp_problem, settings);
   auto solution = solver.solve();
 
   std::cout << solver.get_accountant().to_graphviz() << std::endl;
+
+  {
+    std::ofstream os("iterations_data.csv");
+    os << solver.get_accountant().iterations_to_csv();
+  }
+
+  {
+    std::ofstream os("strong_branching_data.csv");
+    os << solver.get_accountant().strong_branching_iterations_to_csv();
+  }
 
   // print solution
   if (std::holds_alternative<NoFiniteSolution>(solution)) {

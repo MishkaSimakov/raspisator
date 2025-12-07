@@ -5,11 +5,11 @@
 #include <ranges>
 #include <variant>
 
+#include "../matrix/LU.h"
+#include "../matrix/Matrix.h"
+#include "../matrix/RowBasis.h"
+#include "../sparse/LU.h"
 #include "linear/model/LP.h"
-#include "matrix/LU.h"
-#include "matrix/Matrix.h"
-#include "matrix/RowBasis.h"
-#include "sparse/LU.h"
 #include "utils/Variant.h"
 
 // Double, double toil and trouble;

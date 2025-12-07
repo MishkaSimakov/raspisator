@@ -27,11 +27,18 @@ template <typename Field>
 using LPSolution =
     std::variant<FiniteLPSolution<Field>, InfiniteSolution, NoFeasibleElements>;
 
+template <typename Field>
+struct SimplexResult {
+  size_t iterations_count;
+
+  std::variant<FiniteLPSolution<Field>, NoFeasibleElements> solution;
+};
+
 // basic feasible solution
 template <typename Field>
 struct BFS {
   Matrix<Field> point;
-  std::vector<size_t> basic_variables{};
+  std::vector<size_t> basic_variables;
 
   static BFS construct_nondegenerate(Matrix<Field> point) {
     if (point.get_width() != 1) {
@@ -47,13 +54,4 @@ struct BFS {
 
     return BFS(point, basic_variables);
   }
-};
-
-template <typename T, typename Field>
-concept LPSolver = requires(T solver) {
-  requires std::constructible_from<T, CSCMatrix<Field>, Matrix<Field>,
-                                   Matrix<Field>>;
-  { solver.solve() } -> std::same_as<LPSolution<Field>>;
-
-  { solver.find_bfs() } -> std::same_as<std::optional<BFS<Field>>>;
 };

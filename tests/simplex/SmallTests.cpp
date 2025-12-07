@@ -2,8 +2,8 @@
 
 #include <variant>
 
+#include "../../src/linear/simplex/BoundedSimplexMethod.h"
 #include "linear/BigInteger.h"
-#include "linear/BoundedSimplexMethod.h"
 #include "linear/CheckBFS.h"
 #include "linear/matrix/Matrix.h"
 
@@ -12,7 +12,7 @@ auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
                  const Matrix<Field>& c, const std::vector<Field>& lower,
                  const std::vector<Field>& upper,
                  const std::vector<size_t>& basic_variables) {
-  BoundedSimplexMethod solver(CSCMatrix(A), b, c);
+  simplex::BoundedSimplexMethod solver(CSCMatrix(A), b, c);
   solver.setup_warm_start(basic_variables);
   return solver.dual(lower, upper);
 }

@@ -2,9 +2,9 @@
 
 #include <random>
 
+#include "../../src/linear/simplex/BoundedSimplexMethod.h"
 #include "Assertions.h"
 #include "linear/BigInteger.h"
-#include "linear/BoundedSimplexMethod.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/Random.h"
 
@@ -62,7 +62,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
     std::iota(basic_variables.begin(), basic_variables.end(), 0);
 
     // calculate solution
-    auto solver = BoundedSimplexMethod(CSCMatrix(A), b, c);
+    auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
     solver.setup_warm_start(basic_variables);
     auto solution = solver.dual(lower, upper);
 

@@ -2,9 +2,9 @@
 
 #include "../src/linear/bb/BranchAndBound.h"
 #include "../src/linear/matrix/RowBasis.h"
+#include "../src/linear/simplex/SimplexMethod.h"
 #include "linear/BigInteger.h"
 #include "linear/MPS.h"
-#include "linear/SimplexMethod.h"
 #include "linear/bb/Drawer.h"
 #include "linear/bb/PseudoCost.h"
 #include "linear/bb/TreeStoringAccountant.h"

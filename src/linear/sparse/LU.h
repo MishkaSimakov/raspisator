@@ -191,6 +191,7 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lup(
   return {std::move(L), std::move(U), std::move(rows_permutation)};
 }
 
+
 // solves Ax = b, where PA = LU
 // L must be without ones on the main diagonal
 template <typename Field>
@@ -259,7 +260,7 @@ void solve_transposed_linear_inplace(const CSCMatrix<Field>& L,
     b[col, 0] /= diagonal;
   }
 
-  // solve (L^T P) x = y
+  // solve L^T x = y
   for (size_t i = 0; i < n; ++i) {
     size_t col = n - i - 1;
 

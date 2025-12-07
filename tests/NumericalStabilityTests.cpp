@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "../src/linear/simplex/SimplexMethod.h"
 #include "Assertions.h"
-#include "linear/SimplexMethod.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"

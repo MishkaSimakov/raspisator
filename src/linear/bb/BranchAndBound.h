@@ -3,8 +3,8 @@
 #include <optional>
 #include <queue>
 
+#include "../simplex/BoundedSimplexMethod.h"
 #include "BranchAndBoundTree.h"
-#include "linear/BoundedSimplexMethod.h"
 #include "linear/bb/Settings.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/model/LP.h"
@@ -32,7 +32,7 @@ class BranchAndBound {
 
   std::optional<std::pair<Field, Matrix<Field>>> lower_bound_;
 
-  BoundedSimplexMethod<Field> lp_solver_;
+  simplex::BoundedSimplexMethod<Field> lp_solver_;
 
   static Matrix<Field> floor_solution(const Matrix<Field>& point) {
     auto result = Matrix<Field>::zeros_like(point);

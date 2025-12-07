@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
+#include "../../src/linear/simplex/BoundedSimplexMethod.h"
 #include "Assertions.h"
 #include "linear/BigInteger.h"
-#include "linear/BoundedSimplexMethod.h"
 #include "linear/model/LP.h"
 
 using Field = double;
@@ -13,7 +13,7 @@ using Field = double;
 TEST(BigTests, PotentiallyCyclingProblem1) {
   using namespace SimplexDump_0;
 
-  auto solver = BoundedSimplexMethod(CSCMatrix(A), b, c);
+  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
   solver.setup_warm_start(states);
   auto solution = solver.dual(lower, upper);
 
@@ -26,7 +26,7 @@ TEST(BigTests, PotentiallyCyclingProblem1) {
 TEST(BigTests, PotentiallyCyclingProblem2) {
   using namespace SimplexDump_1;
 
-  auto solver = BoundedSimplexMethod(CSCMatrix(A), b, c);
+  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
   solver.setup_warm_start(states);
   auto solution = solver.dual(lower, upper);
 

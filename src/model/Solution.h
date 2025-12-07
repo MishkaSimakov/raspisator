@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "STN.h"
+#include "linear/FieldTraits.h"
 #include "utils/Variant.h"
 
 template <typename Field>
@@ -112,16 +113,18 @@ class Solution {
 
     for (const State& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
-      bool result = std::visit(
-          Overload{[&filled](NonStorableState) { return filled == Field(0); },
-                   [&filled](NormalState state) {
-                     // fmt::println("min: {}, max: {}, filled: {}",
-                     // state.min_level, state.max_level, filled);
-                     return Field(state.min_level) <= filled &&
-                            filled <= Field(state.max_level);
-                   },
-                   [&filled](const auto&) { return true; }},
-          s);
+      bool result =
+          std::visit(Overload{[&filled](NonStorableState) {
+                                return !FieldTraits<Field>::is_nonzero(filled);
+                              },
+                              [&filled](NormalState state) {
+                                // fmt::println("min: {}, max: {}, filled: {}",
+                                // state.min_level, state.max_level, filled);
+                                return Field(state.min_level) <= filled &&
+                                       filled <= Field(state.max_level);
+                              },
+                              [&filled](const auto&) { return true; }},
+                     s);
 
       if (!result) {
         std::println("State {} out of bounds on time {}", s.get_id(), e.time);
@@ -144,8 +147,10 @@ class Solution {
     const TaskOnUnitProperties* prop = unit->get_properties(task);
     // fmt::println("e batch_size: {}, prop_min: {}, prop_max: {}",
     // e.batch_size, prop->batch_min_size, prop->batch_max_size);
-    if (e.batch_size > prop->batch_max_size ||
-        e.batch_size < prop->batch_min_size) {
+    if (FieldTraits<Field>::is_strictly_positive(e.batch_size -
+                                                 prop->batch_max_size) ||
+        FieldTraits<Field>::is_strictly_negative(e.batch_size <
+                                                 prop->batch_min_size)) {
       std::println(
           "event batch size {} out of bounds for task {} on time {}. Bounds: "
           "{}, {}",

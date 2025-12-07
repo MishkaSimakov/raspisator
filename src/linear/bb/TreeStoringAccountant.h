@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <variant>
 
-#include "linear/bb/Accountant.h"
+#include "linear/bb/BaseAccountant.h"
 
 template <typename Field>
 struct TreeStoringAccountant : BaseAccountant<Field> {
@@ -26,20 +26,19 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
   struct Unvisited {};
 
   struct Node {
-    std::optional<size_t> left_child;
-    std::optional<size_t> right_child;
-
     std::variant<PrunedByInfeasibility, PrunedByIntegrality, PrunedByBounds,
                  Branched, Unvisited>
         state;
+
+    std::optional<size_t> left_child = std::nullopt;
+    std::optional<size_t> right_child = std::nullopt;
+
+    std::optional<size_t> simplex_iterations = std::nullopt;
+    std::vector<std::pair<size_t, size_t>> strong_branching_iterations;
   };
 
   std::unordered_map<size_t, Node> tree;
   std::optional<size_t> root;
-
-  void emplace_unvisited(size_t id) {
-    tree.emplace(id, Node{std::nullopt, std::nullopt, Unvisited{}});
-  }
 
   // graphviz methods
  private:
@@ -86,7 +85,66 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
     }
   }
 
+  void iterations_recursive(std::ostream& os, size_t id, size_t depth) const {
+    const Node& node = tree.at(id);
+
+    std::string iterations_cnt = node.simplex_iterations
+                                     ? std::to_string(*node.simplex_iterations)
+                                     : "null";
+
+    std::println(os, "{},{},{}", id, depth, iterations_cnt);
+
+    if (node.left_child) {
+      iterations_recursive(os, *node.left_child, depth + 1);
+    }
+
+    if (node.right_child) {
+      iterations_recursive(os, *node.right_child, depth + 1);
+    }
+  }
+
+  void strong_branching_iterations_recursive(std::ostream& os, size_t id,
+                                             size_t depth) const {
+    const Node& node = tree.at(id);
+
+    for (auto [variable, cnt] : node.strong_branching_iterations) {
+      std::println(os, "{},{},{},{}", id, depth, variable, cnt);
+    }
+
+    if (node.left_child) {
+      strong_branching_iterations_recursive(os, *node.left_child, depth + 1);
+    }
+
+    if (node.right_child) {
+      strong_branching_iterations_recursive(os, *node.right_child, depth + 1);
+    }
+  }
+
  public:
+  std::string iterations_to_csv() const {
+    std::stringstream os;
+
+    std::println(os, "id,depth,iterations_cnt");
+
+    if (root) {
+      iterations_recursive(os, *root, 0);
+    }
+
+    return os.str();
+  }
+
+  std::string strong_branching_iterations_to_csv() const {
+    std::stringstream os;
+
+    std::println(os, "id,depth,variable_id,iterations_cnt");
+
+    if (root) {
+      strong_branching_iterations_recursive(os, *root, 0);
+    }
+
+    return os.str();
+  }
+
   std::string to_graphviz() const {
     std::stringstream os;
 
@@ -105,7 +163,7 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
   void set_root(size_t id) {
     assert(!root);
     root = id;
-    emplace_unvisited(id);
+    tree.emplace(id, Node{Unvisited{}});
   }
 
   void pruned_by_infeasibility(size_t id) {
@@ -137,12 +195,21 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
     assert(!tree.at(parent_id).left_child);
 
     tree.at(parent_id).left_child = child_id;
-    emplace_unvisited(child_id);
+    tree.emplace(child_id, Node{Unvisited{}});
   }
   void set_right_child(size_t parent_id, size_t child_id) {
     assert(!tree.at(parent_id).right_child);
 
     tree.at(parent_id).right_child = child_id;
-    emplace_unvisited(child_id);
+    tree.emplace(child_id, Node{Unvisited{}});
+  }
+
+  void simplex_run(size_t node_id, const SimplexResult<Field>& result) {
+    tree.at(node_id).simplex_iterations = result.iterations_count;
+  }
+  void strong_branching_simplex_run(size_t node_id, size_t variable_id,
+                                    const SimplexResult<Field>& result) {
+    tree.at(node_id).strong_branching_iterations.emplace_back(
+        variable_id, result.iterations_count);
   }
 };
