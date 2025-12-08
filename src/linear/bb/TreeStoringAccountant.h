@@ -191,16 +191,18 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
     tree.at(id).state = Branched{solution.value, branch_variable, branch_value};
   }
 
-  void set_left_child(size_t parent_id, size_t child_id) {
-    assert(!tree.at(parent_id).left_child);
+  void set_child(size_t parent_id, size_t child_id,
+                 NodeRelativeLocation location) {
+    assert(location != NodeRelativeLocation::ROOT);
 
-    tree.at(parent_id).left_child = child_id;
-    tree.emplace(child_id, Node{Unvisited{}});
-  }
-  void set_right_child(size_t parent_id, size_t child_id) {
-    assert(!tree.at(parent_id).right_child);
+    if (location == NodeRelativeLocation::LEFT_CHILD) {
+      assert(!tree.at(parent_id).left_child);
+      tree.at(parent_id).left_child = child_id;
+    } else {
+      assert(!tree.at(parent_id).right_child);
+      tree.at(parent_id).right_child = child_id;
+    }
 
-    tree.at(parent_id).right_child = child_id;
     tree.emplace(child_id, Node{Unvisited{}});
   }
 

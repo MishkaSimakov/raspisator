@@ -4,14 +4,14 @@
 
 // a miniscule problems straight out of my head
 template <typename Field>
-STN<Field> dwarf_problem_normal() {
+STN<Field> dwarf_problem_normal(Field target) {
   STN<Field> stn;
 
   // States
-  auto* state1 = stn.add(InputState{200});
+  auto* state1 = stn.add(InputState{target * 5});
   auto* state2 = stn.add(NormalState{0, 0, 50});
   auto* state3 = stn.add(NormalState{0, 0, 50});
-  auto* state4 = stn.add(OutputState{0, 100});
+  auto* state4 = stn.add(OutputState{0, target});
 
   // Units
   auto* unit1 = stn.add(Unit<Field>{});

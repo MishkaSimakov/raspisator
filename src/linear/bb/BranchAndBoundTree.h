@@ -4,6 +4,7 @@
 #include <deque>
 #include <variant>
 
+#include "linear/bb/NodeRelativeLocation.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/model/LP.h"
 
@@ -54,8 +55,6 @@ struct Node : std::variant<InteriorNode<Field>, UnfeasibleNode<Field>,
     std::visit([parent](auto& node) { node.parent = parent; }, *this);
   }
 };
-
-enum class NodeRelativeLocation { LEFT_CHILD, RIGHT_CHILD, ROOT };
 
 template <typename Field>
 class BranchAndBoundTree {

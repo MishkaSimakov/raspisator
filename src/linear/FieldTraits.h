@@ -19,6 +19,16 @@ struct FieldTraits<double> {
     return floored;
   }
 
+  static double fractional(double value) {
+    double floored = std::floor(value);
+
+    if (std::abs(value - floored - 1) < 1e-10) {
+      return 0;
+    }
+
+    return value - floored;
+  }
+
   static bool is_strictly_negative(double value) { return value < -1e-10; }
   static bool is_strictly_positive(double value) { return value > 1e-10; }
 

@@ -32,6 +32,10 @@ struct SimplexResult {
   size_t iterations_count;
 
   std::variant<FiniteLPSolution<Field>, NoFeasibleElements> solution;
+
+  bool is_feasible() const {
+    return std::holds_alternative<FiniteLPSolution<Field>>(solution);
+  }
 };
 
 // basic feasible solution

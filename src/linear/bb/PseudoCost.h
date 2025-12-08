@@ -4,17 +4,22 @@
 
 #include "BaseAccountant.h"
 #include "Settings.h"
+#include "linear/bb/NodeRelativeLocation.h"
 #include "linear/model/MILP.h"
 #include "linear/simplex/BoundedSimplexMethod.h"
+#include "utils/Accumulators.h"
 
 template <typename Field, typename Accountant = BaseAccountant<Field>>
 class PseudoCostBranchAndBound {
   constexpr static double kInitialPseudoCost = 1;
   constexpr static double kReliabilityParameter = 4;
   constexpr static double kInfeasibilityScore = -1;
+  constexpr static Field kScoreFactor = static_cast<Field>(1) / 6;
 
   size_t total_nodes_count_;
 
+  // Node is pushed into waiting list when feasible solution in it is found and
+  // branching variable is calculated
   struct Node {
     size_t id;
 
@@ -22,14 +27,13 @@ class PseudoCostBranchAndBound {
     std::vector<Field> lower;
 
     std::vector<VariableState> variables_states;
-
-    // parent and branching information
-    Field parent_value;
     size_t branch_variable;
-    Field fractional_part;
-    bool is_lower;
 
-    Field expected_value;
+    Field value;
+    Field expected;
+
+    Field branch_value;
+    Field fractional;
   };
 
   simplex::BoundedSimplexMethod<Field> lp_solver_;
@@ -39,24 +43,15 @@ class PseudoCostBranchAndBound {
 
   std::vector<VariableType> variables_;
 
-  std::vector<Field> upper_pseudocosts_;
-  std::vector<Field> lower_pseudocosts_;
-  std::vector<size_t> branch_count_;
+  std::vector<ArithmeticMean<Field>> upper_pseudocosts_;
+  std::vector<ArithmeticMean<Field>> lower_pseudocosts_;
 
   BranchAndBoundSettings<Field> settings_;
 
   // used to calculate average simplex iterations count
-  size_t total_simplex_iterations_;
-  size_t total_simplex_runs_;
+  ArithmeticMean<double> simplex_iterations_;
 
   Accountant accountant_;
-
-  size_t average_simplex_iterations() const {
-    double average = static_cast<double>(total_simplex_iterations_) /
-                     static_cast<double>(total_simplex_runs_);
-
-    return std::ceil(average);
-  }
 
   static bool is_integer(const Field& value) {
     auto floored = FieldTraits<Field>::floor(value);
@@ -103,42 +98,34 @@ class PseudoCostBranchAndBound {
   //   return FieldTraits<Field>::abs(0.5 - f);
   // }
 
-  double merge_score(double left_score, double right_score) {
-    constexpr double kScoreFactor = 1. / 6;
-
+  Field merge_score(Field left_score, Field right_score) {
     return (1 - kScoreFactor) * std::min(left_score, right_score) +
            kScoreFactor * std::max(left_score, right_score);
   }
 
-  double score_via_simplex(const Node& node,
-                           const FiniteLPSolution<Field>& solution,
-                           size_t index) {
+  std::optional<Field> score_via_simplex(
+      size_t index, const Node& node, const FiniteLPSolution<Field>& solution) {
     // full strong branching
     // run simplex method for gamma iterations for each subproblem,
-    // score is the change of the objective
-    auto score_function = Overload{
-        [](NoFeasibleElements) { return kInfeasibilityScore; },
-        [&solution](const FiniteLPSolution<Field>& subproblem_solution) {
-          return static_cast<double>(subproblem_solution.value -
-                                     solution.value);
-        },
-    };
-
-    double fractional = static_cast<double>(
-        solution.point[index, 0] -
-        FieldTraits<Field>::floor(solution.point[index, 0]));
+    Field fractional = FieldTraits<Field>::fractional(solution.point[index, 0]);
+    Field branch_value = FieldTraits<Field>::floor(solution.point[index, 0]);
 
     // calculate left node
-    double left_delta;
+    std::optional<Field> lower_score;
     auto tight_upper = node.upper;
-    tight_upper[index] = FieldTraits<Field>::floor(solution.point[index, 0]);
+    tight_upper[index] = branch_value;
 
     try {
       lp_solver_.setup_warm_start(node.variables_states);
       auto run_result = lp_solver_.dual(node.lower, tight_upper);
-      left_delta = std::visit(score_function, run_result.solution);
 
-      lower_pseudocosts_[index] += left_delta / fractional;
+      if (run_result.is_feasible()) {
+        lower_score =
+            (std::get<FiniteLPSolution<Field>>(run_result.solution).value -
+             solution.value) /
+            fractional;
+        lower_pseudocosts_[index].record(*lower_score);
+      }
 
       accountant_.strong_branching_simplex_run(node.id, index, run_result);
     } catch (...) {
@@ -150,17 +137,21 @@ class PseudoCostBranchAndBound {
     }
 
     // calculate right node
+    std::optional<Field> upper_score;
     auto tight_lower = node.lower;
-    tight_lower[index] =
-        FieldTraits<Field>::floor(solution.point[index, 0]) + 1;
+    tight_lower[index] = branch_value + 1;
 
-    double right_delta;
     try {
       lp_solver_.setup_warm_start(node.variables_states);
       auto run_result = lp_solver_.dual(tight_lower, node.upper);
-      right_delta = std::visit(score_function, run_result.solution);
 
-      upper_pseudocosts_[index] += right_delta / (1 - fractional);
+      if (run_result.is_feasible()) {
+        upper_score =
+            (std::get<FiniteLPSolution<Field>>(run_result.solution).value -
+             solution.value) /
+            (1 - fractional);
+        upper_pseudocosts_[index].record(*upper_score);
+      }
 
       accountant_.strong_branching_simplex_run(node.id, index, run_result);
     } catch (...) {
@@ -171,9 +162,11 @@ class PseudoCostBranchAndBound {
       throw;
     }
 
-    ++branch_count_[index];
+    if (!lower_score || !upper_score) {
+      return std::nullopt;
+    }
 
-    return merge_score(left_delta, right_delta);
+    return merge_score(*lower_score, *upper_score);
   }
 
   // size_t find_branching_variable(const Node& node, const Matrix<Field>&
@@ -196,43 +189,37 @@ class PseudoCostBranchAndBound {
   // }
 
   bool is_reliable(size_t variable_id) {
-    return branch_count_[variable_id] >= kReliabilityParameter;
+    return lower_pseudocosts_[variable_id].count() >= kReliabilityParameter &&
+           upper_pseudocosts_[variable_id].count() >= kReliabilityParameter;
   }
 
-  double score_via_pseudocost(size_t index, const Matrix<Field>& point) {
-    double fractional = static_cast<double>(
-        point[index, 0] - FieldTraits<Field>::floor(point[index, 0]));
+  Field score_via_pseudocost(size_t index, const Matrix<Field>& point) {
+    Field fractional = FieldTraits<Field>::fractional(point[index, 0]);
 
-    double lower_cost =
-        fractional * lower_pseudocosts_[index] / branch_count_[index];
-    double upper_cost =
-        (1 - fractional) * upper_pseudocosts_[index] / branch_count_[index];
+    Field lower_cost = fractional * lower_pseudocosts_[index].mean();
+    Field upper_cost = (1 - fractional) * upper_pseudocosts_[index].mean();
 
     return merge_score(lower_cost, upper_cost);
   }
 
   size_t find_branching_variable(const Node& node,
                                  const FiniteLPSolution<Field>& solution) {
-    std::optional<std::pair<size_t, double>> min_score;
+    ArgMinimum<Field> score;
 
     // calculate pseudo cost score for each candidate
     for (size_t i = 0; i < variables_.size(); ++i) {
       if (variables_[i] == VariableType::INTEGER &&
           !is_integer(solution.point[i, 0])) {
-        std::cout << branch_count_[i] << " ";
+        std::optional<Field> current_score =
+            is_reliable(i) ? score_via_pseudocost(i, solution.point)
+                           : score_via_simplex(i, node, solution);
 
-        double score = is_reliable(i) ? score_via_pseudocost(i, solution.point)
-                                      : score_via_simplex(node, solution, i);
-
-        if (!min_score || score < min_score->second) {
-          min_score = {i, score};
-        }
+        score.record(i, current_score);
       }
     }
 
-    std::cout << std::endl;
-    assert(min_score.has_value());
-    return min_score->first;
+    assert(score.argmin().has_value());
+    return *score.argmin();
   }
 
   void partition(const FiniteLPSolution<Field>& solution, const Node& parent) {
@@ -275,15 +262,100 @@ class PseudoCostBranchAndBound {
     std::println("#{}; LB: {}; UB: {}", node.id, lb, current_solution.value);
   }
 
+  void record_simplex_run(const Node& parent, NodeRelativeLocation location,
+                          const SimplexResult<Field>& run_result) {
+    assert(location != NodeRelativeLocation::ROOT);
+
+    simplex_iterations_.record(run_result.iterations_count);
+
+    // TODO: should try to introduce some cost for infeasible problems
+    if (std::holds_alternative<NoFeasibleElements>(run_result.solution)) {
+      return;
+    }
+
+    const auto& solution =
+        std::get<FiniteLPSolution<Field>>(run_result.solution);
+
+    Field delta = solution.value - parent.value;
+
+    if (location == NodeRelativeLocation::LEFT_CHILD) {
+      lower_pseudocosts_[parent.branch_variable].record(delta /
+                                                        parent.fractional);
+    } else {
+      upper_pseudocosts_[parent.branch_variable].record(
+          delta / (1 - parent.fractional));
+    }
+  }
+
+  void try_push_to_waiting(Node node, const SimplexResult<Field>& run_result) {
+    // prune
+    if (std::holds_alternative<NoFeasibleElements>(run_result.solution)) {
+      accountant_.pruned_by_infeasibility(node.id);
+      return;
+    }
+
+    auto solution = std::get<FiniteLPSolution<Field>>(run_result.solution);
+
+    if (try_prune(solution, node)) {
+      return;
+    }
+
+    log_bounds(node, solution);
+
+    // branch
+    // TODO: expected value
+    node.value = solution.value;
+    node.variables_states = solution.variables;
+
+    node.branch_variable = find_branching_variable(node, solution);
+    node.branch_value =
+        FieldTraits<Field>::floor(solution.point[node.branch_variable, 0]);
+    node.fractional =
+        solution.point[node.branch_variable, 0] - node.branch_value;
+
+    accountant_.set_branching_variable(node.id, solution, node.branch_variable,
+                                       node.branch_value);
+
+    waiting_.push_back(std::move(node));
+  }
+
+  void calculate_node(const Node& parent, NodeRelativeLocation location) {
+    assert(location != NodeRelativeLocation::ROOT);
+
+    Node child;
+    child.id = ++total_nodes_count_;
+
+    accountant_.set_child(parent.id, child.id, location);
+
+    // tighten bounds
+    child.lower = parent.lower;
+    child.upper = parent.upper;
+
+    if (location == NodeRelativeLocation::LEFT_CHILD) {
+      child.upper[parent.branch_variable] = parent.branch_value;
+    } else {
+      child.lower[parent.branch_variable] = parent.branch_value + 1;
+    }
+
+    // run simplex method for subproblem
+    lp_solver_.setup_warm_start(parent.variables_states);
+
+    auto run_result = lp_solver_.dual(child.lower, child.upper);
+
+    accountant_.simplex_run(child.id, run_result);
+    record_simplex_run(parent, location, run_result);
+
+    try_push_to_waiting(std::move(child), run_result);
+  }
+
  public:
   explicit PseudoCostBranchAndBound(MILPProblem<Field> problem,
                                     BranchAndBoundSettings<Field> settings)
       : total_nodes_count_(0),
         lp_solver_(CSCMatrix(problem.A), problem.b, problem.c),
         variables_(problem.variables_),
-        upper_pseudocosts_(problem.variables_.size(), kInitialPseudoCost),
-        lower_pseudocosts_(problem.variables_.size(), kInitialPseudoCost),
-        branch_count_(problem.variables_.size(), 0),
+        upper_pseudocosts_(problem.variables_.size()),
+        lower_pseudocosts_(problem.variables_.size()),
         settings_(settings) {
     Node root;
 
@@ -296,41 +368,30 @@ class PseudoCostBranchAndBound {
     root.variables_states = lp_solver_.get_variables_states();
 
     accountant_.set_root(root.id);
-    waiting_.emplace_back(root);
+    waiting_.push_back(std::move(root));
   }
 
   const Accountant& get_accountant() const { return accountant_; }
 
   MILPSolution<Field> solve() {
+    // solve for root
+    Node root = waiting_.back();
+    waiting_.pop_back();
+
+    auto run_result = lp_solver_.dual(root.lower, root.upper);
+    try_push_to_waiting(std::move(root), run_result);
+
+    // main branch and bound cycle
     while (!waiting_.empty()) {
       if (settings_.max_nodes && total_nodes_count_ > settings_.max_nodes) {
         return ReachedNodesLimit{};
       }
 
-      Node current = waiting_.back();
+      Node parent = waiting_.back();
       waiting_.pop_back();
-      lp_solver_.setup_warm_start(current.variables_states);
 
-      auto run_result = lp_solver_.dual(current.lower, current.upper);
-      accountant_.simplex_run(current.id, run_result);
-
-      ++total_simplex_runs_;
-      total_simplex_iterations_ += run_result.iterations_count;
-
-      if (std::holds_alternative<NoFeasibleElements>(run_result.solution)) {
-        accountant_.pruned_by_infeasibility(current.id);
-        continue;
-      }
-
-      auto solution = std::get<FiniteLPSolution<Field>>(run_result.solution);
-
-      if (try_prune(solution, current)) {
-        continue;
-      }
-
-      log_bounds(current, solution);
-
-      partition(solution, current);
+      calculate_node(parent, NodeRelativeLocation::LEFT_CHILD);
+      calculate_node(parent, NodeRelativeLocation::RIGHT_CHILD);
     }
 
     if (incumbent_) {

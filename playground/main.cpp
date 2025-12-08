@@ -19,9 +19,9 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 10;
+  size_t H = 5;
 
-  auto problem = small_blomer_problem<Field>(10, 10);
+  auto problem = dwarf_problem_normal<Field>(1000);
 
   std::cout << to_graphviz(problem) << std::endl;
 
