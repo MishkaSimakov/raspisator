@@ -19,15 +19,15 @@ std::vector<std::string> translate_states(const STN<Field>& stn) {
   for (size_t i = 0; i < states.size(); ++i) {
     size_t id = states[i].get_id();
 
-    auto props = std::visit(Overload{[](InputState) { return "in"s; },
-                                     [](OutputState) { return "out"s; },
-                                     [](NonStorableState) { return "ns"s; },
-                                     [](const NormalState& state) {
-                                       return std::format(
-                                           "({}, {}-{})", state.initial_stock,
-                                           state.min_level, state.max_level);
-                                     }},
-                            states[i]);
+    auto props = std::visit(
+        Overload{[](InputState<Field>) { return "in"s; },
+                 [](OutputState<Field>) { return "out"s; },
+                 [](NonStorableState<Field>) { return "ns"s; },
+                 [](const NormalState<Field>& state) {
+                   return std::format("({}, {}-{})", state.initial_stock,
+                                      state.min_level, state.max_level);
+                 }},
+        states[i]);
 
     result[i] = std::format("S{} [label=\"State {}\n{}\"];", id, id, props);
   }
@@ -35,7 +35,7 @@ std::vector<std::string> translate_states(const STN<Field>& stn) {
   return result;
 }
 
-template<typename Field>
+template <typename Field>
 std::vector<std::string> translate_tasks(const STN<Field>& stn) {
   const auto& tasks = stn.get_tasks();
 
@@ -59,7 +59,7 @@ std::vector<std::string> translate_tasks(const STN<Field>& stn) {
   return result;
 }
 
-template<typename Field>
+template <typename Field>
 std::vector<std::string> translate_arcs(const STN<Field>& stn) {
   const auto& tasks = stn.get_tasks();
 
@@ -69,18 +69,20 @@ std::vector<std::string> translate_arcs(const STN<Field>& stn) {
     size_t id = tasks[i].get_id();
 
     for (const auto& [input, fraction] : tasks[i].get_inputs()) {
-      result.push_back(std::format("S{} -> T{} [label=\"{}\"];", input->get_id(), id, fraction));
+      result.push_back(std::format("S{} -> T{} [label=\"{}\"];",
+                                   input->get_id(), id, fraction));
     }
 
     for (const auto& [output, fraction] : tasks[i].get_outputs()) {
-      result.push_back(std::format("T{} -> S{} [label=\"{}\"];", id, output->get_id(), fraction));
+      result.push_back(std::format("T{} -> S{} [label=\"{}\"];", id,
+                                   output->get_id(), fraction));
     }
   }
 
   return result;
 }
 
-template<typename Field>
+template <typename Field>
 std::string to_graphviz(const STN<Field>& stn) {
   constexpr auto graph_template =
       "digraph process_flow {{\n"

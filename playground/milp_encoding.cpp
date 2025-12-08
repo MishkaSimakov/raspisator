@@ -1,8 +1,10 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <print>
 
 #include "encoding/UniformTimeDiscretization.h"
+#include "linear/BigInteger.h"
 #include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
 #include "linear/bb/TreeStoringAccountant.h"
@@ -18,9 +20,9 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 10;
+  size_t H = 20;
 
-  auto problem = small_blomer_problem<Field>();
+  auto problem = dwarf_problem_normal<Field>(200);
 
   std::cout << to_graphviz(problem) << std::endl;
 
@@ -31,13 +33,24 @@ int main() {
   // solve MILP problem
   auto milp_problem = encoding.builder.get_problem();
 
-  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 100'000};
+  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
   auto solver = PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>>(
       milp_problem, settings);
   auto solution = solver.solve();
 
   std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
+  {
+    std::ofstream os("iterations_data.csv");
+    os << solver.get_accountant().iterations_to_csv();
+  }
+
+  {
+    std::ofstream os("strong_branching_data.csv");
+    os << solver.get_accountant().strong_branching_iterations_to_csv();
+  }
+
+  // print solution
   if (std::holds_alternative<NoFiniteSolution>(solution)) {
     std::println("No finite solution.");
   } else if (std::holds_alternative<ReachedNodesLimit>(solution)) {
@@ -50,8 +63,11 @@ int main() {
 
     auto point = finite_solution.point;
 
+    Solution checker(&problem);
+
     for (const auto& unit : problem.get_units()) {
       std::println("schedule for unit {}:", unit.get_id());
+      std::println("(unit, task, time)");
 
       for (size_t t = 0; t < H; ++t) {
         for (const auto* task : unit.get_tasks() | std::views::keys) {
@@ -60,12 +76,21 @@ int main() {
           Field Q = encoding.builder.extract_variable(
               point, encoding.quantities.at({&unit, task, t}));
 
+          if (FieldTraits<Field>::is_strictly_positive(x)) {
+            checker.add_instance(
+                TaskInstance{unit.get_id(), task->get_id(), Q, t});
+          }
+
           std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
                        x);
           std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
                        Q);
         }
       }
+    }
+
+    if (!checker.check()) {
+      throw std::runtime_error("Invalid solution!");
     }
   }
 

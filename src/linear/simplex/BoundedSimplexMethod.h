@@ -12,6 +12,7 @@
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
 #include "linear/sparse/LU.h"
+#include "utils/Accumulators.h"
 #include "utils/Variant.h"
 
 namespace simplex {
@@ -146,7 +147,7 @@ class BoundedSimplexMethod {
                                   const std::vector<size_t>& basic_vars) {
     auto [n, d] = A_.shape();
 
-    Matrix<Field> result = linalg::transposed(c_);
+    Matrix<Field> result(d, 1);
 
     Matrix<Field> cb(n, 1);
     for (size_t i = 0; i < n; ++i) {
@@ -155,6 +156,8 @@ class BoundedSimplexMethod {
     linalg::solve_transposed_linear_inplace(L, U, P, cb);
 
     for (size_t i = 0; i < d; ++i) {
+      result[i, 0] = c_[0, i];
+
       for (const auto& [row, value] : A_.get_column(i)) {
         result[i, 0] -= value * cb[P[row], 0];
       }
@@ -192,10 +195,15 @@ class BoundedSimplexMethod {
         continue;
       }
 
-      assert((variables_[i] == VariableState::AT_LOWER &&
-              !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0])) ||
-             (variables_[i] == VariableState::AT_UPPER &&
-              !FieldTraits<Field>::is_strictly_negative(reduced_costs[i, 0])));
+      if (!((variables_[i] == VariableState::AT_LOWER &&
+             !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0])) ||
+            (variables_[i] == VariableState::AT_UPPER &&
+             !FieldTraits<Field>::is_strictly_negative(reduced_costs[i, 0])))) {
+        throw std::runtime_error(
+            std::format("Current point is not dual feasible! Reduced cost for "
+                        "variable #{} has value {}.",
+                        i, reduced_costs[i, 0]));
+      }
 
       Field ratio = reduced_costs[i, 0] / coef;
 

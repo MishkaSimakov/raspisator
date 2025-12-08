@@ -11,11 +11,6 @@
 
 template <typename Field, typename Accountant = BaseAccountant<Field>>
 class PseudoCostBranchAndBound {
-  constexpr static double kInitialPseudoCost = 1;
-  constexpr static double kReliabilityParameter = 4;
-  constexpr static double kInfeasibilityScore = -1;
-  constexpr static Field kScoreFactor = static_cast<Field>(1) / 6;
-
   size_t total_nodes_count_;
 
   // Node is pushed into waiting list when feasible solution in it is found and
@@ -99,8 +94,8 @@ class PseudoCostBranchAndBound {
   // }
 
   Field merge_score(Field left_score, Field right_score) {
-    return (1 - kScoreFactor) * std::min(left_score, right_score) +
-           kScoreFactor * std::max(left_score, right_score);
+    return (1 - settings_.score_factor) * std::min(left_score, right_score) +
+           settings_.score_factor * std::max(left_score, right_score);
   }
 
   std::optional<Field> score_via_simplex(
@@ -189,8 +184,9 @@ class PseudoCostBranchAndBound {
   // }
 
   bool is_reliable(size_t variable_id) {
-    return lower_pseudocosts_[variable_id].count() >= kReliabilityParameter &&
-           upper_pseudocosts_[variable_id].count() >= kReliabilityParameter;
+    return std::min(lower_pseudocosts_[variable_id].count(),
+                    upper_pseudocosts_[variable_id].count()) >=
+           settings_.reliability_parameter;
   }
 
   Field score_via_pseudocost(size_t index, const Matrix<Field>& point) {
@@ -257,7 +253,13 @@ class PseudoCostBranchAndBound {
 
   void log_bounds(const Node& node,
                   const FiniteLPSolution<Field>& current_solution) {
-    std::string lb = incumbent_ ? std::to_string(incumbent_->value) : "*";
+    std::string lb = "*";
+
+    if (incumbent_) {
+      std::stringstream ss;
+      ss << incumbent_->value;
+      lb = ss.str();
+    }
 
     std::println("#{}; LB: {}; UB: {}", node.id, lb, current_solution.value);
   }

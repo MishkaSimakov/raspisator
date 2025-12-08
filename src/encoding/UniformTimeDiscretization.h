@@ -20,7 +20,8 @@ struct ProblemEncoding {
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
                      Variable<Field>>
       starts;
-  std::unordered_map<std::pair<const State*, size_t>, Variable<Field>> stocks;
+  std::unordered_map<std::pair<const State<Field>*, size_t>, Variable<Field>>
+      stocks;
 };
 
 // MILP encoding for chemical batch processing scheduling problem
@@ -42,7 +43,8 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
                      Variable<Field>>
       starts;
-  std::unordered_map<std::pair<const State*, size_t>, Variable<Field>> stocks;
+  std::unordered_map<std::pair<const State<Field>*, size_t>, Variable<Field>>
+      stocks;
 
   for (const auto& unit : problem.get_units()) {
     for (const auto& [task, info] : unit.get_tasks()) {
@@ -61,15 +63,18 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
     }
   }
 
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<NonStorableState>(state)) {
-      Field max_stock = std::visit(
-          Overload{
-              [](const NormalState& state) -> Field { return state.max_level; },
-              [cGlobalMaxStock](const auto&) -> Field {
-                return cGlobalMaxStock;
-              }},
-          state);
+  for (const State<Field>& state : problem.get_states()) {
+    if (!std::holds_alternative<NonStorableState<Field>>(state)) {
+      Field max_stock =
+          std::visit(Overload{
+                         [](const NormalState<Field>& state) -> Field {
+                           return state.max_level;
+                         },
+                         [cGlobalMaxStock](const auto&) -> Field {
+                           return cGlobalMaxStock;
+                         },
+                     },
+                     state);
 
       for (size_t t = 0; t < max_periods; ++t) {
         stocks.emplace(
@@ -107,8 +112,8 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
   }
 
   // stock balance
-  for (const State& state : problem.get_states()) {
-    if (std::holds_alternative<NonStorableState>(state)) {
+  for (const State<Field>& state : problem.get_states()) {
+    if (std::holds_alternative<NonStorableState<Field>>(state)) {
       continue;
     }
 
@@ -118,7 +123,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
                  : std::visit(Overload{[](const auto& state) {
                                          return Field(state.initial_stock);
                                        },
-                                       [](NonStorableState) -> Field {
+                                       [](NonStorableState<Field>) -> Field {
                                          std::unreachable();
                                        }},
                               state);
@@ -155,8 +160,8 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
   // stock limits are incorporated into bounds
 
   // production of non-storable goods
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<NonStorableState>(state)) {
+  for (const State<Field>& state : problem.get_states()) {
+    if (!std::holds_alternative<NonStorableState<Field>>(state)) {
       continue;
     }
 
@@ -212,12 +217,12 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
   // variables domain are incorporated into bounds
 
   // desired amounts
-  for (const State& state : problem.get_states()) {
-    if (!std::holds_alternative<OutputState>(state)) {
+  for (const State<Field>& state : problem.get_states()) {
+    if (!std::holds_alternative<OutputState<Field>>(state)) {
       continue;
     }
 
-    Expression<Field> desired_amount(std::get<OutputState>(state).target);
+    Expression<Field> desired_amount(std::get<OutputState<Field>>(state).target);
 
     builder.add_constraint(stocks.at({&state, max_periods - 1}) >=
                            desired_amount);

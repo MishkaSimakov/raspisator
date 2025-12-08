@@ -75,3 +75,20 @@ class ArgMinimum {
         [](std::pair<size_t, Field> value) { return value.first; });
   }
 };
+
+template <typename Field>
+class KahanSum {
+  Field compensation_ = 0;
+  Field sum_ = 0;
+
+ public:
+  void add(Field value) {
+    double y = value - compensation_;
+    double t = sum_ + y;
+
+    compensation_ = (t - sum_) - y;
+    sum_ = t;
+  }
+
+  Field sum() const { return sum_; }
+};

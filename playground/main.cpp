@@ -4,6 +4,7 @@
 #include <print>
 
 #include "encoding/UniformTimeDiscretization.h"
+#include "linear/BigInteger.h"
 #include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
 #include "linear/bb/TreeStoringAccountant.h"
@@ -19,9 +20,9 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 5;
+  size_t H = 10;
 
-  auto problem = dwarf_problem_normal<Field>(1000);
+  auto problem = dwarf_problem_normal<Field>(100);
 
   std::cout << to_graphviz(problem) << std::endl;
 

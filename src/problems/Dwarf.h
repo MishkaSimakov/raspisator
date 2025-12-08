@@ -8,10 +8,10 @@ STN<Field> dwarf_problem_normal(Field target) {
   STN<Field> stn;
 
   // States
-  auto* state1 = stn.add(InputState{target * 5});
-  auto* state2 = stn.add(NormalState{0, 0, 50});
-  auto* state3 = stn.add(NormalState{0, 0, 50});
-  auto* state4 = stn.add(OutputState{0, target});
+  auto* state1 = stn.add(InputState<Field>{target * 5});
+  auto* state2 = stn.add(NormalState<Field>{0, 0, 50});
+  auto* state3 = stn.add(NormalState<Field>{0, 0, 50});
+  auto* state4 = stn.add(OutputState<Field>{0, target});
 
   // Units
   auto* unit1 = stn.add(Unit<Field>{});
@@ -92,7 +92,7 @@ STN<Field> dwarf_with_nonstorable() {
 
   // States
   auto* state1 = stn.add(InputState{100});
-  auto* state2 = stn.add(NonStorableState{});
+  auto* state2 = stn.add(NonStorableState<Field>{});
   auto* state3 = stn.add(OutputState{0, 100});
 
   // Units

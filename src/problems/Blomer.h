@@ -12,11 +12,11 @@ STN<Field> small_blomer_problem(Field target1, Field target2) {
   auto* state3 = stn.add(InputState{1000});
   auto* state4 = stn.add(NormalState{0, 0, 100});
   auto* state5 = stn.add(NormalState{0, 0, 200});
-  auto* state6 = stn.add(NonStorableState{});
+  auto* state6 = stn.add(NonStorableState<Field>{});
   auto* state7 = stn.add(NormalState{0, 0, 150});
-  auto* state8 = stn.add(NonStorableState{});
-  auto* state9 = stn.add(OutputState{0, static_cast<size_t>(target1)});
-  auto* state10 = stn.add(OutputState{0, static_cast<size_t>(target2)});
+  auto* state8 = stn.add(NonStorableState<Field>{});
+  auto* state9 = stn.add(OutputState<Field>{0, target1});
+  auto* state10 = stn.add(OutputState<Field>{0, target2});
 
   // Units
   auto* unit1 = stn.add(Unit<Field>{});

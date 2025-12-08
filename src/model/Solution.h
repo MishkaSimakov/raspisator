@@ -111,13 +111,13 @@ class Solution {
       return true;
     }
 
-    for (const State& s : stn->get_states()) {
+    for (const State<Field>& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
       bool result =
-          std::visit(Overload{[&filled](NonStorableState) {
+          std::visit(Overload{[&filled](NonStorableState<Field>) {
                                 return !FieldTraits<Field>::is_nonzero(filled);
                               },
-                              [&filled](NormalState state) {
+                              [&filled](NormalState<Field> state) {
                                 // fmt::println("min: {}, max: {}, filled: {}",
                                 // state.min_level, state.max_level, filled);
                                 return Field(state.min_level) <= filled &&
@@ -135,7 +135,7 @@ class Solution {
     return true;
   }
 
-  void increase_state(const State* s, const Field& value) {
+  void increase_state(const State<Field>* s, const Field& value) {
     // fmt::println("current_value: {}, add: {}", state_filled[s->get_id()],
     // value);
     state_filled[s->get_id()] += value;
@@ -194,13 +194,14 @@ class Solution {
   }
 
   bool check_output_states() {
-    for (const State& s : stn->get_states()) {
+    for (const State<Field>& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
-      bool result = std::visit(
-          Overload{
-              [&filled](OutputState state) { return filled >= state.target; },
-              [&filled](const auto&) { return true; }},
-          s);
+      bool result =
+          std::visit(Overload{[&filled](OutputState<Field> state) {
+                                return filled >= state.target;
+                              },
+                              [&filled](const auto&) { return true; }},
+                     s);
       if (!result) {
         std::println("target not acquired for output state {}", s.get_id());
         return false;
@@ -217,7 +218,7 @@ class Solution {
     for (auto s : stn->get_states()) {
       state_filled[s.get_id()] = std::visit(
           Overload{[](const auto& state) { return Field(state.initial_stock); },
-                   [](NonStorableState) -> Field { return Field(0); }},
+                   [](NonStorableState<Field>) -> Field { return Field(0); }},
           s);
     }
   }
