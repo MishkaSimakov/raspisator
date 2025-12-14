@@ -13,5 +13,5 @@ struct BranchAndBoundSettings {
   Field score_factor = static_cast<Field>(1) / 6;
 
   PerturbationMode perturbation = PerturbationMode::DISABLED;
-  Field perturbation_value = static_cast<Field>(1e-5);
+  Field perturbation_value = static_cast<Field>(1) / static_cast<Field>(1e5);
 };

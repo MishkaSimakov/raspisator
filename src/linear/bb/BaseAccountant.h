@@ -15,7 +15,7 @@ struct BaseAccountant {
 
   void set_branching_variable(size_t id,
                               const FiniteLPSolution<Field>& solution,
-                              size_t variable_id) {}
+                              size_t branch_variable, Field branch_value) {}
 
   void set_child(size_t parent_id, size_t child_id,
                  NodeRelativeLocation location) {}

@@ -31,7 +31,7 @@ class Solution {
   using Unit = Unit<Field>;
   using TaskOnUnitProperties = TaskOnUnitProperties<Field>;
 
-  STN<Field>* stn;
+  const STN<Field>* stn;
   std::vector<TaskInstance> task_instances{};
   std::vector<Field> state_filled{};
   std::vector<bool> unit_free{};
@@ -213,7 +213,7 @@ class Solution {
   }
 
  public:
-  Solution(STN<Field>* stn)
+  explicit Solution(const STN<Field>* stn)
       : stn(stn),
         state_filled(stn->get_states().size()),
         unit_free(stn->get_units().size(), true) {

@@ -244,7 +244,8 @@ class PseudoCostBranchAndBound {
     for (auto& cost : lower_pseudocosts_) {
       sum += cost.count();
     }
-    std::cout << "sum: " << sum << std::endl;;
+    std::cout << "sum: " << sum << std::endl;
+    ;
   }
 
   void record_simplex_run(const Node& parent, NodeRelativeLocation location,
@@ -381,13 +382,13 @@ class PseudoCostBranchAndBound {
 
  public:
   explicit PseudoCostBranchAndBound(MILPProblem<Field> problem,
-                                    BranchAndBoundSettings<Field> settings)
+                                    BranchAndBoundSettings<Field> settings = {})
       : total_nodes_count_(0),
         lp_solver_(CSCMatrix(problem.A), problem.b,
                    perturbed_costs(problem, settings)),
-        variables_(problem.variables_),
-        upper_pseudocosts_(problem.variables_.size()),
-        lower_pseudocosts_(problem.variables_.size()),
+        variables_(problem.variables),
+        upper_pseudocosts_(problem.variables.size()),
+        lower_pseudocosts_(problem.variables.size()),
         settings_(settings) {
     Node root;
 
