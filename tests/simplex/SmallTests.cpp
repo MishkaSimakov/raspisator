@@ -14,7 +14,7 @@ auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
                  const std::vector<size_t>& basic_variables) {
   simplex::BoundedSimplexMethod solver(CSCMatrix(A), b, c);
   solver.setup_warm_start(basic_variables);
-  return solver.dual(lower, upper);
+  return solver.dual(lower, upper).solution;
 }
 
 TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {

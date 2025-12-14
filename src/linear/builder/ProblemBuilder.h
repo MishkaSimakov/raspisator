@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <unordered_set>
 
 #include "Constraint.h"
@@ -61,6 +62,22 @@ class ProblemBuilder {
     print_expression(os, constraint.rhs_);
   }
 
+  Field get_slack_upper_bound(const Constraint<Field>& constraint) const {
+    assert(constraint.rhs_.is_constant());
+
+    Field result = constraint.rhs_.shift_;
+
+    for (auto [var, coef] : constraint.lhs_.variables_) {
+      if (coef > 0) {
+        result -= coef * variables_[var].second.lower_bound;
+      } else {
+        result -= coef * variables_[var].second.upper_bound;
+      }
+    }
+
+    return result;
+  }
+
   // transforms all constraints into equalities (by adding slack variables)
   // moves all variables into lhs, all constants into rhs
   // removes all constant constraints
@@ -108,9 +125,9 @@ class ProblemBuilder {
       }
 
       // now it is <= constraint
-      // TODO: slack variable upper bound
+      Field upper_bound = get_slack_upper_bound(constraint);
       auto slack_var = new_variable(std::format("slack({})", slack_index),
-                                    VariableType::SLACK, 0, 1'000'000);
+                                    VariableType::SLACK, 0, upper_bound);
       ++slack_index;
 
       constraint.lhs_ += slack_var;

@@ -22,7 +22,7 @@ int main() {
 
   size_t H = 10;
 
-  auto problem = dwarf_problem_normal<Field>(100);
+  auto problem = dwarf_problem_normal<Field>(300);
 
   std::cout << to_graphviz(problem) << std::endl;
 
@@ -33,7 +33,10 @@ int main() {
   // solve MILP problem
   auto milp_problem = encoding.builder.get_problem();
 
-  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
+  auto settings = BranchAndBoundSettings<Field>{
+    .max_nodes = 100'000,
+    .perturbation = PerturbationMode::DISABLED,
+  };
   auto solver = PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>>(
       milp_problem, settings);
   auto solution = solver.solve();

@@ -64,10 +64,10 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
     // calculate solution
     auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
     solver.setup_warm_start(basic_variables);
-    auto solution = solver.dual(lower, upper);
+    auto run_result = solver.dual(lower, upper);
 
     // check solution
-    auto finite_solution = std::get<FiniteLPSolution<Rational>>(solution);
+    auto finite_solution = std::get<FiniteLPSolution<Rational>>(run_result.solution);
 
     ASSERT_NO_FATAL_FAILURE(
         validate_simplex_solution(A, b, c, lower, upper, finite_solution));

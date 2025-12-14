@@ -172,8 +172,7 @@ class BoundedSimplexMethod {
       VariableState leaving_state, const std::vector<size_t>& basic_vars) {
     auto [n, d] = A_.shape();
 
-    Field min_ratio = 0;
-    std::optional<size_t> result = std::nullopt;
+    ArgMinimum<Field> min_ratio;
 
     auto reduced_costs = get_reduced_costs(L, U, P, basic_vars);
 
@@ -223,14 +222,10 @@ class BoundedSimplexMethod {
         }
       }
 
-      if (!result ||
-          FieldTraits<Field>::is_strictly_positive(min_ratio - ratio)) {
-        min_ratio = ratio;
-        result = i;
-      }
+      min_ratio.record(i, ratio);
     }
 
-    return result;
+    return min_ratio.argmin();
   }
 
  public:
@@ -351,7 +346,7 @@ class BoundedSimplexMethod {
     while (true) {
       ++iteration;
 
-      if (iteration > 10'000) {
+      if (iteration > 1'000) {
         {
           size_t since_epoch =
               std::chrono::system_clock::now().time_since_epoch() /

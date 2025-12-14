@@ -38,3 +38,17 @@ struct FieldTraits<double> {
     return is_strictly_negative(value) || is_strictly_positive(value);
   }
 };
+
+template <std::integral T>
+struct FieldTraits<T> {
+  static T abs(T value) { return std::abs(value); }
+
+  static T floor(T value) { return value; }
+
+  static T fractional(T value) { return 0; }
+
+  static bool is_strictly_negative(T value) { return value < 0; }
+  static bool is_strictly_positive(T value) { return value > 0; }
+
+  static bool is_nonzero(T value) { return value != 0; }
+};

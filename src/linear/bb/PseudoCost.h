@@ -214,41 +214,18 @@ class PseudoCostBranchAndBound {
       }
     }
 
+    if (!score.argmin()) {
+      // return first violating variable
+      for (size_t i = 0; i < variables_.size(); ++i) {
+        if (variables_[i] == VariableType::INTEGER &&
+            !is_integer(solution.point[i, 0])) {
+          return i;
+        }
+      }
+    }
+
     assert(score.argmin().has_value());
     return *score.argmin();
-  }
-
-  void partition(const FiniteLPSolution<Field>& solution, const Node& parent) {
-    size_t branch_variable = find_branching_variable(parent, solution);
-    Field branch_value =
-        FieldTraits<Field>::floor(solution.point[branch_variable, 0]);
-
-    accountant_.set_branching_variable(parent.id, solution, branch_variable,
-                                       branch_value);
-
-    Node left;
-    left.id = ++total_nodes_count_;
-    left.variables_states = solution.variables;
-    left.lower = parent.lower;
-    left.upper = parent.upper;
-    left.parent_value = solution.value;
-
-    left.upper[branch_variable] = branch_value;
-
-    accountant_.set_left_child(parent.id, left.id);
-    waiting_.push_back(left);
-
-    Node right;
-    right.id = ++total_nodes_count_;
-    right.variables_states = solution.variables;
-    right.lower = parent.lower;
-    right.upper = parent.upper;
-    right.parent_value = solution.value;
-
-    right.lower[branch_variable] = branch_value + 1;
-
-    accountant_.set_right_child(parent.id, right.id);
-    waiting_.push_back(right);
   }
 
   void log_bounds(const Node& node,
@@ -262,6 +239,12 @@ class PseudoCostBranchAndBound {
     }
 
     std::println("#{}; LB: {}; UB: {}", node.id, lb, current_solution.value);
+
+    size_t sum = 0;
+    for (auto& cost : lower_pseudocosts_) {
+      sum += cost.count();
+    }
+    std::cout << "sum: " << sum << std::endl;;
   }
 
   void record_simplex_run(const Node& parent, NodeRelativeLocation location,
@@ -350,11 +333,58 @@ class PseudoCostBranchAndBound {
     try_push_to_waiting(std::move(child), run_result);
   }
 
+  static Matrix<Field> perturbed_costs(
+      const MILPProblem<Field>& problem,
+      const BranchAndBoundSettings<Field>& settings) {
+    if (settings.perturbation == PerturbationMode::DISABLED) {
+      return problem.c;
+    }
+
+    auto [n, d] = problem.A.shape();
+    Matrix<Field> result = problem.c;
+
+    if (settings.perturbation == PerturbationMode::CONSTANT) {
+      for (size_t i = 0; i < d; ++i) {
+        if (!FieldTraits<Field>::is_nonzero(problem.c[0, i])) {
+          result[0, i] = settings.perturbation_value;
+        }
+      }
+    } else if (settings.perturbation ==
+               PerturbationMode::FOR_INTEGER_SOLUTION) {
+      std::vector<size_t> perturbed;
+
+      for (size_t i = 0; i < d; ++i) {
+        if (FieldTraits<Field>::is_nonzero(problem.c[0, i])) {
+          continue;
+        }
+
+        if (FieldTraits<Field>::is_nonzero(problem.lower_bounds[i])) {
+          continue;
+        }
+
+        if (!FieldTraits<Field>::is_nonzero(problem.lower_bounds[i] -
+                                            problem.upper_bounds[i])) {
+          continue;
+        }
+
+        result[0, i] = static_cast<Field>(1) / problem.upper_bounds[i];
+        perturbed.push_back(i);
+      }
+
+      for (size_t i : perturbed) {
+        result[0, i] /= static_cast<Field>(2 * perturbed.size());
+      }
+    }
+
+    return result;
+  }
+
  public:
   explicit PseudoCostBranchAndBound(MILPProblem<Field> problem,
                                     BranchAndBoundSettings<Field> settings)
       : total_nodes_count_(0),
-        lp_solver_(CSCMatrix(problem.A), problem.b, problem.c),
+        lp_solver_(CSCMatrix(problem.A), problem.b,
+                   perturbed_costs(problem, settings)),
         variables_(problem.variables_),
         upper_pseudocosts_(problem.variables_.size()),
         lower_pseudocosts_(problem.variables_.size()),

@@ -30,7 +30,7 @@ struct ProblemEncoding {
 template <typename Field>
 ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
                                             size_t max_periods) {
-  const Field cGlobalMaxStock = 1000;
+  const Field kGlobalMaxStock = 1500;
 
   ProblemBuilder<Field> builder;
 
@@ -70,8 +70,8 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
                          [](const NormalState<Field>& state) -> Field {
                            return state.max_level;
                          },
-                         [cGlobalMaxStock](const auto&) -> Field {
-                           return cGlobalMaxStock;
+                         [kGlobalMaxStock](const auto&) -> Field {
+                           return kGlobalMaxStock;
                          },
                      },
                      state);
@@ -222,7 +222,8 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
       continue;
     }
 
-    Expression<Field> desired_amount(std::get<OutputState<Field>>(state).target);
+    Expression<Field> desired_amount(
+        std::get<OutputState<Field>>(state).target);
 
     builder.add_constraint(stocks.at({&state, max_periods - 1}) >=
                            desired_amount);

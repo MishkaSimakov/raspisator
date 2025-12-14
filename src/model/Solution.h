@@ -113,18 +113,20 @@ class Solution {
 
     for (const State<Field>& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
-      bool result =
-          std::visit(Overload{[&filled](NonStorableState<Field>) {
-                                return !FieldTraits<Field>::is_nonzero(filled);
-                              },
-                              [&filled](NormalState<Field> state) {
-                                // fmt::println("min: {}, max: {}, filled: {}",
-                                // state.min_level, state.max_level, filled);
-                                return Field(state.min_level) <= filled &&
-                                       filled <= Field(state.max_level);
-                              },
-                              [&filled](const auto&) { return true; }},
-                     s);
+      bool result = std::visit(
+          Overload{[&filled](NonStorableState<Field>) {
+                     return !FieldTraits<Field>::is_nonzero(filled);
+                   },
+                   [&filled](NormalState<Field> state) {
+                     // fmt::println("min: {}, max: {}, filled: {}",
+                     // state.min_level, state.max_level, filled);
+                     return !FieldTraits<Field>::is_strictly_positive(
+                                state.min_level - filled) &&
+                            !FieldTraits<Field>::is_strictly_positive(
+                                filled - state.max_level);
+                   },
+                   [&filled](const auto&) { return true; }},
+          s);
 
       if (!result) {
         std::println("State {} out of bounds on time {}", s.get_id(), e.time);

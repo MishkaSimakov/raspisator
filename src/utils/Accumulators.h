@@ -2,6 +2,8 @@
 
 #include <optional>
 
+#include "linear/FieldTraits.h"
+
 template <typename Field>
 class ArithmeticMean {
   Field sum_;
@@ -45,6 +47,7 @@ class Minimum {
   std::optional<Field> min() const { return minimum_; }
 };
 
+// Calculates minimum i, s.t. a_i = min_j a_j
 template <typename Field>
 class ArgMinimum {
   std::optional<std::pair<size_t, Field>> minimum_;
@@ -53,8 +56,16 @@ class ArgMinimum {
   ArgMinimum() : minimum_(std::nullopt) {}
 
   void record(size_t index, Field value) {
-    if (!minimum_ ||
-        FieldTraits<Field>::is_strictly_positive(minimum_->second - value)) {
+    if (!minimum_) {
+      minimum_ = {index, value};
+      return;
+    }
+
+    Field diff = minimum_->second - value;
+    if (FieldTraits<Field>::is_strictly_positive(diff)) {
+      minimum_ = {index, value};
+    } else if (!FieldTraits<Field>::is_nonzero(diff) &&
+               index < minimum_->first) {
       minimum_ = {index, value};
     }
   }
