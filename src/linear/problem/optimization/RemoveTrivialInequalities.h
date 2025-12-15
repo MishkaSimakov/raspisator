@@ -30,4 +30,6 @@ class RemoveTrivialInequalities final : public BaseOptimizer<Field> {
 
     return problem;
   }
+
+  Matrix<Field> inverse(const Matrix<Field>& point) override { return point; }
 };

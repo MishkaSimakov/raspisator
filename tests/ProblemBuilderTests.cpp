@@ -65,9 +65,10 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   builder.set_objective(x);
 
   // solve problem
-  auto optimized = TransformToEqualities<Rational>().apply(builder);
+  auto optimizer = TransformToEqualities<Rational>();
+  auto optimized_problem = optimizer.apply(builder);
 
-  auto matrices = to_matrices(optimized);
+  auto matrices = to_matrices(optimized_problem);
   auto basic_vars = linalg::get_row_basis(linalg::transposed(matrices.A));
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
@@ -75,10 +76,11 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   solver.setup_warm_start(basic_vars);
   auto solution = std::get<FiniteLPSolution<Rational>>(
       solver.dual(matrices.lower, matrices.upper).solution);
+  auto point = optimizer.inverse(solution.point);
 
   // check solution
-  Rational x_value = matrices.extract_variable(x, solution.point);
-  Rational y_value = matrices.extract_variable(y, solution.point);
+  Rational x_value = builder.extract_variable(x, point);
+  Rational y_value = builder.extract_variable(y, point);
 
   ASSERT_EQ(solution.value, 10);
   ASSERT_EQ(x_value, 10);

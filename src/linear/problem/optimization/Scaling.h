@@ -8,7 +8,7 @@
 #include "utils/Accumulators.h"
 
 template <typename Field>
-class Scaling : BaseOptimizer<Field> {
+class Scaling final : public BaseOptimizer<Field> {
   static_assert(std::is_floating_point_v<Field>,
                 "Currently works only for standard types.");
 
@@ -49,6 +49,8 @@ class Scaling : BaseOptimizer<Field> {
   Scaling() = default;
 
   MILPProblem<Field> apply(MILPProblem<Field> problem) override {
+    variables_scale_factors_.resize(problem.variables.size());
+
     // scale rows
     for (auto& constraint : problem.constraints) {
       Field scale_factor = get_scale_factor(constraint);
@@ -60,8 +62,11 @@ class Scaling : BaseOptimizer<Field> {
     }
 
     // scale columns
-    for (auto& info : problem.variables) {
+    for (size_t i = 0; i < problem.variables.size(); ++i) {
+      auto& info = problem.variables[i];
       Field scale_factor = get_scale_factor(problem, info.name);
+
+      variables_scale_factors_[i] = scale_factor;
 
       for (auto& constraint : problem.constraints) {
         auto& variables = constraint.lhs.get_variables();
@@ -102,5 +107,15 @@ class Scaling : BaseOptimizer<Field> {
     }
 
     return std::log10(*max.max() / *min.min());
+  }
+
+  Matrix<Field> inverse(const Matrix<Field>& point) override {
+    auto result = point;
+
+    for (size_t i = 0; i < result.get_height(); ++i) {
+      result[i, 0] *= variables_scale_factors_[i];
+    }
+
+    return result;
   }
 };

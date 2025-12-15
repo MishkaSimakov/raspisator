@@ -15,20 +15,6 @@ struct MILPProblemAsMatrices {
   std::vector<Field> upper;
 
   std::vector<VariableType> variables;
-
-  std::unordered_map<std::string, size_t> enumeration;
-  std::unordered_map<std::string, Field> constants;
-
-  Field extract_variable(const Variable<Field>& var,
-                         const Matrix<Field>& point) {
-    const auto& name = var.get_name();
-
-    if (constants.contains(name)) {
-      return constants.at(name);
-    }
-
-    return point[enumeration.at(name), 0];
-  }
 };
 
 template <typename Field>
@@ -75,5 +61,5 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
     upper[index] = problem.get_variable(name).upper_bound;
   }
 
-  return {A, b, c, lower, upper, types, enumeration, problem.constants};
+  return {A, b, c, lower, upper, types};
 }

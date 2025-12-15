@@ -9,6 +9,7 @@
 #include "grammar/Constraint.h"
 #include "grammar/Expression.h"
 #include "grammar/Variable.h"
+#include "linear/matrix/Matrix.h"
 
 template <typename Field>
 struct VariableInfo {
@@ -22,7 +23,6 @@ struct VariableInfo {
 template <typename Field>
 struct MILPProblem {
   std::vector<VariableInfo<Field>> variables;
-  std::unordered_map<std::string, Field> constants;
 
   std::vector<Constraint<Field>> constraints;
   Expression<Field> objective;
@@ -48,6 +48,25 @@ struct MILPProblem {
     }
 
     throw std::runtime_error(std::format("No variables with name {}.", name));
+  }
+
+  Field extract_variable(const Variable<Field>& variable,
+                         const Matrix<Field>& point) {
+    std::optional<size_t> index;
+
+    for (size_t i = 0; i < variables.size(); ++i) {
+      if (variables[i].name == variable.get_name()) {
+        index = i;
+        break;
+      }
+    }
+
+    if (!index) {
+      throw std::runtime_error(std::format(
+          "No variable with name {} in the problem.", variable.get_name()));
+    }
+
+    return point[*index, 0];
   }
 
   const VariableInfo<Field>& get_variable(const std::string& name) const {

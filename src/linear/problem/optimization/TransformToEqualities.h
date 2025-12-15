@@ -5,6 +5,8 @@
 
 template <typename Field>
 class TransformToEqualities final : public BaseOptimizer<Field> {
+  size_t slack_count_{0};
+
   Field get_slack_upper_bound(const MILPProblem<Field>& problem,
                               const Constraint<Field>& constraint) const {
     Field result = constraint.rhs;
@@ -43,6 +45,8 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
         continue;
       }
 
+      ++slack_count_;
+
       auto var_name = std::format("slack({})", slack_variables_count(problem));
       Field upper_bound = get_slack_upper_bound(problem, constraint);
       auto slack_var =
@@ -53,5 +57,9 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
     }
 
     return problem;
+  }
+
+  Matrix<Field> inverse(const Matrix<Field>& point) override {
+    return point[{0, point.get_height() - slack_count_}, 0];
   }
 };

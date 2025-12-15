@@ -13,9 +13,13 @@ template <typename Field>
 class FullOptimizer final : public BaseOptimizer<Field> {
   bool log_;
 
+  std::vector<std::unique_ptr<BaseOptimizer<Field>>> optimizers_chain_;
+
   template <typename T>
   MILPProblem<Field> apply(const MILPProblem<Field>& problem) {
-    auto result = T().apply(problem);
+    auto& optimizer = optimizers_chain_.emplace_back(std::make_unique<T>());
+
+    auto result = optimizer->apply(problem);
 
     if (log_) {
       std::println("{}: {} variables, {} constraints", typeid(T).name(),
@@ -43,7 +47,7 @@ class FullOptimizer final : public BaseOptimizer<Field> {
 
     Field initial_quality = Scaling<Field>().get_scaling_quality(problem);
 
-    auto result = Scaling<Field>().apply(problem);
+    auto result = apply<Scaling<Field>>(problem);
 
     if (log_) {
       Field new_quality = Scaling<Field>().get_scaling_quality(result);
@@ -69,5 +73,16 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     problem = scale(problem);
 
     return problem;
+  }
+
+  Matrix<Field> inverse(const Matrix<Field>& point) override {
+    auto result = point;
+
+    for (std::unique_ptr<BaseOptimizer<Field>>& optimizer :
+         optimizers_chain_ | std::views::reverse) {
+      result = optimizer->inverse(result);
+    }
+
+    return result;
   }
 };

@@ -5,6 +5,8 @@
 
 template <typename Field>
 class RemoveConstantVariables final : public BaseOptimizer<Field> {
+  std::unordered_map<size_t, Field> constants_;
+
   void replace_in_constraints(MILPProblem<Field>& problem,
                               const std::string& name, Field value) {
     for (auto& constraint : problem.constraints) {
@@ -33,21 +35,43 @@ class RemoveConstantVariables final : public BaseOptimizer<Field> {
   RemoveConstantVariables() = default;
 
   MILPProblem<Field> apply(MILPProblem<Field> problem) override {
+    size_t i = 0;
+
     for (auto itr = problem.variables.begin();
          itr != problem.variables.end();) {
       if (FieldTraits<Field>::is_nonzero(itr->upper_bound - itr->lower_bound)) {
         ++itr;
       } else {
         Field value = itr->upper_bound;
-        problem.constants.emplace(itr->name, value);
+        constants_.emplace(i, value);
 
         replace_in_constraints(problem, itr->name, value);
         replace_in_objective(problem, itr->name, value);
 
         itr = problem.variables.erase(itr);
       }
+
+      ++i;
     }
 
     return problem;
+  }
+
+  Matrix<Field> inverse(const Matrix<Field>& point) override {
+    size_t d = point.get_height();
+
+    Matrix<Field> result(d + constants_.size(), 1);
+
+    size_t j = 0;
+    for (size_t i = 0; i < d; ++i) {
+      if (constants_.contains(i)) {
+        result[i, 0] = constants_.at(i);
+      } else {
+        result[i, 0] = point[j, 0];
+        ++j;
+      }
+    }
+
+    return result;
   }
 };

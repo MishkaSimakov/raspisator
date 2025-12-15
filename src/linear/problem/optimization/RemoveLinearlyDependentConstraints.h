@@ -26,7 +26,7 @@ class RemoveLinearlyDependentConstraints final : public BaseOptimizer<Field> {
     size_t n = equalities_count(problem);
     size_t d = problem.variables.size();
 
-    const auto enumeration = problem.enumerate_variables();
+    auto enumeration = problem.enumerate_variables();
 
     Matrix<Field> A(n, d, 0);
     Matrix<Field> b(n, 1, 0);
@@ -82,4 +82,6 @@ class RemoveLinearlyDependentConstraints final : public BaseOptimizer<Field> {
 
     return problem;
   }
+
+  Matrix<Field> inverse(const Matrix<Field>& point) override { return point; }
 };
