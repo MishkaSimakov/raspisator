@@ -25,9 +25,9 @@ class ProblemBuilder {
   void print_expression(std::ostream& os, const Expression<Field>& expr) const {
     bool has_shift = expr.shift_ != 0;
 
-    for (auto itr = expr.variables.begin(); itr != expr.variables.end();
+    for (auto itr = expr.variables_.begin(); itr != expr.variables_.end();
          ++itr) {
-      bool is_last = std::next(itr) == expr.variables.end();
+      bool is_last = std::next(itr) == expr.variables_.end();
 
       if (itr->second == -1) {
         os << "-";

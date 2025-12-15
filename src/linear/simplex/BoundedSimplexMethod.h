@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <random>
 #include <ranges>
 #include <variant>
 
@@ -45,6 +46,8 @@ class BoundedSimplexMethod {
   CSCMatrix<Field> U_;
   std::vector<size_t> P_;
 
+  mutable std::mt19937 random_engine_;
+
   Accountant accountant_;
 
   SimplexResult<Field> construct_finite_solution(
@@ -79,40 +82,39 @@ class BoundedSimplexMethod {
 
   // largest violation variable selection
   // turned out to be prone to cycling when coupled with strong branching
-  // std::optional<std::pair<size_t, VariableState>> get_dual_leaving_variable(
-  //     const Matrix<Field>& point, const std::vector<size_t>& basic_vars)
-  //     const {
-  //   auto [n, d] = A_.shape();
-  //
-  //   std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
-  //   Field largest_violation = 0;
-  //
-  //   for (size_t i = 0; i < n; ++i) {
-  //     Field lower_violation = l_[basic_vars[i]] - point[i, 0];
-  //     Field upper_violation = point[i, 0] - u_[basic_vars[i]];
-  //
-  //     if (FieldTraits<Field>::is_strictly_positive(lower_violation -
-  //                                                  largest_violation)) {
-  //       result = {i, VariableState::AT_LOWER};
-  //       largest_violation = lower_violation;
-  //                                                  } else if
-  //                                                  (FieldTraits<Field>::is_strictly_positive(upper_violation
-  //                                                  -
-  //                                                                                                      largest_violation)) {
-  //                                                    result = {i,
-  //                                                    VariableState::AT_UPPER};
-  //                                                    largest_violation =
-  //                                                    upper_violation;
-  //                                                                                                      }
-  //   }
-  //
-  //   return result;
-  // }
+  std::optional<std::pair<size_t, VariableState>>
+  get_dual_leaving_variable_dantzig(
+      const Matrix<Field>& point, const std::vector<size_t>& basic_vars,
+      const std::vector<Field>& lower_bounds,
+      const std::vector<Field>& upper_bounds) const {
+    auto [n, d] = A_.shape();
+
+    std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
+    Field largest_violation = 0;
+
+    for (size_t i = 0; i < n; ++i) {
+      Field lower_violation = lower_bounds[basic_vars[i]] - point[i, 0];
+      Field upper_violation = point[i, 0] - upper_bounds[basic_vars[i]];
+
+      if (FieldTraits<Field>::is_strictly_positive(lower_violation -
+                                                   largest_violation)) {
+        result = {i, VariableState::AT_LOWER};
+        largest_violation = lower_violation;
+      } else if (FieldTraits<Field>::is_strictly_positive(upper_violation -
+                                                          largest_violation)) {
+        result = {i, VariableState::AT_UPPER};
+        largest_violation = upper_violation;
+      }
+    }
+
+    return result;
+  }
 
   // Although it seems reasonable to choose always variable with the largest
   // boundaries violation, this approach leads to cycling. To avoid cycling
   // Bland's rule is adopted.
-  std::optional<std::pair<size_t, VariableState>> get_dual_leaving_variable(
+  std::optional<std::pair<size_t, VariableState>>
+  get_dual_leaving_variable_bland(
       const Matrix<Field>& point, const std::vector<size_t>& basic_vars,
       const std::vector<Field>& lower_bounds,
       const std::vector<Field>& upper_bounds) const {
@@ -139,6 +141,38 @@ class BoundedSimplexMethod {
     }
 
     return result;
+  }
+
+  // Select a random boundary violating variable. This strategy is used when
+  // potential cycling is detected.
+  std::optional<std::pair<size_t, VariableState>>
+  get_dual_leaving_variable_randomly(
+      const Matrix<Field>& point, const std::vector<size_t>& basic_vars,
+      const std::vector<Field>& lower_bounds,
+      const std::vector<Field>& upper_bounds) const {
+    auto [n, d] = A_.shape();
+
+    std::vector<std::pair<size_t, VariableState>> result;
+
+    for (size_t i = 0; i < n; ++i) {
+      Field lower_violation = lower_bounds[basic_vars[i]] - point[i, 0];
+      Field upper_violation = point[i, 0] - upper_bounds[basic_vars[i]];
+
+      if (FieldTraits<Field>::is_strictly_positive(lower_violation)) {
+        result.emplace_back(i, VariableState::AT_LOWER);
+      } else if (FieldTraits<Field>::is_strictly_positive(upper_violation)) {
+        result.emplace_back(i, VariableState::AT_UPPER);
+      }
+    }
+
+    if (result.empty()) {
+      return std::nullopt;
+    }
+
+    std::uniform_int_distribution<size_t> index_dist(0, result.size() - 1);
+    size_t index = index_dist(random_engine_);
+
+    return result.at(index);
   }
 
   Matrix<Field> get_reduced_costs(const CSCMatrix<Field>& L,
@@ -343,23 +377,37 @@ class BoundedSimplexMethod {
     }
 
     size_t iteration = 0;
+
     while (true) {
+      bool detected_cycling = false;
       ++iteration;
 
-      if (iteration > 1'000) {
-        {
-          size_t since_epoch =
-              std::chrono::system_clock::now().time_since_epoch() /
-              std::chrono::milliseconds(1);
+      if (iteration > 10'000) {
+        // {
+        //   size_t since_epoch =
+        //       std::chrono::system_clock::now().time_since_epoch() /
+        //       std::chrono::milliseconds(1);
+        //
+        //   std::ofstream os(std::format("simplex_core_dump_{}.h",
+        //   since_epoch)); dump_state(os, since_epoch, lower_bounds,
+        //   upper_bounds);
+        // }
+        //
+        // throw std::runtime_error("Cycling!");
 
-          std::ofstream os(std::format("simplex_core_dump_{}.h", since_epoch));
-          dump_state(os, since_epoch, lower_bounds, upper_bounds);
-        }
-
-        throw std::runtime_error("Cycling!");
+        std::cout << "Cycling!" << std::endl;
+        detected_cycling = true;
       }
 
       lupa_.get_lup(basic_vars, L_, U_, P_);
+
+      for (size_t i : P_) {
+        if (i >= L_.shape().first) {
+          std::ofstream os("simplex_core_dump_4.h");
+          dump_state(os, 4, lower_bounds, upper_bounds);
+          throw std::runtime_error("Wrong!!!");
+        }
+      }
 
       Matrix<Field> b(b_);
       for (size_t col = 0; col < d; ++col) {
@@ -375,8 +423,14 @@ class BoundedSimplexMethod {
       }
       auto point = linalg::solve_linear(L_, U_, P_, b);
 
-      auto leaving = get_dual_leaving_variable(point, basic_vars, lower_bounds,
-                                               upper_bounds);
+      std::optional<std::pair<size_t, VariableState>> leaving;
+      if (detected_cycling) {
+        leaving = get_dual_leaving_variable_randomly(
+            point, basic_vars, lower_bounds, upper_bounds);
+      } else {
+        leaving = get_dual_leaving_variable_dantzig(point, basic_vars,
+                                                    lower_bounds, upper_bounds);
+      }
 
       if (!leaving.has_value()) {
         return construct_finite_solution(std::move(point),

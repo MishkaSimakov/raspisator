@@ -34,6 +34,7 @@ class PseudoCostBranchAndBound {
   simplex::BoundedSimplexMethod<Field> lp_solver_;
 
   std::vector<Node> waiting_;
+  std::optional<Node> lifo_slot_;
   std::optional<FiniteMILPSolution<Field>> incumbent_;
 
   std::vector<VariableType> variables_;
@@ -93,6 +94,21 @@ class PseudoCostBranchAndBound {
   //   return FieldTraits<Field>::abs(0.5 - f);
   // }
 
+  void register_simplex_fail(const std::vector<VariableState>& states,
+                             const std::vector<Field>& lower,
+                             const std::vector<Field>& upper) {
+    size_t since_epoch = std::chrono::system_clock::now().time_since_epoch() /
+                         std::chrono::milliseconds(1);
+    std::string dump_name = std::format("simplex_core_dump_{}.h", since_epoch);
+
+    lp_solver_.setup_warm_start(states);
+
+    std::ofstream os(dump_name);
+    lp_solver_.dump_state(os, since_epoch, lower, upper);
+
+    std::println("Registered failed simplex run into {}.", dump_name);
+  }
+
   Field merge_score(Field left_score, Field right_score) {
     return (1 - settings_.score_factor) * std::min(left_score, right_score) +
            settings_.score_factor * std::max(left_score, right_score);
@@ -124,10 +140,7 @@ class PseudoCostBranchAndBound {
 
       accountant_.strong_branching_simplex_run(node.id, index, run_result);
     } catch (...) {
-      lp_solver_.setup_warm_start(node.variables_states);
-
-      std::ofstream os(std::format("simplex_core_dump_{}.h", 0));
-      lp_solver_.dump_state(os, 0, node.lower, tight_upper);
+      register_simplex_fail(node.variables_states, node.lower, tight_upper);
       throw;
     }
 
@@ -150,10 +163,7 @@ class PseudoCostBranchAndBound {
 
       accountant_.strong_branching_simplex_run(node.id, index, run_result);
     } catch (...) {
-      lp_solver_.setup_warm_start(node.variables_states);
-
-      std::ofstream os(std::format("simplex_core_dump_{}.h", 0));
-      lp_solver_.dump_state(os, 0, tight_lower, node.upper);
+      register_simplex_fail(node.variables_states, tight_lower, node.upper);
       throw;
     }
 
@@ -245,7 +255,6 @@ class PseudoCostBranchAndBound {
       sum += cost.count();
     }
     std::cout << "sum: " << sum << std::endl;
-    ;
   }
 
   void record_simplex_run(const Node& parent, NodeRelativeLocation location,
@@ -289,9 +298,11 @@ class PseudoCostBranchAndBound {
     log_bounds(node, solution);
 
     // branch
-    // TODO: expected value
     node.value = solution.value;
     node.variables_states = solution.variables;
+
+    // TODO: expected value
+    node.expected = node.value;
 
     node.branch_variable = find_branching_variable(node, solution);
     node.branch_value =
@@ -302,7 +313,14 @@ class PseudoCostBranchAndBound {
     accountant_.set_branching_variable(node.id, solution, node.branch_variable,
                                        node.branch_value);
 
-    waiting_.push_back(std::move(node));
+    if (!lifo_slot_) {
+      lifo_slot_ = std::move(node);
+    } else if (lifo_slot_->expected > node.expected) {
+      waiting_.push_back(std::move(*lifo_slot_));
+      lifo_slot_ = std::move(node);
+    } else {
+      waiting_.push_back(std::move(node));
+    }
   }
 
   void calculate_node(const Node& parent, NodeRelativeLocation location) {
@@ -325,8 +343,14 @@ class PseudoCostBranchAndBound {
 
     // run simplex method for subproblem
     lp_solver_.setup_warm_start(parent.variables_states);
+    SimplexResult<Field> run_result;
 
-    auto run_result = lp_solver_.dual(child.lower, child.upper);
+    try {
+      run_result = lp_solver_.dual(child.lower, child.upper);
+    } catch (...) {
+      register_simplex_fail(parent.variables_states, child.lower, child.upper);
+      throw;
+    }
 
     accountant_.simplex_run(child.id, run_result);
     record_simplex_run(parent, location, run_result);
@@ -380,6 +404,34 @@ class PseudoCostBranchAndBound {
     return result;
   }
 
+  std::optional<Node> pop_node() {
+    if (lifo_slot_) {
+      auto result = std::move(*lifo_slot_);
+      lifo_slot_ = std::nullopt;
+
+      return result;
+    }
+
+    if (waiting_.empty()) {
+      return std::nullopt;
+    }
+
+    // choose node with the lowest expected value
+    ArgMinimum<Field> min_expected;
+    for (size_t i = 0; i < waiting_.size(); ++i) {
+      min_expected.record(i, waiting_[i].expected);
+    }
+
+    auto result = std::move(waiting_[*min_expected.argmin()]);
+    waiting_.erase(waiting_.begin() + *min_expected.argmin());
+
+    return result;
+    // auto result = std::move(waiting_.back());
+    // waiting_.pop_back();
+    //
+    // return result;
+  }
+
  public:
   explicit PseudoCostBranchAndBound(MILPProblem<Field> problem,
                                     BranchAndBoundSettings<Field> settings = {})
@@ -401,30 +453,51 @@ class PseudoCostBranchAndBound {
     root.variables_states = lp_solver_.get_variables_states();
 
     accountant_.set_root(root.id);
-    waiting_.push_back(std::move(root));
+    lifo_slot_ = std::move(root);
   }
 
   const Accountant& get_accountant() const { return accountant_; }
 
   MILPSolution<Field> solve() {
     // solve for root
-    Node root = waiting_.back();
-    waiting_.pop_back();
+    std::optional<Node> root = pop_node();
+    assert(root.has_value());
 
-    auto run_result = lp_solver_.dual(root.lower, root.upper);
-    try_push_to_waiting(std::move(root), run_result);
+    auto run_result = lp_solver_.dual(root->lower, root->upper);
+    try_push_to_waiting(std::move(*root), run_result);
+
+    std::ofstream lower_os("lower.csv");
+    std::ofstream upper_os("upper.csv");
 
     // main branch and bound cycle
-    while (!waiting_.empty()) {
+    std::optional<Node> parent;
+    while ((parent = pop_node())) {
+      calculate_node(*parent, NodeRelativeLocation::LEFT_CHILD);
+      calculate_node(*parent, NodeRelativeLocation::RIGHT_CHILD);
+
       if (settings_.max_nodes && total_nodes_count_ > settings_.max_nodes) {
         return ReachedNodesLimit{};
       }
 
-      Node parent = waiting_.back();
-      waiting_.pop_back();
+      lower_os << total_nodes_count_ << ",";
+      for (size_t i = 0; i < lower_pseudocosts_.size(); ++i) {
+        lower_os << lower_pseudocosts_[i].mean();
 
-      calculate_node(parent, NodeRelativeLocation::LEFT_CHILD);
-      calculate_node(parent, NodeRelativeLocation::RIGHT_CHILD);
+        if (i + 1 != lower_pseudocosts_.size()) {
+          lower_os << ",";
+        }
+      }
+      lower_os << "\n";
+
+      upper_os << total_nodes_count_ << ",";
+      for (size_t i = 0; i < upper_pseudocosts_.size(); ++i) {
+        upper_os << upper_pseudocosts_[i].mean();
+
+        if (i + 1 != upper_pseudocosts_.size()) {
+          upper_os << ",";
+        }
+      }
+      upper_os << "\n";
     }
 
     if (incumbent_) {

@@ -25,6 +25,32 @@ class ArithmeticMean {
 };
 
 template <typename Field>
+class GeometricAverage {
+  Field product_;
+  size_t count_;
+
+ public:
+  GeometricAverage() : product_(1), count_(0) {}
+
+  size_t count() const { return count_; }
+
+  Field product() const { return product_; }
+
+  Field average() const {
+    if (count_ == 0) {
+      return 1;
+    }
+
+    return std::pow(product_, 1. / count_);
+  }
+
+  void record(Field value) {
+    product_ *= value;
+    ++count_;
+  }
+};
+
+template <typename Field>
 class Minimum {
   std::optional<Field> minimum_;
 
@@ -45,6 +71,29 @@ class Minimum {
   }
 
   std::optional<Field> min() const { return minimum_; }
+};
+
+template <typename Field>
+class Maximum {
+  std::optional<Field> maximum_;
+
+ public:
+  Maximum() : maximum_(std::nullopt) {}
+
+  void record(Field value) {
+    if (!maximum_ ||
+        FieldTraits<Field>::is_strictly_positive(value - *maximum_)) {
+      maximum_ = value;
+    }
+  }
+
+  void record(std::optional<Field> value) {
+    if (value) {
+      record(*value);
+    }
+  }
+
+  std::optional<Field> max() const { return maximum_; }
 };
 
 // Calculates minimum i, s.t. a_i = min_j a_j

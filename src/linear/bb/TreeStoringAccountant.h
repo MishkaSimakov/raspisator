@@ -42,46 +42,83 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
 
   // graphviz methods
  private:
-  static std::string get_node_graphviz_attributes(PrunedByInfeasibility) {
-    return "label=\"unfeasible\", style=filled, fillcolor=red";
+  static std::string get_node_graphviz_attributes(PrunedByInfeasibility,
+                                                  bool minimalistic) {
+    if (minimalistic) {
+      return "style=filled, fillcolor=red";
+    } else {
+      return "label=\"unfeasible\", style=filled, fillcolor=red";
+    }
   }
 
   static std::string get_node_graphviz_attributes(
-      const PrunedByIntegrality& state) {
-    return std::format(R"(label="integer\n{}", style=filled, fillcolor=green)",
-                       state.value);
+      const PrunedByIntegrality& state, bool minimalistic) {
+    if (minimalistic) {
+      return "style=filled, fillcolor=green)";
+    } else {
+      return std::format(
+          R"(label="integer\n{}", style=filled, fillcolor=green)", state.value);
+    }
   }
 
-  static std::string get_node_graphviz_attributes(const PrunedByBounds& state) {
-    return std::format(R"(label="bounded\n{}", style=filled, fillcolor=orange)",
-                       state.value);
+  static std::string get_node_graphviz_attributes(const PrunedByBounds& state,
+                                                  bool minimalistic) {
+    if (minimalistic) {
+      return "style=filled, fillcolor=orange";
+    } else {
+      return std::format(
+          R"(label="bounded\n{}", style=filled, fillcolor=orange)",
+          state.value);
+    }
   }
 
-  static std::string get_node_graphviz_attributes(const Branched& state) {
-    return std::format(R"(label="{}\nx_{} <> {}")", state.value,
-                       state.branch_variable, state.branch_value);
+  static std::string get_node_graphviz_attributes(const Branched& state,
+                                                  bool minimalistic) {
+    if (minimalistic) {
+      return "";
+    } else {
+      return std::format(R"(label="{}\nx_{} <> {}")", state.value,
+                         state.branch_variable, state.branch_value);
+    }
   }
 
-  static std::string get_node_graphviz_attributes(Unvisited) {
-    return "label=\"unvisited\", style=filled, fillcolor=gray";
+  static std::string get_node_graphviz_attributes(Unvisited,
+                                                  bool minimalistic) {
+    if (minimalistic) {
+      return "style=filled, fillcolor=gray";
+    } else {
+      return "label=\"unvisited\", style=filled, fillcolor=gray";
+    }
   }
 
-  void node_to_graphviz(std::stringstream& os, size_t id) const {
+  void node_to_graphviz(std::stringstream& os, size_t id,
+                        bool minimalistic) const {
     const Node& node = tree.at(id);
 
     std::string attrs = std::visit(
-        [](const auto& node) { return get_node_graphviz_attributes(node); },
+        [minimalistic](const auto& node) {
+          return get_node_graphviz_attributes(node, minimalistic);
+        },
         node.state);
     std::println(os, "  {} [{}]", id, attrs);
 
     if (node.left_child) {
-      std::println(os, "  {} -> {} [label=\"left\"];", id, *node.left_child);
-      node_to_graphviz(os, *node.left_child);
+      if (minimalistic) {
+        std::println(os, "  {} -> {};", id, *node.left_child);
+      } else {
+        std::println(os, "  {} -> {} [label=\"left\"];", id, *node.left_child);
+      }
+      node_to_graphviz(os, *node.left_child, minimalistic);
     }
 
     if (node.right_child) {
-      std::println(os, "  {} -> {} [label=\"right\"];", id, *node.right_child);
-      node_to_graphviz(os, *node.right_child);
+      if (minimalistic) {
+        std::println(os, "  {} -> {};", id, *node.right_child);
+      } else {
+        std::println(os, "  {} -> {} [label=\"right\"];", id,
+                     *node.right_child);
+      }
+      node_to_graphviz(os, *node.right_child, minimalistic);
     }
   }
 
@@ -120,6 +157,46 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
     }
   }
 
+  void node_to_csv(std::stringstream& os, size_t id) const {
+    const Node& node = tree.at(id);
+
+    std::string left =
+        node.left_child ? std::to_string(*node.left_child) : "null";
+    std::string right =
+        node.right_child ? std::to_string(*node.right_child) : "null";
+
+    std::string value = std::visit(
+        []<typename T>(const T& state) -> std::string {
+          if constexpr (std::same_as<T, Unvisited> ||
+                        std::same_as<T, PrunedByInfeasibility>) {
+            return "null";
+          } else {
+            return std::to_string(state.value);
+          }
+        },
+        node.state);
+
+    std::string state = std::visit(
+        Overload{
+            [](PrunedByInfeasibility) { return "pruned_by_infeasibility"; },
+            [](PrunedByIntegrality) { return "pruned_by_integrality"; },
+            [](PrunedByBounds) { return "pruned_by_bounds"; },
+            [](Branched) { return "branched"; },
+            [](Unvisited) { return "unvisited"; },
+        },
+        node.state);
+
+    std::println(os, "{},{},{},{},{}", id, value, state, left, right);
+
+    if (node.left_child) {
+      node_to_csv(os, *node.left_child);
+    }
+
+    if (node.right_child) {
+      node_to_csv(os, *node.right_child);
+    }
+  }
+
  public:
   std::string iterations_to_csv() const {
     std::stringstream os;
@@ -145,17 +222,29 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
     return os.str();
   }
 
-  std::string to_graphviz() const {
+  std::string to_graphviz(bool minimalistic = false) const {
     std::stringstream os;
 
     std::println(os, "digraph G {{");
     std::println(os, "  node [shape=box];");
 
     if (root) {
-      node_to_graphviz(os, *root);
+      node_to_graphviz(os, *root, minimalistic);
     }
 
     std::println(os, "}}");
+    return os.str();
+  }
+
+  std::string to_csv() const {
+    std::stringstream os;
+
+    std::println(os, "id,value,state,left_child,right_child");
+
+    if (root) {
+      node_to_csv(os, *root);
+    }
+
     return os.str();
   }
 

@@ -5,13 +5,13 @@
 
 #include "encoding/UniformTimeDiscretization.h"
 #include "linear/BigInteger.h"
+#include "linear/Scaler.h"
 #include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
 #include "linear/bb/TreeStoringAccountant.h"
 #include "linear/builder/ProblemBuilder.h"
 #include "model/Solution.h"
 #include "problems/Blomer.h"
-#include "problems/Dwarf.h"
 #include "utils/Drawing.h"
 
 using Field = double;
@@ -20,9 +20,9 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 10;
+  size_t H = 12;
 
-  auto problem = dwarf_problem_normal<Field>(300);
+  auto problem = small_blomer_problem<Field>(100, 100);
 
   std::cout << to_graphviz(problem) << std::endl;
 
@@ -33,24 +33,33 @@ int main() {
   // solve MILP problem
   auto milp_problem = encoding.builder.get_problem();
 
+  auto scaled_problem = Scaler(milp_problem).get_scaled();
+  std::cout << "scaling quality: "
+            << Scaler(scaled_problem).get_scaling_quality() << std::endl;
+
   auto settings = BranchAndBoundSettings<Field>{
-    .max_nodes = 100'000,
-    .perturbation = PerturbationMode::DISABLED,
+      .max_nodes = 10'000,
+      .perturbation = PerturbationMode::DISABLED,
   };
   auto solver = PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>>(
-      milp_problem, settings);
+      scaled_problem, settings);
   auto solution = solver.solve();
 
-  std::cout << solver.get_accountant().to_graphviz() << std::endl;
+  // std::cout << solver.get_accountant().to_graphviz() << std::endl;
+
+  // {
+  //   std::ofstream os("iterations_data.csv");
+  //   os << solver.get_accountant().iterations_to_csv();
+  // }
+  //
+  // {
+  //   std::ofstream os("strong_branching_data.csv");
+  //   os << solver.get_accountant().strong_branching_iterations_to_csv();
+  // }
 
   {
-    std::ofstream os("iterations_data.csv");
-    os << solver.get_accountant().iterations_to_csv();
-  }
-
-  {
-    std::ofstream os("strong_branching_data.csv");
-    os << solver.get_accountant().strong_branching_iterations_to_csv();
+    std::ofstream os("tree.dot");
+    os << solver.get_accountant().to_graphviz() << std::endl;
   }
 
   // print solution
