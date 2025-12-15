@@ -22,7 +22,7 @@ class Scaling final : public BaseOptimizer<Field> {
   static Field get_scale_factor(const Constraint<Field>& constraint) {
     GeometricAverage<Field> scale_factor;
 
-    for (Field coef : constraint.lhs.get_variables() | std::views::values) {
+    for (Field coef : constraint.expr.get_variables() | std::views::values) {
       scale_factor.record(FieldTraits<Field>::abs(coef));
     }
 
@@ -34,7 +34,7 @@ class Scaling final : public BaseOptimizer<Field> {
     GeometricAverage<Field> scale_factor;
 
     for (const auto& constraint : problem.constraints) {
-      auto& variables = constraint.lhs.get_variables();
+      auto& variables = constraint.expr.get_variables();
       auto itr = variables.find(variable);
 
       if (itr != variables.end()) {
@@ -53,12 +53,7 @@ class Scaling final : public BaseOptimizer<Field> {
 
     // scale rows
     for (auto& constraint : problem.constraints) {
-      Field scale_factor = get_scale_factor(constraint);
-
-      for (Field& coef : constraint.lhs.get_variables() | std::views::values) {
-        coef *= scale_factor;
-      }
-      constraint.rhs *= scale_factor;
+      constraint.expr *= get_scale_factor(constraint);
     }
 
     // scale columns
@@ -69,7 +64,7 @@ class Scaling final : public BaseOptimizer<Field> {
       variables_scale_factors_[i] = scale_factor;
 
       for (auto& constraint : problem.constraints) {
-        auto& variables = constraint.lhs.get_variables();
+        auto& variables = constraint.expr.get_variables();
         auto itr = variables.find(info.name);
 
         if (itr != variables.end()) {
@@ -98,7 +93,7 @@ class Scaling final : public BaseOptimizer<Field> {
     Maximum<Field> max;
 
     for (const auto& constraint : problem.constraints) {
-      for (const auto& [var, coef] : constraint.lhs.get_variables()) {
+      for (const auto& [var, coef] : constraint.expr.get_variables()) {
         Field abs = FieldTraits<Field>::abs(coef);
 
         min.record(abs);

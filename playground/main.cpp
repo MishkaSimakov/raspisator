@@ -32,12 +32,13 @@ int main() {
 
   std::cout << encoding.builder << std::endl;
 
-  auto optimized = FullOptimizer<Field>(true).apply(encoding.builder);
+  auto optimizer = FullOptimizer<double>(true);
+  auto optimized_problem = optimizer.apply(encoding.builder);
 
-  std::cout << optimized << std::endl;
+  std::cout << optimized_problem << std::endl;
 
   // solve MILP problem
-  auto matrices = to_matrices(optimized);
+  auto matrices = to_matrices(optimized_problem);
 
   auto settings = BranchAndBoundSettings<Field>{
       .max_nodes = 1'000,
@@ -77,7 +78,7 @@ int main() {
     std::println("Finish production in {} time units.\n",
                  -finite_solution.value);
 
-    auto point = finite_solution.point;
+    auto point = optimizer.inverse(finite_solution.point);
 
     Solution checker(&problem);
 
@@ -87,9 +88,9 @@ int main() {
 
       for (size_t t = 0; t < H; ++t) {
         for (const auto* task : unit.get_tasks() | std::views::keys) {
-          Field x = matrices.extract_variable(
+          Field x = encoding.builder.extract_variable(
               encoding.starts.at({&unit, task, t}), point);
-          Field Q = matrices.extract_variable(
+          Field Q = encoding.builder.extract_variable(
               encoding.quantities.at({&unit, task, t}), point);
 
           if (FieldTraits<Field>::is_strictly_positive(x)) {

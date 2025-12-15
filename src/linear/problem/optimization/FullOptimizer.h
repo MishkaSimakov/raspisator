@@ -4,8 +4,7 @@
 #include "RemoveConstantConstraints.h"
 #include "RemoveConstantVariables.h"
 #include "RemoveLinearlyDependentConstraints.h"
-#include "RemoveOneVariableEqualities.h"
-#include "RemoveTrivialInequalities.h"
+#include "RemoveOneVariableConstraints.h"
 #include "Scaling.h"
 #include "TransformToEqualities.h"
 
@@ -37,7 +36,7 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
     problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
     problem = apply<RemoveConstantVariables<Field>>(problem);
-    problem = apply<RemoveOneVariableEqualities<Field>>(problem);
+    problem = apply<RemoveOneVariableConstraints<Field>>(problem);
 
     return problem;
   }
@@ -62,8 +61,8 @@ class FullOptimizer final : public BaseOptimizer<Field> {
 
   MILPProblem<Field> apply(MILPProblem<Field> problem) override {
     problem = apply_main_loop(problem);
+    problem = apply_main_loop(problem);
 
-    problem = apply<RemoveTrivialInequalities<Field>>(problem);
     problem = apply<TransformToEqualities<Field>>(problem);
 
     for (size_t i = 0; i < 5; ++i) {

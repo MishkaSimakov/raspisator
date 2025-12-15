@@ -13,7 +13,7 @@ class RemoveLinearlyDependentConstraints final : public BaseOptimizer<Field> {
     size_t count = 0;
 
     for (const auto& constraint : problem.constraints) {
-      if (constraint.type == ConstraintType::EQUAL) {
+      if (constraint.type == ConstraintType::EQUAL_ZERO) {
         ++count;
       }
     }
@@ -33,15 +33,15 @@ class RemoveLinearlyDependentConstraints final : public BaseOptimizer<Field> {
 
     size_t i = 0;
     for (const auto& constraint : problem.constraints) {
-      if (constraint.type != ConstraintType::EQUAL) {
+      if (constraint.type != ConstraintType::EQUAL_ZERO) {
         continue;
       }
 
-      for (const auto& [var, coef] : constraint.lhs.get_variables()) {
+      for (const auto& [var, coef] : constraint.expr.get_variables()) {
         A[i, enumeration.at(var)] = coef;
       }
 
-      b[i, 0] = constraint.rhs;
+      b[i, 0] = -constraint.expr.get_shift();
       ++i;
     }
 
@@ -66,7 +66,7 @@ class RemoveLinearlyDependentConstraints final : public BaseOptimizer<Field> {
     size_t equality_index = 0;
     for (auto itr = problem.constraints.begin();
          itr != problem.constraints.end();) {
-      if (itr->type != ConstraintType::EQUAL) {
+      if (itr->type != ConstraintType::EQUAL_ZERO) {
         ++itr;
         continue;
       }

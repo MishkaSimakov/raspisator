@@ -124,8 +124,7 @@ std::ostream& operator<<(std::ostream& os, const MILPProblem<Field>& problem) {
     os << constraint << "\n";
   }
 
-  for (const VariableInfo<Field>& info :
-       problem.variables | std::views::values) {
+  for (const VariableInfo<Field>& info : problem.variables) {
     std::println(os, "{} <= {} <= {}", info.lower_bound, info.name,
                  info.upper_bound);
   }

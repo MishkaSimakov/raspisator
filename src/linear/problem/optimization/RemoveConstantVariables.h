@@ -10,11 +10,11 @@ class RemoveConstantVariables final : public BaseOptimizer<Field> {
   void replace_in_constraints(MILPProblem<Field>& problem,
                               const std::string& name, Field value) {
     for (auto& constraint : problem.constraints) {
-      auto& variables = constraint.lhs.get_variables();
+      auto& variables = constraint.expr.get_variables();
       auto itr = variables.find(name);
 
       if (itr != variables.end()) {
-        constraint.rhs -= itr->second * value;
+        constraint.expr -= itr->second * value;
         variables.erase(itr);
       }
     }
@@ -26,7 +26,7 @@ class RemoveConstantVariables final : public BaseOptimizer<Field> {
     auto itr = variables.find(name);
 
     if (itr != variables.end()) {
-      problem.objective -= itr->second * value;
+      problem.objective += itr->second * value;
       variables.erase(itr);
     }
   }

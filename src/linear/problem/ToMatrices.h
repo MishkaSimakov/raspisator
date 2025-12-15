@@ -35,16 +35,16 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
   for (size_t i = 0; i < n; ++i) {
     const Constraint<Field>& constraint = problem.constraints[i];
 
-    if (constraint.type != ConstraintType::EQUAL) {
+    if (constraint.type != ConstraintType::EQUAL_ZERO) {
       throw std::runtime_error(
           "Non-equality constraints can not be transformed into matrices.");
     }
 
-    for (const auto& [var, coef] : constraint.lhs.get_variables()) {
+    for (const auto& [var, coef] : constraint.expr.get_variables()) {
       A[i, enumeration.at(var)] = coef;
     }
 
-    b[i, 0] = constraint.rhs;
+    b[i, 0] = -constraint.expr.get_shift();
   }
 
   std::vector<VariableType> types(d);

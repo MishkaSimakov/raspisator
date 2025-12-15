@@ -9,9 +9,9 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
 
   Field get_slack_upper_bound(const MILPProblem<Field>& problem,
                               const Constraint<Field>& constraint) const {
-    Field result = constraint.rhs;
+    Field result = -constraint.expr.get_shift();
 
-    for (auto [var, coef] : constraint.lhs.get_variables()) {
+    for (auto [var, coef] : constraint.expr.get_variables()) {
       const auto& info = problem.get_variable(var);
 
       if (coef > 0) {
@@ -41,7 +41,7 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
 
   MILPProblem<Field> apply(MILPProblem<Field> problem) override {
     for (auto& constraint : problem.constraints) {
-      if (constraint.type == ConstraintType::EQUAL) {
+      if (constraint.type == ConstraintType::EQUAL_ZERO) {
         continue;
       }
 
@@ -52,8 +52,8 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
       auto slack_var =
           problem.new_variable(var_name, VariableType::SLACK, 0, upper_bound);
 
-      constraint.lhs += slack_var;
-      constraint.type = ConstraintType::EQUAL;
+      constraint.expr += slack_var;
+      constraint.type = ConstraintType::EQUAL_ZERO;
     }
 
     return problem;

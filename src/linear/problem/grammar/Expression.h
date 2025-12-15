@@ -113,6 +113,16 @@ class Expression {
     return os;
   }
 
+  std::optional<Expression> express(Variable<Field> variable) const {
+    auto itr = variables_.find(variable);
+
+    if (itr == variables_.end()) {
+      return std::nullopt;
+    }
+  }
+
+  Field get_shift() const { return shift_; }
+
   friend MILPProblem<Field>;
   friend Constraint<Field>;
 };

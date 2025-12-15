@@ -5,28 +5,20 @@
 
 #include "Expression.h"
 
-enum class ConstraintType { EQUAL, LESS_OR_EQUAL };
+enum class ConstraintType { EQUAL_ZERO, LESS_OR_EQUAL_ZERO };
 
 enum class EvaluationResult { TRUE, FALSE, DONT_KNOW };
 
-// Constraint is stored in a normalized form. This means that:
-// 1. All variables are in left hand side
-// 2. All constants are in right hand side
-// 3. Constraint sign is either "=" or "<=" (>= is transformed into <=)
 template <typename Field>
 class Constraint {
  public:
-  Expression<Field> lhs;
-  Field rhs;
+  Expression<Field> expr;
   ConstraintType type;
 
-  Constraint(Expression<Field> lhs, Expression<Field> rhs, ConstraintType type)
-      : lhs(lhs - rhs), rhs(0), type(type) {
-    this->rhs = -this->lhs.shift_;
-    this->lhs.shift_ = 0;
-  }
+  Constraint(Expression<Field> expr, ConstraintType type)
+      : expr(expr), type(type) {}
 
-  bool is_constant() const { return lhs.is_constant(); }
+  bool is_constant() const { return expr.is_constant(); }
 
   EvaluationResult evaluate() const {
     if (!is_constant()) {
@@ -34,10 +26,12 @@ class Constraint {
     }
 
     switch (type) {
-      case ConstraintType::EQUAL:
-        return 0 == rhs ? EvaluationResult::TRUE : EvaluationResult::FALSE;
-      case ConstraintType::LESS_OR_EQUAL:
-        return 0 <= rhs ? EvaluationResult::TRUE : EvaluationResult::FALSE;
+      case ConstraintType::EQUAL_ZERO:
+        return expr.shift_ == 0 ? EvaluationResult::TRUE
+                                : EvaluationResult::FALSE;
+      case ConstraintType::LESS_OR_EQUAL_ZERO:
+        return expr.shift_ <= 0 ? EvaluationResult::TRUE
+                                : EvaluationResult::FALSE;
     }
 
     std::unreachable();
@@ -46,33 +40,32 @@ class Constraint {
 
 auto operator==(details::ExpressionLike auto&& left,
                 details::ExpressionLike auto&& right) {
-  return Constraint(Expression(left), Expression(right), ConstraintType::EQUAL);
+  return Constraint(Expression(left) - Expression(right),
+                    ConstraintType::EQUAL_ZERO);
 }
 
 auto operator<=(details::ExpressionLike auto&& left,
                 details::ExpressionLike auto&& right) {
-  return Constraint(Expression(left), Expression(right),
-                    ConstraintType::LESS_OR_EQUAL);
+  return Constraint(Expression(left) - Expression(right),
+                    ConstraintType::LESS_OR_EQUAL_ZERO);
 }
 
 auto operator>=(details::ExpressionLike auto&& left,
                 details::ExpressionLike auto&& right) {
-  return Constraint(Expression(right), Expression(left),
-                    ConstraintType::LESS_OR_EQUAL);
+  return Constraint(Expression(right) - Expression(left),
+                    ConstraintType::LESS_OR_EQUAL_ZERO);
 }
 
 template <typename Field>
 std::ostream& operator<<(std::ostream& os,
                          const Constraint<Field>& constraint) {
-  os << constraint.lhs;
+  os << constraint.expr;
 
-  if (constraint.type == ConstraintType::EQUAL) {
-    os << " == ";
-  } else if (constraint.type == ConstraintType::LESS_OR_EQUAL) {
-    os << " <= ";
+  if (constraint.type == ConstraintType::EQUAL_ZERO) {
+    os << " == 0";
+  } else if (constraint.type == ConstraintType::LESS_OR_EQUAL_ZERO) {
+    os << " <= 0";
   }
-
-  os << constraint.rhs;
 
   return os;
 }
