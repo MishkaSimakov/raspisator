@@ -1,37 +1,90 @@
-// #include <gtest/gtest.h>
-//
-// #include "../src/linear/bb/BranchAndBound.h"
-// #include "linear/BigInteger.h"
-// #include "linear/SimplexMethod.h"
-// #include "linear/builder/ProblemBuilder.h"
-// #include "linear/matrix/Matrix.h"
-//
-// TEST(ProblemBuilderTests, WithSimplexMethod) {
-//   ProblemBuilder<Rational> builder;
-//
-//   // setup constraints
-//   auto x = builder.new_variable("x", VariableType::REAL, 0, 10);
-//   auto y = builder.new_variable("y", VariableType::REAL, 0, 10);
-//
-//   builder.add_constraint(x + y <= Expression<Rational>{10});
-//
-//   builder.set_objective(x);
-//
-//   // solve problem
-//   auto problem = builder.get_problem();
-//
-//   auto solution = std::get<FiniteLPSolution<Rational>>(
-//       BoundedSimplexMethod(CSCMatrix(problem.A), problem.b, problem.c).solve());
-//
-//   // check solution
-//   Rational x_value = builder.extract_variable(solution.point, x);
-//   Rational y_value = builder.extract_variable(solution.point, y);
-//
-//   ASSERT_EQ(solution.value, 10);
-//   ASSERT_EQ(x_value, 10);
-//   ASSERT_EQ(y_value, 0);
-// }
-//
+#include <gtest/gtest.h>
+
+#include "linear/BigInteger.h"
+#include "linear/matrix/Matrix.h"
+#include "linear/model/LP.h"
+#include "linear/problem/MILPProblem.h"
+#include "linear/problem/ToMatrices.h"
+#include "linear/problem/optimization/RemoveConstantConstraints.h"
+#include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
+#include "linear/problem/optimization/TransformToEqualities.h"
+#include "linear/simplex/BoundedSimplexMethod.h"
+
+TEST(ProblemBuilderTests, RemoveConstantConstraints) {
+  MILPProblem<Rational> problem;
+
+  auto x = problem.new_variable("x", VariableType::INTEGER, 0, 100);
+  auto y = problem.new_variable("y", VariableType::INTEGER, 0, 100);
+
+  problem.add_constraint(x + y <= Expression<Rational>{10});
+  problem.add_constraint(x <= Expression<Rational>{10});
+  problem.add_constraint(Expression<Rational>{5} <= Expression<Rational>{10});
+  problem.add_constraint(Expression<Rational>{10} >= Expression<Rational>{2});
+
+  auto optimized = RemoveConstantConstraints<Rational>().apply(problem);
+
+  ASSERT_EQ(optimized.constraints.size(), 2);
+  ASSERT_EQ(std::format("{}", optimized.constraints[0]), "x + y <= 10");
+  ASSERT_EQ(std::format("{}", optimized.constraints[1]), "x <= 10");
+}
+
+TEST(ProblemBuilderTests, ThrowsWhenFalseConstantConstraint) {
+  MILPProblem<Rational> problem;
+
+  problem.add_constraint(Expression<Rational>{5} <= Expression<Rational>{1});
+
+  ASSERT_ANY_THROW(RemoveConstantConstraints<Rational>().apply(problem));
+}
+
+TEST(ProblemBuilderTests, RemoveLinearlyDependent) {
+  MILPProblem<Rational> problem;
+
+  auto x = problem.new_variable("x", VariableType::INTEGER, 0, 100);
+  auto y = problem.new_variable("y", VariableType::INTEGER, 0, 100);
+
+  problem.add_constraint(x + y == Expression<Rational>{10});
+  problem.add_constraint(2 * x + 2 * y == Expression<Rational>{20});
+
+  auto optimized =
+      RemoveLinearlyDependentConstraints<Rational>().apply(problem);
+
+  ASSERT_EQ(optimized.constraints.size(), 1);
+  ASSERT_TRUE(std::format("{}", optimized.constraints[0]) == "x + y == 10" ||
+              std::format("{}", optimized.constraints[0]) == "2*x + 2*y == 20");
+}
+
+TEST(ProblemBuilderTests, WithSimplexMethod) {
+  MILPProblem<Rational> builder;
+
+  // setup constraints
+  auto x = builder.new_variable("x", VariableType::REAL, 0, 10);
+  auto y = builder.new_variable("y", VariableType::REAL, 0, 10);
+
+  builder.add_constraint(x + y <= Expression<Rational>{10});
+
+  builder.set_objective(x);
+
+  // solve problem
+  auto optimized = TransformToEqualities<Rational>().apply(builder);
+
+  auto matrices = to_matrices(optimized);
+  auto basic_vars = linalg::get_row_basis(linalg::transposed(matrices.A));
+
+  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
+                                              matrices.c);
+  solver.setup_warm_start(basic_vars);
+  auto solution = std::get<FiniteLPSolution<Rational>>(
+      solver.dual(matrices.lower, matrices.upper).solution);
+
+  // check solution
+  Rational x_value = matrices.extract_variable(x, solution.point);
+  Rational y_value = matrices.extract_variable(y, solution.point);
+
+  ASSERT_EQ(solution.value, 10);
+  ASSERT_EQ(x_value, 10);
+  ASSERT_EQ(y_value, 0);
+}
+
 // TEST(ProblemBuilderTests, WithBranchAndBound) {
 //   ProblemBuilder<Rational> builder;
 //
@@ -47,7 +100,8 @@
 //   auto problem = builder.get_problem();
 //
 //   auto solution = std::get<FiniteMILPSolution<Rational>>(
-//       BranchAndBound<Rational, BoundedSimplexMethod<Rational>>(problem).solve());
+//       BranchAndBound<Rational,
+//       BoundedSimplexMethod<Rational>>(problem).solve());
 //
 //   // check solution
 //   Rational x_value = builder.extract_variable(solution.point, x);
@@ -85,7 +139,8 @@
 //   auto problem = builder.get_problem();
 //
 //   auto solution = std::get<FiniteMILPSolution<Rational>>(
-//       BranchAndBound<Rational, BoundedSimplexMethod<Rational>>(problem).solve());
+//       BranchAndBound<Rational,
+//       BoundedSimplexMethod<Rational>>(problem).solve());
 //
 //   // check solution
 //   ASSERT_EQ(solution.value, 700);

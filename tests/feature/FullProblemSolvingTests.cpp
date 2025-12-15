@@ -5,8 +5,11 @@
 #include <vector>
 
 #include "encoding/UniformTimeDiscretization.h"
+#include "linear/bb/FullStrongBranching.h"
 #include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
+#include "linear/problem/ToMatrices.h"
+#include "linear/problem/optimization/FullOptimizer.h"
 #include "model/STN.h"
 #include "model/Solution.h"
 #include "problems/Dwarf.h"
@@ -41,13 +44,17 @@ TEST_P(FullProblemSolvingTests, SolveThenCheck) {
   auto encoding = to_uniform_time_milp(*stn, H);
 
   // solve MILP problem
-  auto milp_problem = encoding.builder.get_problem();
+  auto optimized = FullOptimizer<double>().apply(encoding.builder);
+
+  auto matrices = to_matrices(optimized);
 
   auto settings = BranchAndBoundSettings<double>{
       .max_nodes = 100'000,
       .perturbation = PerturbationMode::DISABLED,
   };
-  auto solver = PseudoCostBranchAndBound(milp_problem, settings);
+  auto solver = FullStrongBranchingBranchAndBound(matrices.A, matrices.b, matrices.c,
+                                         matrices.lower, matrices.upper,
+                                         matrices.variables, settings);
   auto solution = solver.solve();
 
   // check solution
@@ -61,10 +68,10 @@ TEST_P(FullProblemSolvingTests, SolveThenCheck) {
   for (const auto& unit : stn->get_units()) {
     for (size_t t = 0; t < H; ++t) {
       for (const auto* task : unit.get_tasks() | std::views::keys) {
-        double x = encoding.builder.extract_variable(
-            point, encoding.starts.at({&unit, task, t}));
-        double Q = encoding.builder.extract_variable(
-            point, encoding.quantities.at({&unit, task, t}));
+        double x = matrices.extract_variable(
+            encoding.starts.at({&unit, task, t}), point);
+        double Q = matrices.extract_variable(
+            encoding.quantities.at({&unit, task, t}), point);
 
         if (FieldTraits<double>::is_strictly_positive(x)) {
           checker.add_instance(

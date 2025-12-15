@@ -1,21 +1,23 @@
 #pragma once
 
+#include <iostream>
 #include <unordered_map>
 
 #include "Variable.h"
+#include "linear/FieldTraits.h"
 
 template <typename Field>
 class Expression {
   Field shift_;
-  std::unordered_map<size_t, Field> variables_;
+  std::unordered_map<std::string, Field> variables_;
 
   // removes variables with zero coefficient
   void cleanup() {
     for (auto itr = variables_.begin(); itr != variables_.end();) {
-      if (itr->second == 0) {
-        itr = variables_.erase(itr);
-      } else {
+      if (FieldTraits<Field>::is_nonzero(itr->second)) {
         ++itr;
+      } else {
+        itr = variables_.erase(itr);
       }
     }
   }
@@ -25,11 +27,14 @@ class Expression {
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   Expression(Variable<Field> var) : shift_(0) {
-    variables_.emplace(var.id_, 1);
+    variables_.emplace(var.get_name(), 1);
   }
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   Expression(Field value) : shift_(std::move(value)) {}
+
+  const auto& get_variables() const { return variables_; }
+  auto& get_variables() { return variables_; }
 
   // an expression is constant if it doesn't contain any variables
   bool is_constant() const { return variables_.empty(); }
@@ -37,11 +42,11 @@ class Expression {
   Expression& operator+=(const Expression& other) {
     shift_ += other.shift_;
 
-    for (const auto& [id, coef] : other.variables_) {
-      auto itr = variables_.find(id);
+    for (const auto& [var, coef] : other.variables_) {
+      auto itr = variables_.find(var);
 
       if (itr == variables_.end()) {
-        variables_.emplace(id, coef);
+        variables_.emplace(var, coef);
       } else {
         itr->second += coef;
       }
@@ -55,11 +60,11 @@ class Expression {
   Expression& operator-=(const Expression& other) {
     shift_ -= other.shift_;
 
-    for (const auto& [id, coef] : other.variables_) {
-      auto itr = variables_.find(id);
+    for (const auto& [var, coef] : other.variables_) {
+      auto itr = variables_.find(var);
 
       if (itr == variables_.end()) {
-        variables_.emplace(id, -coef);
+        variables_.emplace(var, -coef);
       } else {
         itr->second -= coef;
       }
@@ -81,7 +86,34 @@ class Expression {
     return *this;
   }
 
-  friend ProblemBuilder<Field>;
+  friend std::ostream& operator<<(std::ostream& os, const Expression& expr) {
+    bool has_shift = expr.shift_ != 0;
+
+    for (auto itr = expr.variables_.begin(); itr != expr.variables_.end();
+         ++itr) {
+      bool is_last = std::next(itr) == expr.variables_.end();
+
+      if (itr->second == -1) {
+        os << "-";
+      } else if (itr->second != 1) {
+        os << itr->second << "*";
+      }
+
+      os << itr->first;
+
+      if (!is_last || has_shift) {
+        os << " + ";
+      }
+    }
+
+    if (has_shift || expr.is_constant()) {
+      os << expr.shift_;
+    }
+
+    return os;
+  }
+
+  friend MILPProblem<Field>;
   friend Constraint<Field>;
 };
 
@@ -95,7 +127,7 @@ auto operator+(details::ExpressionLike auto&& left,
 auto operator-(details::ExpressionLike auto&& left,
                details::ExpressionLike auto&& right) {
   Expression copy = left;
-  left -= right;
+  copy -= right;
   return copy;
 }
 

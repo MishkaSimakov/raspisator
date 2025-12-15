@@ -3,15 +3,14 @@
 #include <format>
 #include <ranges>
 
-#include "linear/builder/ProblemBuilder.h"
-#include "linear/model/MILP.h"
+#include "linear/problem/MILPProblem.h"
 #include "model/STN.h"
 #include "utils/Hashers.h"
 #include "utils/Variant.h"
 
 template <typename Field>
 struct ProblemEncoding {
-  ProblemBuilder<Field> builder;
+  MILPProblem<Field> builder;
 
   Variable<Field> makespan;
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
@@ -32,7 +31,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
                                             size_t max_periods) {
   const Field kGlobalMaxStock = 2000;
 
-  ProblemBuilder<Field> builder;
+  MILPProblem<Field> builder;
 
   // decision variables
   auto makespan =

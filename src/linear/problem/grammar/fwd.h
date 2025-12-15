@@ -1,7 +1,7 @@
 #pragma once
 
 template <typename Field>
-class ProblemBuilder;
+struct MILPProblem;
 
 template <typename Field>
 class Variable;
