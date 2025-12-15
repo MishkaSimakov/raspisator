@@ -7,6 +7,7 @@
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/RemoveConstantConstraints.h"
 #include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
+#include "linear/problem/optimization/Scaling.h"
 #include "linear/problem/optimization/TransformToEqualities.h"
 #include "linear/simplex/BoundedSimplexMethod.h"
 
@@ -85,6 +86,39 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   ASSERT_EQ(solution.value, 10);
   ASSERT_EQ(x_value, 10);
   ASSERT_EQ(y_value, 0);
+}
+
+TEST(ProblemBuilderTests, ScalingTest) {
+  MILPProblem<double> builder;
+
+  // setup constraints
+  auto x = builder.new_variable("x", VariableType::REAL, 0, 10);
+  auto y = builder.new_variable("y", VariableType::REAL, 0, 10);
+
+  builder.add_constraint(100 * x + 0.01 * y <= Expression<double>{100});
+
+  builder.set_objective(y);
+
+  // solve problem
+  auto optimizer1 = Scaling<double>();
+  auto optimizer2 = TransformToEqualities<double>();
+  auto optimized_problem = optimizer2.apply(optimizer1.apply(builder));
+
+  auto matrices = to_matrices(optimized_problem);
+  auto basic_vars = linalg::get_row_basis(linalg::transposed(matrices.A));
+
+  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
+                                              matrices.c);
+  solver.setup_warm_start(basic_vars);
+  auto solution = std::get<FiniteLPSolution<double>>(
+      solver.dual(matrices.lower, matrices.upper).solution);
+  auto point = optimizer1.inverse(optimizer2.inverse(solution.point));
+
+  // check solution
+  double value = builder.extract_variable(y, point);
+
+  ASSERT_DOUBLE_EQ(solution.value, 10);
+  ASSERT_DOUBLE_EQ(value, 10);
 }
 
 // TEST(ProblemBuilderTests, WithBranchAndBound) {

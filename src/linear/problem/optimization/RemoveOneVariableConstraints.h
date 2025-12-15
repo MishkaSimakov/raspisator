@@ -17,7 +17,7 @@ class RemoveOneVariableConstraints final : public BaseOptimizer<Field> {
       }
 
       auto [var, coef] = *itr->expr.get_variables().begin();
-      auto& info = problem.get_variable(var);
+      auto& info = problem.get_variable_info(var);
 
       Field value = -itr->expr.get_shift() / coef;
 

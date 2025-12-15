@@ -49,7 +49,7 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
 
   std::vector<VariableType> types(d);
   for (const auto& [name, index] : enumeration) {
-    types[index] = problem.get_variable(name).type;
+    types[index] = problem.get_variable_info(name).type;
   }
 
   // bounds
@@ -57,8 +57,8 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
   std::vector<Field> upper(d);
 
   for (const auto& [name, index] : enumeration) {
-    lower[index] = problem.get_variable(name).lower_bound;
-    upper[index] = problem.get_variable(name).upper_bound;
+    lower[index] = problem.get_variable_info(name).lower_bound;
+    upper[index] = problem.get_variable_info(name).upper_bound;
   }
 
   return {A, b, c, lower, upper, types};

@@ -59,6 +59,12 @@ class Scaling final : public BaseOptimizer<Field> {
     // scale columns
     for (size_t i = 0; i < problem.variables.size(); ++i) {
       auto& info = problem.variables[i];
+
+      if (info.type == VariableType::INTEGER) {
+        variables_scale_factors_[i] = 1;
+        continue;
+      }
+
       Field scale_factor = get_scale_factor(problem, info.name);
 
       variables_scale_factors_[i] = scale_factor;

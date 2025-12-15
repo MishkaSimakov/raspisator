@@ -119,6 +119,14 @@ class Expression {
     if (itr == variables_.end()) {
       return std::nullopt;
     }
+
+    Expression copy = *this;
+
+    for (auto& coef : copy.variables_ | std::views::values) {
+      coef /= itr->second;
+    }
+
+    return copy;
   }
 
   Field get_shift() const { return shift_; }

@@ -6,6 +6,7 @@
 #include "RemoveLinearlyDependentConstraints.h"
 #include "RemoveOneVariableConstraints.h"
 #include "Scaling.h"
+#include "StrictenBounds.h"
 #include "TransformToEqualities.h"
 
 template <typename Field>
@@ -37,13 +38,12 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
     problem = apply<RemoveConstantVariables<Field>>(problem);
     problem = apply<RemoveOneVariableConstraints<Field>>(problem);
+    problem = apply<StrictenBounds<Field>>(problem);
 
     return problem;
   }
 
   MILPProblem<Field> scale(MILPProblem<Field> problem) {
-    return problem;
-
     Field initial_quality = Scaling<Field>().get_scaling_quality(problem);
 
     auto result = apply<Scaling<Field>>(problem);

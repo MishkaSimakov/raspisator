@@ -16,13 +16,13 @@
 #include "problems/Dwarf.h"
 #include "utils/Drawing.h"
 
-using Field = double;
+using Field = Rational;
 
 int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 4;
+  size_t H = 10;
 
   auto problem = small_blomer_problem<Field>(100, 100);
 
@@ -30,9 +30,7 @@ int main() {
 
   auto encoding = to_uniform_time_milp(problem, H);
 
-  std::cout << encoding.builder << std::endl;
-
-  auto optimizer = FullOptimizer<double>(true);
+  auto optimizer = FullOptimizer<Field>(true);
   auto optimized_problem = optimizer.apply(encoding.builder);
 
   std::cout << optimized_problem << std::endl;
@@ -41,7 +39,7 @@ int main() {
   auto matrices = to_matrices(optimized_problem);
 
   auto settings = BranchAndBoundSettings<Field>{
-      .max_nodes = 1'000,
+      .max_nodes = 100'000,
       .perturbation = PerturbationMode::DISABLED,
   };
   auto solver =

@@ -40,7 +40,7 @@ struct MILPProblem {
     return result;
   }
 
-  VariableInfo<Field>& get_variable(const std::string& name) {
+  VariableInfo<Field>& get_variable_info(const std::string& name) {
     for (VariableInfo<Field>& info : variables) {
       if (info.name == name) {
         return info;
@@ -48,6 +48,20 @@ struct MILPProblem {
     }
 
     throw std::runtime_error(std::format("No variables with name {}.", name));
+  }
+
+  const VariableInfo<Field>& get_variable_info(const std::string& name) const {
+    for (const VariableInfo<Field>& info : variables) {
+      if (info.name == name) {
+        return info;
+      }
+    }
+
+    throw std::runtime_error(std::format("No variables with name {}.", name));
+  }
+
+  Variable<Field> get_variable(const std::string& name) const {
+    return Variable<Field>{name};
   }
 
   Field extract_variable(const Variable<Field>& variable,
@@ -67,16 +81,6 @@ struct MILPProblem {
     }
 
     return point[*index, 0];
-  }
-
-  const VariableInfo<Field>& get_variable(const std::string& name) const {
-    for (const VariableInfo<Field>& info : variables) {
-      if (info.name == name) {
-        return info;
-      }
-    }
-
-    throw std::runtime_error(std::format("No variables with name {}.", name));
   }
 
   Variable<Field> new_variable(std::string name, VariableType type,
