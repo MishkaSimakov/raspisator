@@ -39,7 +39,7 @@ class RemoveOneVariableEqualities final : public BaseOptimizer<Field> {
           itr->lhs.get_variables().size() == 1) {
         Field value = itr->rhs / itr->lhs.get_variables().begin()->second;
         auto& info =
-            problem.variables.at(itr->lhs.get_variables().begin()->first);
+            problem.get_variable(itr->lhs.get_variables().begin()->first);
 
         if (FieldTraits<Field>::is_strictly_negative(value -
                                                      info.lower_bound) ||

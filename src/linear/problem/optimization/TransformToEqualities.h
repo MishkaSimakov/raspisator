@@ -10,7 +10,7 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
     Field result = constraint.rhs;
 
     for (auto [var, coef] : constraint.lhs.get_variables()) {
-      const auto& info = problem.variables.at(var);
+      const auto& info = problem.get_variable(var);
 
       if (coef > 0) {
         result -= coef * info.lower_bound;
@@ -25,7 +25,7 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
   size_t slack_variables_count(const MILPProblem<Field>& problem) {
     size_t result = 0;
 
-    for (const auto& info : problem.variables | std::views::values) {
+    for (const auto& info : problem.variables) {
       if (info.type == VariableType::SLACK) {
         ++result;
       }

@@ -21,7 +21,7 @@ struct VariableInfo {
 
 template <typename Field>
 struct MILPProblem {
-  std::unordered_map<std::string, VariableInfo<Field>> variables;
+  std::vector<VariableInfo<Field>> variables;
   std::unordered_map<std::string, Field> constants;
 
   std::vector<Constraint<Field>> constraints;
@@ -33,19 +33,43 @@ struct MILPProblem {
   std::unordered_map<std::string, size_t> enumerate_variables() const {
     std::unordered_map<std::string, size_t> result;
 
-    size_t current_index = 0;
-    for (const std::string& name : variables | std::views::keys) {
-      result.emplace(name, current_index);
-      ++current_index;
+    for (size_t i = 0; i < variables.size(); ++i) {
+      result.emplace(variables[i].name, i);
     }
 
     return result;
   }
 
+  VariableInfo<Field>& get_variable(const std::string& name) {
+    for (VariableInfo<Field>& info : variables) {
+      if (info.name == name) {
+        return info;
+      }
+    }
+
+    throw std::runtime_error(std::format("No variables with name {}.", name));
+  }
+
+  const VariableInfo<Field>& get_variable(const std::string& name) const {
+    for (const VariableInfo<Field>& info : variables) {
+      if (info.name == name) {
+        return info;
+      }
+    }
+
+    throw std::runtime_error(std::format("No variables with name {}.", name));
+  }
+
   Variable<Field> new_variable(std::string name, VariableType type,
                                Field lower_bound, Field upper_bound) {
-    variables.emplace(
-        name, VariableInfo<Field>{name, type, lower_bound, upper_bound});
+    for (const VariableInfo<Field>& info : variables) {
+      if (info.name == name) {
+        throw std::runtime_error(
+            std::format("There is already a variable with name {}.", name));
+      }
+    }
+
+    variables.emplace_back(name, type, lower_bound, upper_bound);
 
     return Variable<Field>{name};
   }

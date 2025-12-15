@@ -33,10 +33,10 @@ struct MILPProblemAsMatrices {
 
 template <typename Field>
 MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
-  auto enumeration = problem.enumerate_variables();
-
   size_t n = problem.constraints.size();
-  size_t d = enumeration.size();
+  size_t d = problem.variables.size();
+
+  auto enumeration = problem.enumerate_variables();
 
   Matrix<Field> A(n, d, 0);
   Matrix<Field> b(n, 1, 0);
@@ -63,7 +63,7 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
 
   std::vector<VariableType> types(d);
   for (const auto& [name, index] : enumeration) {
-    types[index] = problem.variables.at(name).type;
+    types[index] = problem.get_variable(name).type;
   }
 
   // bounds
@@ -71,8 +71,8 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
   std::vector<Field> upper(d);
 
   for (const auto& [name, index] : enumeration) {
-    lower[index] = problem.variables.at(name).lower_bound;
-    upper[index] = problem.variables.at(name).upper_bound;
+    lower[index] = problem.get_variable(name).lower_bound;
+    upper[index] = problem.get_variable(name).upper_bound;
   }
 
   return {A, b, c, lower, upper, types, enumeration, problem.constants};

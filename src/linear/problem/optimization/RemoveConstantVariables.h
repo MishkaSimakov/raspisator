@@ -35,15 +35,14 @@ class RemoveConstantVariables final : public BaseOptimizer<Field> {
   MILPProblem<Field> apply(MILPProblem<Field> problem) override {
     for (auto itr = problem.variables.begin();
          itr != problem.variables.end();) {
-      if (FieldTraits<Field>::is_nonzero(itr->second.upper_bound -
-                                         itr->second.lower_bound)) {
+      if (FieldTraits<Field>::is_nonzero(itr->upper_bound - itr->lower_bound)) {
         ++itr;
       } else {
-        Field value = itr->second.upper_bound;
-        problem.constants.emplace(itr->first, value);
+        Field value = itr->upper_bound;
+        problem.constants.emplace(itr->name, value);
 
-        replace_in_constraints(problem, itr->first, value);
-        replace_in_objective(problem, itr->first, value);
+        replace_in_constraints(problem, itr->name, value);
+        replace_in_objective(problem, itr->name, value);
 
         itr = problem.variables.erase(itr);
       }

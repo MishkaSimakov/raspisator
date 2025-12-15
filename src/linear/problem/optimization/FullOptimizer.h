@@ -39,6 +39,8 @@ class FullOptimizer final : public BaseOptimizer<Field> {
   }
 
   MILPProblem<Field> scale(MILPProblem<Field> problem) {
+    return problem;
+
     Field initial_quality = Scaling<Field>().get_scaling_quality(problem);
 
     auto result = Scaling<Field>().apply(problem);

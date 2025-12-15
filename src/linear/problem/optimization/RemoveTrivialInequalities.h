@@ -14,7 +14,7 @@ class RemoveTrivialInequalities final : public BaseOptimizer<Field> {
       if (itr->type == ConstraintType::LESS_OR_EQUAL &&
           itr->lhs.get_variables().size() == 1) {
         auto [var, coef] = *itr->lhs.get_variables().begin();
-        auto& info = problem.variables.at(var);
+        auto& info = problem.get_variable(var);
 
         if (coef > 0) {
           info.upper_bound = std::min(info.upper_bound, itr->rhs / coef);

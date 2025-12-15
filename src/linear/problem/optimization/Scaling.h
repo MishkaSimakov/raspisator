@@ -60,12 +60,12 @@ class Scaling : BaseOptimizer<Field> {
     }
 
     // scale columns
-    for (auto& [name, info] : problem.variables) {
-      Field scale_factor = get_scale_factor(problem, name);
+    for (auto& info : problem.variables) {
+      Field scale_factor = get_scale_factor(problem, info.name);
 
       for (auto& constraint : problem.constraints) {
         auto& variables = constraint.lhs.get_variables();
-        auto itr = variables.find(name);
+        auto itr = variables.find(info.name);
 
         if (itr != variables.end()) {
           itr->second *= scale_factor;
@@ -76,7 +76,7 @@ class Scaling : BaseOptimizer<Field> {
       info.upper_bound /= scale_factor;
 
       auto& objective_variables = problem.objective.get_variables();
-      auto itr = objective_variables.find(name);
+      auto itr = objective_variables.find(info.name);
 
       if (itr != objective_variables.end()) {
         itr->second *= scale_factor;
