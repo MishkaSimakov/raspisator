@@ -2,9 +2,12 @@
 
 #include "../src/linear/bb/BranchAndBound.h"
 #include "../src/linear/matrix/RowBasis.h"
+#include "../src/linear/simplex/SimplexMethod.h"
 #include "linear/BigInteger.h"
 #include "linear/MPS.h"
-#include "linear/SimplexMethod.h"
+#include "linear/bb/Drawer.h"
+#include "linear/bb/PseudoCost.h"
+#include "linear/bb/TreeStoringAccountant.h"
 #include "linear/builder/ProblemBuilder.h"
 
 using Field = double;
@@ -13,7 +16,7 @@ int main() {
   // MILP formulation is from this paper:
   // https://arxiv.org/pdf/2504.20017v2
 
-  size_t n = 3;
+  size_t n = 4;
   size_t a_min = 1;
 
   size_t a_max = a_min + n * n - 1;
@@ -26,8 +29,9 @@ int main() {
     vars[i].resize(n);
     for (size_t j = 0; j < n; ++j) {
       for (size_t k = 0; k < n * n; ++k) {
-        vars[i][j].push_back(builder.new_variable(
-            fmt::format("x({}, {}, {})", i, j, k), VariableType::INTEGER));
+        vars[i][j].push_back(
+            builder.new_variable(fmt::format("x({}, {}, {})", i, j, k),
+                                 VariableType::INTEGER, 0, 1));
       }
     }
   }
@@ -113,10 +117,12 @@ int main() {
   // solve the problem
   auto problem = builder.get_problem();
 
-  BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
+  BranchAndBoundSettings<Field> settings = {.max_nodes = 100'000};
+  PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>> solver(
+      problem, settings);
   auto solution = solver.solve();
 
-  std::cout << GraphvizBuilder<Field>().build(solver.get_root()) << std::endl;
+  std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
   if (std::holds_alternative<FiniteMILPSolution<Field>>(solution)) {
     auto point = std::get<FiniteMILPSolution<Field>>(solution).point;

@@ -2,55 +2,64 @@
 
 #include <variant>
 
-enum class StateType { INPUT, OUTPUT, NON_STORABLE, NORMAL };
+template <typename Field>
+class STN;
 
+template <typename Field>
+class State;
+
+template <typename Field>
 class BaseState {
  protected:
   size_t id_{0};
 
-  template <typename F>
-  friend class STN;
-
-  friend class State;
+  friend class STN<Field>;
+  friend class State<Field>;
 };
 
-class InputState : public BaseState {
+template <typename Field>
+class InputState : public BaseState<Field> {
  public:
-  size_t initial_stock;
+  Field initial_stock;
 
-  InputState(size_t initial_stock) : initial_stock(initial_stock) {}
+  explicit InputState(Field initial_stock) : initial_stock(initial_stock) {}
 };
 
-class OutputState : public BaseState {
+template <typename Field>
+class OutputState : public BaseState<Field> {
  public:
-  size_t initial_stock;
-  size_t target;
+  Field initial_stock;
+  Field target;
 
-  OutputState(size_t initial_stock, size_t target) : 
-      initial_stock(initial_stock),
-      target(target) {}
+  OutputState(Field initial_stock, Field target)
+      : initial_stock(initial_stock), target(target) {}
 };
 
-class NonStorableState : public BaseState {};
+template <typename Field>
+class NonStorableState : public BaseState<Field> {};
 
-class NormalState : public BaseState {
+template <typename Field>
+class NormalState : public BaseState<Field> {
  public:
-  size_t initial_stock;
-  size_t min_level;
-  size_t max_level;
+  Field initial_stock;
+  Field min_level;
+  Field max_level;
 
-  NormalState(size_t initial_stock, size_t min_level, size_t max_level)
+  NormalState(Field initial_stock, Field min_level, Field max_level)
       : initial_stock(initial_stock),
         min_level(min_level),
         max_level(max_level) {}
 };
 
-using StateVariant =
-    std::variant<InputState, OutputState, NonStorableState, NormalState>;
+template <typename Field>
+using StateVariant = std::variant<InputState<Field>, OutputState<Field>,
+                                  NonStorableState<Field>, NormalState<Field>>;
 
-class State : public StateVariant {
+template <typename Field>
+class State : public StateVariant<Field> {
  public:
-  using StateVariant::variant;
+  using std::variant<InputState<Field>, OutputState<Field>,
+                     NonStorableState<Field>, NormalState<Field>>::variant;
 
   size_t get_id() const {
     return std::visit([](const auto& state) { return state.id_; }, *this);

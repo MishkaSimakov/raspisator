@@ -9,11 +9,12 @@ template <typename Field>
 class STN {
   std::deque<Unit<Field>> units_;
   std::deque<Task<Field>> tasks_;
-  std::deque<State> states_;
+  std::deque<State<Field>> states_;
 
   enum class ConnectionType { PRODUCER, CONSUMER };
 
-  auto get_connections_of(const State& state, ConnectionType type) const {
+  auto get_connections_of(const State<Field>& state,
+                          ConnectionType type) const {
     std::vector<std::pair<const Task<Field>*, Field>> result;
 
     for (const Task<Field>& task : tasks_) {
@@ -54,27 +55,29 @@ class STN {
     return &units_.back();
   }
 
-  State* add(State state) {
+  State<Field>* add(State<Field> state) {
     std::visit([id = states_.size()](auto& state) { state.id_ = id; }, state);
     states_.emplace_back(state);
     return &states_.back();
   }
 
-  const std::deque<State>& get_states() const { return states_; }
+  const std::deque<State<Field>>& get_states() const { return states_; }
   const std::deque<Task<Field>>& get_tasks() const { return tasks_; }
   const std::deque<Unit<Field>>& get_units() const { return units_; }
 
-  const State* get_state_by_id(size_t id) const { return &states_.at(id); }
+  const State<Field>* get_state_by_id(size_t id) const {
+    return &states_.at(id);
+  }
   const Task<Field>* get_task_by_id(size_t id) const { return &tasks_.at(id); }
   const Unit<Field>* get_unit_by_id(size_t id) const { return &units_.at(id); }
 
   std::vector<std::pair<const Task<Field>*, Field>> get_producers_of(
-      const State& state) const {
+      const State<Field>& state) const {
     return get_connections_of(state, ConnectionType::PRODUCER);
   }
 
   std::vector<std::pair<const Task<Field>*, Field>> get_consumers_of(
-      const State& state) const {
+      const State<Field>& state) const {
     return get_connections_of(state, ConnectionType::CONSUMER);
   }
 

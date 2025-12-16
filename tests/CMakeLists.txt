@@ -3,7 +3,6 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        SimplexMethodTests.cpp
         MatrixTests.cpp
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
@@ -11,8 +10,19 @@ target_sources(tests PUBLIC
         SolutionCheckingTests.cpp
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
-        LUTests.cpp
         NumericalStabilityTests.cpp
+
+        simplex/RandomTests.cpp
+        simplex/SmallTests.cpp
+        simplex/BigTests.cpp
+
+        LU/CommonTests.cpp
+        LU/SparseLUTests.cpp
+        LU/DenseLUTests.cpp
+
+        accumulators/ArgMinTests.cpp
+
+        feature/FullProblemSolvingTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")

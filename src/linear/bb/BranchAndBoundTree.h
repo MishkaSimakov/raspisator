@@ -4,7 +4,9 @@
 #include <deque>
 #include <variant>
 
+#include "linear/bb/NodeRelativeLocation.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/model/LP.h"
 
 // Branch and Bound nodes
 template <typename Field>
@@ -21,8 +23,7 @@ struct InteriorNode {
   Node<Field>* right = nullptr;
 
   Field value;
-  Matrix<Field> solution;
-  std::vector<size_t> basic_variables;
+  std::vector<VariableState> variables;
 };
 
 template <typename Field>
@@ -55,14 +56,12 @@ struct Node : std::variant<InteriorNode<Field>, UnfeasibleNode<Field>,
   }
 };
 
-enum class NodeRelativeLocation { LEFT_CHILD, RIGHT_CHILD, ROOT };
-
 template <typename Field>
 class BranchAndBoundTree {
   std::deque<Node<Field>> nodes_;
 
  public:
-  // returns path from root to the given node and directions on this path
+  // returns path from given node to the root and directions along this path
   static std::pair<std::vector<const InteriorNode<Field>*>,
                    std::vector<NodeRelativeLocation>>
   get_path_to(const InteriorNode<Field>* node) {
@@ -84,9 +83,6 @@ class BranchAndBoundTree {
 
       node = parent;
     }
-
-    std::ranges::reverse(nodes);
-    std::ranges::reverse(directions);
 
     return {std::move(nodes), std::move(directions)};
   }
@@ -125,4 +121,6 @@ class BranchAndBoundTree {
 
     return &nodes_[0];
   }
+
+  size_t size() const { return nodes_.size(); }
 };

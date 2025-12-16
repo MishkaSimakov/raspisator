@@ -442,6 +442,18 @@ std::ostream& operator<<(std::ostream& os, MatrixLike auto&& matrix) {
 }
 
 namespace linalg {
+void to_numpy(std::ostream& os, MatrixLike auto&& matrix) {
+  auto [n, m] = matrix.shape();
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < m; ++j) {
+      os << matrix[i, j] << " ";
+    }
+
+    os << "\n";
+  }
+}
+
 template <MatrixLike Head, MatrixLike... Tail>
 Matrix<common_field_t<Head, Tail...>> vstack(Head&& topmost, Tail&&... rest) {
   if (((topmost.get_width() != rest.get_width()) || ...)) {
@@ -526,12 +538,29 @@ common_field_t<L, R> dot(L&& left, R&& right) {
         "Matrices must have shape (n, 1) for dot product.");
   }
 
-  common_field_t<L, R> result;
+  common_field_t<L, R> result = 0;
 
   for (size_t i = 0; i < n; ++i) {
     result += left[i, 0] * right[i, 0];
   }
 
   return result;
+}
+
+template <MatrixLike T>
+double norm(T&& matrix)
+  requires(std::same_as<matrix_field_t<T>, double>)
+{
+  auto [n, d] = matrix.shape();
+
+  double result = 0;
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < d; ++j) {
+      result += matrix[i, j] * matrix[i, j];
+    }
+  }
+
+  return std::sqrt(result);
 }
 }  // namespace linalg

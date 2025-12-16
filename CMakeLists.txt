@@ -7,6 +7,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(load_libraries)
 
 add_subdirectory(src)
+add_subdirectory(benchmark)
 add_subdirectory(tests)
 
 add_executable(playground playground/main.cpp)

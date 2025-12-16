@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "../src/linear/bb/BranchAndBound.h"
 #include "linear/BigInteger.h"
-#include "linear/SimplexMethod.h"
+#include "linear/bb/FullStrongBranching.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/model/MILP.h"
+#include "linear/problem/VariableType.h"
+#include "linear/simplex/BoundedSimplexMethod.h"
 
 TEST(BranchAndBoundTests, SimpleProblems) {
   // problems are from:
@@ -17,9 +19,10 @@ TEST(BranchAndBoundTests, SimpleProblems) {
 
     std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
                              VariableType::SLACK, VariableType::SLACK};
+    std::vector<Rational> lower(4, 0);
+    std::vector<Rational> upper(4, 100'000);
 
-    MILPProblem problem(A, b, c, variables);
-    BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
+    FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
     auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve());
 
     ASSERT_EQ(solution.value, 1000);
@@ -41,13 +44,16 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     Matrix<Rational> b = {{120'000}, {12}, {1}, {1}, {1}, {1}, {1}};
     Matrix<Rational> c = {{300, 90, 400, 150, 0, 0, 0, 0, 0, 0, 0}};
 
-    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
-                             VariableType::INTEGER, VariableType::INTEGER,
-                             VariableType::SLACK,   VariableType::SLACK,
-                             VariableType::SLACK,   VariableType::SLACK};
+    std::vector variables = {
+        VariableType::INTEGER, VariableType::INTEGER, VariableType::INTEGER,
+        VariableType::INTEGER, VariableType::SLACK,   VariableType::SLACK,
+        VariableType::SLACK,   VariableType::SLACK,   VariableType::SLACK,
+        VariableType::SLACK,   VariableType::SLACK};
 
-    MILPProblem problem(A, b, c, variables);
-    BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
+    std::vector<Rational> lower(11, 0);
+    std::vector<Rational> upper(11, 100'000);
+
+    FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
     auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve());
 
     ASSERT_EQ(solution.value, 700);
@@ -56,41 +62,6 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     ASSERT_EQ((solution.point[1, 0]), 0);
     ASSERT_EQ((solution.point[2, 0]), 1);
     ASSERT_EQ((solution.point[3, 0]), 0);
-  }
-}
-
-// TODO: next two tests must be updated when BranchAndBound distinguishes
-// between InfiniteSolution and NoFiniteSolution
-TEST(BranchAndBoundTests, InfiniteSolution) {
-  {
-    Matrix<Rational> A = {{0, 1}};
-
-    Matrix<Rational> b = {{1}};
-    Matrix<Rational> c = {{1, 0}};
-
-    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER};
-
-    MILPProblem problem(A, b, c, variables);
-    BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
-    auto solution = solver.solve();
-
-    ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));
-  }
-
-  {
-    Matrix<Rational> A = {{1, -1, 1, 0}, {-1, 1, 0, 1}};
-
-    Matrix<Rational> b = {{1}, {1}};
-    Matrix<Rational> c = {{1, 0, 0, 0}};
-
-    std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
-                             VariableType::INTEGER, VariableType::INTEGER};
-
-    MILPProblem problem(A, b, c, variables);
-    BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
-    auto solution = solver.solve();
-
-    ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));
   }
 }
 
@@ -104,8 +75,10 @@ TEST(BranchAndBoundTests, NoFeasibleElements) {
   std::vector variables = {VariableType::INTEGER, VariableType::INTEGER,
                            VariableType::SLACK, VariableType::SLACK};
 
-  MILPProblem problem(A, b, c, variables);
-  BranchAndBound<Rational, SimplexMethod<Rational>> solver(problem);
+  std::vector<Rational> lower(4, 0);
+  std::vector<Rational> upper(4, 100);
+
+  FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
   auto solution = solver.solve();
 
   ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));

@@ -1,61 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "TestMatrices.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
 
-Matrix<Rational> big_matrix(size_t N) {
-  Matrix<Rational> A(N, N);
-
-  for (size_t i = 0; i < N; ++i) {
-    for (size_t j = 0; j < N; ++j) {
-      A[i, j] = static_cast<long long>(i + j) % 71 + 123;
-    }
-  }
-
-  A = A + Matrix<Rational>::unity(N);
-
-  return A;
-}
-
-template <typename Field>
-void check_U(const Matrix<Field>& matrix) {
-  auto [n, d] = matrix.shape();
-
-  ASSERT_EQ(n, d);
-
-  for (size_t i = 0; i < n; ++i) {
-    for (size_t j = 0; j < i; ++j) {
-      ASSERT_EQ((matrix[i, j]), 0);
-    }
-  }
-}
-
-template <typename Field>
-void check_L(const Matrix<Field>& matrix) {
-  auto [n, d] = matrix.shape();
-
-  ASSERT_EQ(n, d);
-
-  for (size_t i = 0; i < n; ++i) {
-    ASSERT_EQ((matrix[i, i]), 1);
-
-    for (size_t j = i + 1; j < n; ++j) {
-      ASSERT_EQ((matrix[i, j]), 0);
-    }
-  }
-}
-
-TEST(LUTests, SimpleLU) {
-  Matrix<Rational> A = {{1, 2}, {3, 4}};
-
-  auto [L, U] = linalg::get_lu(A);
-
-  ASSERT_EQ(L, (Matrix<Rational>{{1, 0}, {3, 1}}));
-  ASSERT_EQ(U, (Matrix<Rational>{{1, 2}, {0, -2}}));
-}
-
-TEST(LUTests, SimpleInPlaceLU) {
+TEST(DenseLUTests, SimpleInPlaceLU) {
   Matrix<Rational> A = {{1, 2}, {3, 4}};
 
   linalg::inplace_lu(A);
@@ -63,22 +13,10 @@ TEST(LUTests, SimpleInPlaceLU) {
   ASSERT_EQ(A, (Matrix<Rational>{{1, 2}, {3, -2}}));
 }
 
-TEST(LUTests, BigLU) {
+TEST(DenseLUTests, BigInPlaceLU) {
   const size_t N = 50;
 
-  auto A = big_matrix(N);
-  auto [L, U] = linalg::get_lu(A);
-
-  check_L(L);
-  check_U(U);
-
-  ASSERT_EQ(L * U, A);
-}
-
-TEST(LUTests, BigInPlaceLU) {
-  const size_t N = 50;
-
-  auto A = big_matrix(N);
+  auto A = big_dense_matrix(N);
   auto A_copy = A;
   linalg::inplace_lu(A);
 
@@ -95,7 +33,7 @@ TEST(LUTests, BigInPlaceLU) {
   ASSERT_EQ(L * U, A_copy);
 }
 
-TEST(LUTests, SimpleLUP) {
+TEST(DenseLUTests, SimpleLUP) {
   Matrix<Rational> A = {{1, 2}, {3, 4}};
 
   auto [L, U, P] = linalg::get_lup(A);
@@ -104,21 +42,10 @@ TEST(LUTests, SimpleLUP) {
   ASSERT_EQ(product, A);
 }
 
-TEST(LUTests, BigLUP) {
-  size_t N = 50;
-  auto A = big_matrix(N);
-
-  auto [L, U, P] = linalg::get_lup(A);
-  check_L(L);
-  check_U(U);
-
-  ASSERT_EQ(L * U, linalg::apply_permutation(A, P));
-}
-
-TEST(LUTests, BigInPlaceLUP) {
+TEST(DenseLUTests, BigInPlaceLUP) {
   const size_t N = 50;
 
-  auto A = big_matrix(N);
+  auto A = big_dense_matrix(N);
   auto A_copy = A;
   auto P = linalg::inplace_lup(A);
 
@@ -136,10 +63,10 @@ TEST(LUTests, BigInPlaceLUP) {
   ASSERT_EQ(L * U, linalg::apply_permutation(A_copy, P));
 }
 
-TEST(LUTests, SolveL) {
+TEST(DenseLUTests, SolveL) {
   const size_t N = 50;
 
-  auto A = big_matrix(N);
+  auto A = big_dense_matrix(N);
   auto [L, U, P] = linalg::get_lup(A);
 
   auto b = Matrix<Rational>(N, 1, 1);
@@ -150,7 +77,7 @@ TEST(LUTests, SolveL) {
   ASSERT_EQ(L * s, b);
 }
 
-TEST(LUTests, SolveSmallU) {
+TEST(DenseLUTests, SolveSmallU) {
   Matrix<Rational> U = {{1, 2, 3}, {0, 4, 5}, {0, 0, 6}};
   auto b = Matrix<Rational>(3, 1, 1);
 
@@ -161,10 +88,10 @@ TEST(LUTests, SolveSmallU) {
   ASSERT_EQ(s, expected);
 }
 
-TEST(LUTests, SolveBigU) {
+TEST(DenseLUTests, SolveBigU) {
   const size_t N = 40;
 
-  auto A = big_matrix(N);
+  auto A = big_dense_matrix(N);
   auto [L, U, P] = linalg::get_lup(A);
 
   auto b = Matrix<Rational>(N, 1, 1);
@@ -175,10 +102,10 @@ TEST(LUTests, SolveBigU) {
   ASSERT_EQ(U * s, b);
 }
 
-TEST(LUTests, SolveUsingLUChain) {
+TEST(DenseLUTests, SolveUsingLUChain) {
   const size_t N = 50;
 
-  auto A = big_matrix(N);
+  auto A = big_dense_matrix(N);
   auto [L, U, P] = linalg::get_lup(A);
 
   auto b = Matrix<Rational>(N, 1);
@@ -203,10 +130,10 @@ TEST(LUTests, SolveUsingLUChain) {
   ASSERT_EQ(A * x, b);
 }
 
-TEST(LUTests, SolveTransposedUsingLUChain) {
+TEST(DenseLUTests, SolveTransposedUsingLUChain) {
   const size_t N = 50;
 
-  auto A = big_matrix(N);
+  auto A = big_dense_matrix(N);
   auto [L, U, P] = linalg::get_lup(A);
 
   auto b = Matrix<Rational>(N, 1);

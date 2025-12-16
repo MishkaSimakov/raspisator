@@ -1,142 +1,118 @@
+#include <chrono>
+#include <fstream>
 #include <iostream>
+#include <print>
 
-#include "../src/linear/bb/BranchAndBound.h"
-#include "../src/linear/matrix/RowBasis.h"
+#include "encoding/UniformTimeDiscretization.h"
 #include "linear/BigInteger.h"
-#include "linear/MPS.h"
-#include "linear/SimplexMethod.h"
-#include "linear/bb/Drawer.h"
-#include "linear/builder/ProblemBuilder.h"
+#include "linear/bb/FullStrongBranching.h"
+#include "linear/bb/Settings.h"
+#include "linear/bb/TreeStoringAccountant.h"
+#include "linear/matrix/NPY.h"
+#include "linear/problem/ToMatrices.h"
+#include "linear/problem/optimization/FullOptimizer.h"
+#include "model/Solution.h"
+#include "problems/Blomer.h"
+#include "problems/Dwarf.h"
+#include "utils/Drawing.h"
 
 using Field = double;
 
 int main() {
-  // MILP formulation is from this paper:
-  // https://arxiv.org/pdf/2504.20017v2
+  std::chrono::steady_clock::time_point begin =
+      std::chrono::steady_clock::now();
 
-  size_t n = 3;
-  size_t a_min = 1;
+  size_t H = 15;
 
-  size_t a_max = a_min + n * n - 1;
-  size_t magic_constant = n * (a_min + a_max) / 2;
+  auto problem = small_blomer_problem<Field>(100, 200);
 
-  auto builder = ProblemBuilder<Field>();
-  std::vector<std::vector<std::vector<Variable<Field>>>> vars(n);
+  // std::cout << to_graphviz(problem) << std::endl;
 
-  for (size_t i = 0; i < n; ++i) {
-    vars[i].resize(n);
-    for (size_t j = 0; j < n; ++j) {
-      for (size_t k = 0; k < n * n; ++k) {
-        vars[i][j].push_back(builder.new_variable(
-            fmt::format("x({}, {}, {})", i, j, k), VariableType::INTEGER));
-      }
-    }
-  }
+  auto encoding = to_uniform_time_milp(problem, H);
 
-  // 2.1 a
-  for (size_t k = 0; k < n * n; ++k) {
-    Expression<Field> k_count;
+  std::cout << encoding.builder << std::endl;
 
-    for (size_t i = 0; i < n; ++i) {
-      for (size_t j = 0; j < n; ++j) {
-        k_count += vars[i][j][k];
-      }
-    }
+  auto optimizer = FullOptimizer<Field>(true);
+  auto optimized_problem = optimizer.apply(encoding.builder);
 
-    builder.add_constraint(k_count == Expression<Field>{1});
-  }
+  std::cout << optimized_problem << std::endl;
 
-  // 2.1 b
-  for (size_t i = 0; i < n; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      Expression<Field> cell_count;
+  // solve MILP problem
+  auto matrices = to_matrices(optimized_problem);
 
-      for (size_t k = 0; k < n * n; ++k) {
-        cell_count += vars[i][j][k];
-      }
+  auto settings = BranchAndBoundSettings<Field>{
+      .max_nodes = 10'000,
+      .strong_branching_max_iterations_factor = std::nullopt};
 
-      builder.add_constraint(cell_count == Expression<Field>{1});
-    }
-  }
-
-  // 2.1 c
-  for (size_t i = 0; i < n; ++i) {
-    Expression<Field> row_sum;
-
-    for (size_t j = 0; j < n; ++j) {
-      for (size_t k = 0; k < n * n; ++k) {
-        row_sum += vars[i][j][k] * (k + a_min);
-      }
-    }
-
-    builder.add_constraint(row_sum == Expression<Field>(magic_constant));
-  }
-
-  // 2.1 d
-  for (size_t j = 0; j < n; ++j) {
-    Expression<Field> col_sum;
-
-    for (size_t i = 0; i < n; ++i) {
-      for (size_t k = 0; k < n * n; ++k) {
-        col_sum += vars[i][j][k] * (k + a_min);
-      }
-    }
-
-    builder.add_constraint(col_sum == Expression<Field>(magic_constant));
-  }
-
-  // 2.1 e
-  {
-    Expression<Field> diagonal_sum;
-
-    for (size_t i = 0; i < n; ++i) {
-      for (size_t k = 0; k < n * n; ++k) {
-        diagonal_sum += vars[i][i][k] * (k + a_min);
-      }
-    }
-
-    builder.add_constraint(diagonal_sum == Expression<Field>(magic_constant));
-  }
-
-  // 2.1 d
-  {
-    Expression<Field> diagonal_sum;
-
-    for (size_t i = 0; i < n; ++i) {
-      for (size_t k = 0; k < n * n; ++k) {
-        diagonal_sum += vars[n - i - 1][i][k] * (k + a_min);
-      }
-    }
-
-    builder.add_constraint(diagonal_sum == Expression<Field>(magic_constant));
-  }
-
-  // solve the problem
-  auto problem = builder.get_problem();
-
-  BranchAndBound<Field, SimplexMethod<Field>> solver(problem);
+  auto solver =
+      FullStrongBranchingBranchAndBound<Field, TreeStoringAccountant<Field>>(
+          matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
+          matrices.variables, settings);
   auto solution = solver.solve();
 
-  std::cout << GraphvizBuilder<Field>().build(solver.get_tree()) << std::endl;
+  std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
-  if (std::holds_alternative<FiniteMILPSolution<Field>>(solution)) {
-    auto point = std::get<FiniteMILPSolution<Field>>(solution).point;
-    std::cout << "point: " << linalg::transposed(point) << std::endl;
+  // {
+  //   std::ofstream os("iterations_data.csv");
+  //   os << solver.get_accountant().iterations_to_csv();
+  // }
+  //
+  // {
+  //   std::ofstream os("strong_branching_data.csv");
+  //   os << solver.get_accountant().strong_branching_iterations_to_csv();
+  // }
 
-    for (size_t i = 0; i < n; ++i) {
-      for (size_t j = 0; j < n; ++j) {
-        for (size_t k = 0; k < n * n; ++k) {
-          if (FieldTraits<Field>::is_strictly_positive(
-                  builder.extract_variable(point, vars[i][j][k]))) {
-            std::cout << k + a_min << " ";
-            break;
+  {
+    std::ofstream os("tree.dot");
+    os << solver.get_accountant().to_graphviz() << std::endl;
+  }
+
+  // print solution
+  if (std::holds_alternative<NoFiniteSolution>(solution)) {
+    std::println("No finite solution.");
+  } else if (std::holds_alternative<ReachedNodesLimit>(solution)) {
+    std::println("Reached nodes limit.");
+  } else {
+    auto finite_solution = std::get<FiniteMILPSolution<Field>>(solution);
+
+    std::println("Finish production in {} time units.\n",
+                 -finite_solution.value);
+
+    auto point = optimizer.inverse(finite_solution.point);
+
+    Solution checker(&problem);
+
+    for (const auto& unit : problem.get_units()) {
+      std::println("schedule for unit {}:", unit.get_id());
+      std::println("(unit, task, time)");
+
+      for (size_t t = 0; t < H; ++t) {
+        for (const auto* task : unit.get_tasks() | std::views::keys) {
+          Field x = encoding.builder.extract_variable(
+              encoding.starts.at({&unit, task, t}), point);
+          Field Q = encoding.builder.extract_variable(
+              encoding.quantities.at({&unit, task, t}), point);
+
+          if (FieldTraits<Field>::is_strictly_positive(x)) {
+            checker.add_instance(
+                TaskInstance{unit.get_id(), task->get_id(), Q, t});
           }
+
+          std::println("x({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       x);
+          std::println("Q({}, {}, {}) = {}", unit.get_id(), task->get_id(), t,
+                       Q);
         }
       }
+    }
 
-      std::cout << "\n";
+    if (!checker.check()) {
+      throw std::runtime_error("Invalid solution!");
     }
   }
 
-  return 0;
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  std::println(
+      "Overall: {}",
+      std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));
 }

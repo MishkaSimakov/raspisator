@@ -6,10 +6,10 @@
 STN<Rational>* generate_sequential_problem() {
   STN<Rational>* stn = new STN<Rational>{};
 
-  auto* state1 = stn->add(InputState{100});
-  auto* state2 = stn->add(NormalState{0, 0, 100});
-  auto* state3 = stn->add(NonStorableState{});
-  auto* state4 = stn->add(OutputState{0, 50});
+  auto* state1 = stn->add(InputState<Rational>{100});
+  auto* state2 = stn->add(NormalState<Rational>{0, 0, 100});
+  auto* state3 = stn->add(NonStorableState<Rational>{});
+  auto* state4 = stn->add(OutputState<Rational>{0, 50});
 
   auto* unit0 = stn->add(Unit<Rational>{});
 

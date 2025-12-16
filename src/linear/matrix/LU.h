@@ -107,8 +107,7 @@ std::vector<size_t> inplace_lup(T&& matrix) {
       }
     }
 
-    std::swap(matrix[i, {i, n}], matrix[maximizing_row, {i, n}]);
-    std::swap(matrix[i, {0, i}], matrix[maximizing_row, {0, i}]);
+    std::swap(matrix[i, {0, n}], matrix[maximizing_row, {0, n}]);
     std::swap(P[i], P[maximizing_row]);
 
     for (size_t j = i + 1; j < n; ++j) {

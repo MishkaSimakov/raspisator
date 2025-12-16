@@ -1008,6 +1008,10 @@ template <>
 struct FieldTraits<Rational> {
   static Rational floor(const Rational& value) { return value.floor(); }
 
+  static Rational fractional(const Rational& value) {
+    return value - floor(value);
+  }
+
   static Rational abs(const Rational& value) {
     return value < 0 ? -value : value;
   }

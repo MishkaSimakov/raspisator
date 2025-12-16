@@ -3,9 +3,8 @@
 #include <algorithm>
 
 #include "STN.h"
+#include "linear/FieldTraits.h"
 #include "utils/Variant.h"
-
-namespace {
 
 template <typename Field>
 struct Event {
@@ -15,8 +14,6 @@ struct Event {
   size_t time;
   bool is_start;
 };
-
-}  // namespace
 
 template <typename Field>
 struct TaskInstance {
@@ -34,14 +31,16 @@ class Solution {
   using Unit = Unit<Field>;
   using TaskOnUnitProperties = TaskOnUnitProperties<Field>;
 
-  STN<Field>* stn;
+  const STN<Field>* stn;
   std::vector<TaskInstance> task_instances{};
   std::vector<Field> state_filled{};
   std::vector<bool> unit_free{};
   size_t current_time = 0;
 
   static bool compare_events(Event a, Event b) {
-    if (a.time == b.time) return a.is_start < b.is_start;
+    if (a.time == b.time) {
+      return a.is_start < b.is_start;
+    }
     return a.time < b.time;
   }
 
@@ -108,19 +107,23 @@ class Solution {
     // fmt::println("event time: {}, current_time: {}", e.time, current_time);
     // if e happens at current time, overflowed states might be relaxed in e, so
     // no need to worry
-    if (e.time == current_time) return true;
+    if (e.time == current_time) {
+      return true;
+    }
 
-    bool okay = true;
-
-    for (const State& s : stn->get_states()) {
+    for (const State<Field>& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
       bool result = std::visit(
-          Overload{[&filled](NonStorableState) { return filled == Field(0); },
-                   [&filled](NormalState state) {
+          Overload{[&filled](NonStorableState<Field>) {
+                     return !FieldTraits<Field>::is_nonzero(filled);
+                   },
+                   [&filled](NormalState<Field> state) {
                      // fmt::println("min: {}, max: {}, filled: {}",
                      // state.min_level, state.max_level, filled);
-                     return Field(state.min_level) <= filled &&
-                            filled <= Field(state.max_level);
+                     return !FieldTraits<Field>::is_strictly_positive(
+                                state.min_level - filled) &&
+                            !FieldTraits<Field>::is_strictly_positive(
+                                filled - state.max_level);
                    },
                    [&filled](const auto&) { return true; }},
           s);
@@ -134,7 +137,7 @@ class Solution {
     return true;
   }
 
-  void increase_state(const State* s, const Field& value) {
+  void increase_state(const State<Field>* s, const Field& value) {
     // fmt::println("current_value: {}, add: {}", state_filled[s->get_id()],
     // value);
     state_filled[s->get_id()] += value;
@@ -146,8 +149,10 @@ class Solution {
     const TaskOnUnitProperties* prop = unit->get_properties(task);
     // fmt::println("e batch_size: {}, prop_min: {}, prop_max: {}",
     // e.batch_size, prop->batch_min_size, prop->batch_max_size);
-    if (e.batch_size > prop->batch_max_size ||
-        e.batch_size < prop->batch_min_size) {
+    if (FieldTraits<Field>::is_strictly_positive(e.batch_size -
+                                                 prop->batch_max_size) ||
+        FieldTraits<Field>::is_strictly_negative(e.batch_size <
+                                                 prop->batch_min_size)) {
       std::println(
           "event batch size {} out of bounds for task {} on time {}. Bounds: "
           "{}, {}",
@@ -191,12 +196,14 @@ class Solution {
   }
 
   bool check_output_states() {
-    for (const State& s : stn->get_states()) {
+    for (const State<Field>& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
       bool result = std::visit(
-          Overload{
-              [&filled](OutputState state) { return filled >= state.target; },
-              [&filled](const auto&) { return true; }},
+          Overload{[&filled](OutputState<Field> state) {
+                     return !FieldTraits<Field>::is_strictly_negative(
+                         filled - state.target);
+                   },
+                   [&filled](const auto&) { return true; }},
           s);
       if (!result) {
         std::println("target not acquired for output state {}", s.get_id());
@@ -207,14 +214,14 @@ class Solution {
   }
 
  public:
-  Solution(STN<Field>* stn)
+  explicit Solution(const STN<Field>* stn)
       : stn(stn),
         state_filled(stn->get_states().size()),
         unit_free(stn->get_units().size(), true) {
     for (auto s : stn->get_states()) {
       state_filled[s.get_id()] = std::visit(
           Overload{[](const auto& state) { return Field(state.initial_stock); },
-                   [](NonStorableState) -> Field { return Field(0); }},
+                   [](NonStorableState<Field>) -> Field { return Field(0); }},
           s);
     }
   }
