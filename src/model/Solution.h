@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <ranges>
 
 #include "STN.h"
 #include "linear/FieldTraits.h"
@@ -37,11 +38,19 @@ class Solution {
   std::vector<bool> unit_free{};
   size_t current_time = 0;
 
-  static bool compare_events(Event a, Event b) {
+  static bool compare_events(const Event& a, const Event& b) {
     if (a.time == b.time) {
       return a.is_start < b.is_start;
     }
     return a.time < b.time;
+  }
+
+  size_t get_instance_end_time(const TaskInstance& instance) const {
+    const Unit* unit = stn->get_unit_by_id(instance.unit_id);
+    const Task* task = stn->get_task_by_id(instance.task_id);
+    const TaskOnUnitProperties* prop = unit->get_properties(task);
+
+    return instance.start_time + prop->batch_processing_time;
   }
 
   bool check_task_instance_valid(TaskInstance ti) {
@@ -65,7 +74,9 @@ class Solution {
     auto unit_tasks = stn->get_unit_by_id(ti.unit_id)->get_tasks();
     const Task* task = stn->get_task_by_id(ti.task_id);
     for (const auto& p : unit_tasks) {
-      if (p.first == task) return true;
+      if (p.first == task) {
+        return true;
+      }
     }
     std::println(
         "Task {} cannot be processed on unit {} in TaskInstance(unit_id: {}, "
@@ -230,21 +241,107 @@ class Solution {
     task_instances.push_back(instance);
   }
 
+  std::vector<TaskInstance> get_unit_tasks(const Unit& unit) const {
+    std::vector<TaskInstance> result;
+
+    for (const auto& instance : task_instances) {
+      if (instance.unit_id == unit.get_id()) {
+        result.push_back(instance);
+      }
+    }
+
+    std::ranges::sort(result, {}, [](const TaskInstance& instance) {
+      return instance.start_time;
+    });
+
+    return result;
+  }
+
   bool check() {
     for (TaskInstance ti : task_instances) {
-      if (!check_task_instance_valid(ti)) return false;
+      if (!check_task_instance_valid(ti)) {
+        return false;
+      }
     }
 
     auto events_opt = generate_events();
-    if (events_opt == std::nullopt) return false;
+    if (events_opt == std::nullopt) {
+      return false;
+    }
     std::vector<Event> events = events_opt.value();
 
     for (Event e : events) {
-      if (!check_state_bounds(e)) return false;
-      if (!apply_event(e)) return false;
+      if (!check_state_bounds(e)) {
+        return false;
+      }
+      if (!apply_event(e)) {
+        return false;
+      }
     }
 
-    if (!check_state_bounds({0, 0, 0, events.back().time + 1, 0})) return false;
+    if (!check_state_bounds({0, 0, 0, events.back().time + 1, 0})) {
+      return false;
+    }
     return check_output_states();
+  }
+
+  void to_graphviz(std::ostream& os) const {
+    os << "digraph {\n";
+    os << "graph [ pad=\"0.5\", nodesep=\"0.5\", ranksep=\"2\" ]\n";
+    os << "node  [ shape=plain]\n";
+
+    os << "Foo [label=<\n";
+    os << "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n";
+
+    size_t max_time = std::ranges::max(
+        task_instances |
+        std::views::transform([this](const TaskInstance& instance) {
+          return get_instance_end_time(instance);
+        }));
+
+    os << "<tr><td></td>";
+    for (size_t i = 0; i < max_time; ++i) {
+      os << std::format("<td width=\"75\">{}</td>", i);
+    }
+    os << "</tr>\n";
+
+    for (const auto& unit : stn->get_units()) {
+      os << "<tr>";
+
+      os << std::format("<td>unit_{}</td>", unit.get_id());
+      std::vector<TaskInstance> unit_task_instances;
+
+      for (const auto& ti : task_instances) {
+        if (ti.unit_id == unit.get_id()) {
+          unit_task_instances.push_back(ti);
+        }
+      }
+
+      std::ranges::sort(
+          unit_task_instances, {},
+          [](const TaskInstance& instance) { return instance.start_time; });
+
+      auto itr = unit_task_instances.begin();
+      for (size_t t = 0; t < max_time;) {
+        if (itr != unit_task_instances.end() && itr->start_time == t) {
+          size_t duration = get_instance_end_time(*itr) - itr->start_time;
+          os << std::format(
+              "<td colspan=\"{}\" bgcolor=\"grey\">{} ({:.1f})</td>", duration,
+              itr->task_id, itr->batch_size);
+
+          t += duration;
+          ++itr;
+        } else {
+          os << "<td></td>";
+
+          ++t;
+        }
+      }
+
+      os << "</tr>\n";
+    }
+
+    os << "</table>>];\n";
+    os << "}\n";
   }
 };

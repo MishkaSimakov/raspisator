@@ -3,8 +3,14 @@
 #include <format>
 #include <ranges>
 
+#include "linear/bb/FullStrongBranching.h"
+#include "linear/bb/Settings.h"
+#include "linear/model/MILP.h"
 #include "linear/problem/MILPProblem.h"
+#include "linear/problem/ToMatrices.h"
+#include "linear/problem/optimization/FullOptimizer.h"
 #include "model/STN.h"
+#include "model/Solution.h"
 #include "utils/Hashers.h"
 #include "utils/Variant.h"
 
@@ -233,4 +239,61 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
 
   return ProblemEncoding<Field>{builder, makespan, std::move(quantities),
                                 std::move(starts), std::move(stocks)};
+}
+
+template <typename Field>
+std::optional<Solution<Field>> get_schedule(const STN<Field>& problem,
+                                            size_t max_periods) {
+  auto encoding = to_uniform_time_milp(problem, max_periods);
+
+  std::println("before constraints {}, variables {}",
+             encoding.builder.constraints.size(),
+             encoding.builder.variables.size());
+
+  auto optimizer = FullOptimizer<Field>(false);
+  auto optimized_problem = optimizer.apply(encoding.builder);
+
+  std::println("after  constraints {}, variables {}",
+               optimized_problem.constraints.size(),
+               optimized_problem.variables.size());
+
+  // solve MILP problem
+  auto matrices = to_matrices(optimized_problem);
+
+  auto settings = BranchAndBoundSettings<Field>{
+      .max_nodes = 50'000,
+      .strong_branching_max_iterations_factor = std::nullopt};
+
+  auto solver = FullStrongBranchingBranchAndBound<Field>(
+      matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
+      matrices.variables, settings);
+  auto milp_solution = solver.solve();
+
+  if (!std::holds_alternative<FiniteMILPSolution<Field>>(milp_solution)) {
+    return std::nullopt;
+  }
+
+  auto point = optimizer.inverse(
+      std::get<FiniteMILPSolution<Field>>(milp_solution).point);
+
+  Solution solution(&problem);
+
+  for (const auto& unit : problem.get_units()) {
+    for (size_t t = 0; t < max_periods; ++t) {
+      for (const auto* task : unit.get_tasks() | std::views::keys) {
+        Field x = encoding.builder.extract_variable(
+            encoding.starts.at({&unit, task, t}), point);
+        Field Q = encoding.builder.extract_variable(
+            encoding.quantities.at({&unit, task, t}), point);
+
+        if (FieldTraits<Field>::is_strictly_positive(x) &&
+            FieldTraits<Field>::is_strictly_positive(Q)) {
+          solution.add_instance(
+              TaskInstance{unit.get_id(), task->get_id(), Q, t});
+        }
+      }
+    }
+  }
+
+  return solution;
 }

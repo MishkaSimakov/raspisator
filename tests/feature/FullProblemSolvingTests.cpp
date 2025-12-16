@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "encoding/UniformTimeDiscretization.h"
+#include "../../src/linear/scheduling/UniformTimeDiscretization.h"
 #include "linear/bb/FullStrongBranching.h"
 #include "linear/bb/Settings.h"
 #include "linear/problem/ToMatrices.h"

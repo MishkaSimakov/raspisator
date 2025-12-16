@@ -37,7 +37,6 @@ class FullOptimizer final : public BaseOptimizer<Field> {
   MILPProblem<Field> apply_main_loop(MILPProblem<Field> problem) {
     problem = apply<RemoveConstantConstraints<Field>>(problem);
     problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
-    problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
     problem = apply<RemoveConstantAndUnusedVariables<Field>>(problem);
     problem = apply<RemoveOneVariableConstraints<Field>>(problem);
     problem = apply<StrictenBounds<Field>>(problem);

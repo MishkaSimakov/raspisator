@@ -3,12 +3,14 @@
 #include <iostream>
 #include <print>
 
-#include "encoding/UniformTimeDiscretization.h"
+#include "../src/linear/scheduling/UniformTimeDiscretization.h"
 #include "linear/BigInteger.h"
-#include "linear/bb/PseudoCost.h"
+#include "linear/bb/FullStrongBranching.h"
 #include "linear/bb/Settings.h"
 #include "linear/bb/TreeStoringAccountant.h"
-#include "linear/builder/ProblemBuilder.h"
+#include "linear/matrix/NPY.h"
+#include "linear/problem/ToMatrices.h"
+#include "linear/problem/optimization/FullOptimizer.h"
 #include "model/Solution.h"
 #include "problems/Blomer.h"
 #include "problems/Dwarf.h"
@@ -20,34 +22,49 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 20;
+  size_t H = 15;
 
-  auto problem = dwarf_problem_normal<Field>(200);
+  auto problem = small_blomer_problem<Field>(100, 200);
 
-  std::cout << to_graphviz(problem) << std::endl;
+  // std::cout << to_graphviz(problem) << std::endl;
 
   auto encoding = to_uniform_time_milp(problem, H);
 
   std::cout << encoding.builder << std::endl;
 
-  // solve MILP problem
-  auto milp_problem = encoding.builder.get_problem();
+  auto optimizer = FullOptimizer<Field>(true);
+  auto optimized_problem = optimizer.apply(encoding.builder);
 
-  auto settings = BranchAndBoundSettings<Field>{.max_nodes = 10'000};
-  auto solver = PseudoCostBranchAndBound<Field, TreeStoringAccountant<Field>>(
-      milp_problem, settings);
+  std::cout << optimized_problem << std::endl;
+
+  // solve MILP problem
+  auto matrices = to_matrices(optimized_problem);
+
+  auto settings = BranchAndBoundSettings<Field>{
+      .max_nodes = 10'000,
+      .strong_branching_max_iterations_factor = std::nullopt};
+
+  auto solver =
+      FullStrongBranchingBranchAndBound<Field, TreeStoringAccountant<Field>>(
+          matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
+          matrices.variables, settings);
   auto solution = solver.solve();
 
   std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
-  {
-    std::ofstream os("iterations_data.csv");
-    os << solver.get_accountant().iterations_to_csv();
-  }
+  // {
+  //   std::ofstream os("iterations_data.csv");
+  //   os << solver.get_accountant().iterations_to_csv();
+  // }
+  //
+  // {
+  //   std::ofstream os("strong_branching_data.csv");
+  //   os << solver.get_accountant().strong_branching_iterations_to_csv();
+  // }
 
   {
-    std::ofstream os("strong_branching_data.csv");
-    os << solver.get_accountant().strong_branching_iterations_to_csv();
+    std::ofstream os("tree.dot");
+    os << solver.get_accountant().to_graphviz() << std::endl;
   }
 
   // print solution
@@ -61,7 +78,7 @@ int main() {
     std::println("Finish production in {} time units.\n",
                  -finite_solution.value);
 
-    auto point = finite_solution.point;
+    auto point = optimizer.inverse(finite_solution.point);
 
     Solution checker(&problem);
 
@@ -72,9 +89,9 @@ int main() {
       for (size_t t = 0; t < H; ++t) {
         for (const auto* task : unit.get_tasks() | std::views::keys) {
           Field x = encoding.builder.extract_variable(
-              point, encoding.starts.at({&unit, task, t}));
+              encoding.starts.at({&unit, task, t}), point);
           Field Q = encoding.builder.extract_variable(
-              point, encoding.quantities.at({&unit, task, t}));
+              encoding.quantities.at({&unit, task, t}), point);
 
           if (FieldTraits<Field>::is_strictly_positive(x)) {
             checker.add_instance(
@@ -99,5 +116,3 @@ int main() {
       "Overall: {}",
       std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));
 }
-
-// Overall: 4478023834ns

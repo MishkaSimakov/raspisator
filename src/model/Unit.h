@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <algorithm>
+#include <vector>
 
 #include "Task.h"
 
@@ -26,10 +26,14 @@ class Unit {
 
   const auto& get_tasks() const { return tasks_; }
 
-  const TaskOnUnitProperties<Field>* get_properties(const Task<Field>* task) const {
+  const TaskOnUnitProperties<Field>* get_properties(
+      const Task<Field>* task) const {
     for (const auto& p : tasks_) {
-      if (p.first == task) return &p.second;
+      if (p.first == task) {
+        return &p.second;
+      }
     }
+
     return nullptr;
   }
 

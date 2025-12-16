@@ -27,11 +27,13 @@ class Constraint {
 
     switch (type) {
       case ConstraintType::EQUAL_ZERO:
-        return expr.shift_ == 0 ? EvaluationResult::TRUE
-                                : EvaluationResult::FALSE;
+        return FieldTraits<Field>::is_nonzero(expr.shift_)
+                   ? EvaluationResult::FALSE
+                   : EvaluationResult::TRUE;
       case ConstraintType::LESS_OR_EQUAL_ZERO:
-        return expr.shift_ <= 0 ? EvaluationResult::TRUE
-                                : EvaluationResult::FALSE;
+        return FieldTraits<Field>::is_strictly_positive(expr.shift_)
+                   ? EvaluationResult::FALSE
+                   : EvaluationResult::TRUE;
     }
 
     std::unreachable();

@@ -228,7 +228,6 @@ class FullStrongBranchingBranchAndBound {
 
     std::println("#{}; LB: {}; UB: {}; waiting: {}", node.id, lb,
                  current_solution.value, waiting_.size());
-    std::cout << simplex_iterations_.mean() << std::endl;
   }
 
   void record_simplex_run(const Node& parent, NodeRelativeLocation location,

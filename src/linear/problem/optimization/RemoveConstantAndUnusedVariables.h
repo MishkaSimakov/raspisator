@@ -14,7 +14,7 @@ class RemoveConstantAndUnusedVariables final : public BaseOptimizer<Field> {
       auto itr = variables.find(name);
 
       if (itr != variables.end()) {
-        constraint.expr -= itr->second * value;
+        constraint.expr += itr->second * value;
         variables.erase(itr);
       }
     }

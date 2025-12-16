@@ -28,5 +28,25 @@ class Task {
   const auto& get_inputs() const { return inputs_; }
   const auto& get_outputs() const { return outputs_; }
 
+  Field input_fraction_of(const State<Field>& state) const {
+    for (auto [input, fraction] : inputs_) {
+      if (input->get_id() == state.get_id()) {
+        return fraction;
+      }
+    }
+
+    return 0;
+  }
+
+  Field output_fraction_of(const State<Field>& state) const {
+    for (auto [output, fraction] : outputs_) {
+      if (output->get_id() == state.get_id()) {
+        return fraction;
+      }
+    }
+
+    return 0;
+  }
+
   friend class STN<Field>;
 };

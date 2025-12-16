@@ -5,6 +5,7 @@
 #include "linear/model/LP.h"
 #include "linear/problem/MILPProblem.h"
 #include "linear/problem/ToMatrices.h"
+#include "linear/problem/optimization/RemoveConstantAndUnusedVariables.h"
 #include "linear/problem/optimization/RemoveConstantConstraints.h"
 #include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
 #include "linear/problem/optimization/Scaling.h"
@@ -156,6 +157,22 @@ TEST(ProblemBuilderTests, ComplexSubstitute) {
   ASSERT_EQ(std::format("{}", optimizer.constraints[0]), "-x + 9 == 0");
   ASSERT_EQ(std::format("{}", optimizer.constraints[1]), "x + -10 == 0");
   ASSERT_EQ(std::format("{}", optimizer.constraints[2]), "2*x + -20 == 0");
+}
+
+
+TEST(ProblemBuilderTests, RemoveConstantVariables) {
+  MILPProblem<Rational> builder;
+
+  auto x = builder.new_variable("x", VariableType::REAL, 0, 10);
+  auto y = builder.new_variable("y", VariableType::REAL, 10, 10);
+
+  builder.add_constraint(x + y == Expression<Rational>(7));
+
+  auto optimizer = RemoveConstantAndUnusedVariables<Rational>().apply(builder);
+
+  ASSERT_EQ(optimizer.constraints.size(), 1);
+
+  ASSERT_EQ(std::format("{}", optimizer.constraints[0]), "x + 3 == 0");
 }
 
 // TEST(ProblemBuilderTests, WithBranchAndBound) {

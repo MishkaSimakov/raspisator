@@ -91,9 +91,9 @@ STN<Field> dwarf_with_nonstorable() {
   STN<Field> stn;
 
   // States
-  auto* state1 = stn.add(InputState{100});
+  auto* state1 = stn.add(InputState<Field>{100});
   auto* state2 = stn.add(NonStorableState<Field>{});
-  auto* state3 = stn.add(OutputState{0, 100});
+  auto* state3 = stn.add(OutputState<Field>{0, 100});
 
   // Units
   auto* unit1 = stn.add(Unit<Field>{});

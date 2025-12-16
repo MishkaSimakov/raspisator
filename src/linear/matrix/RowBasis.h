@@ -12,6 +12,10 @@ namespace linalg {
 
 template <typename Field>
 std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
+  if (matrix.get_height() == 0) {
+    return {};
+  }
+
   std::vector<size_t> rows_map(matrix.get_height());
   std::iota(rows_map.begin(), rows_map.end(), 0);
 

@@ -31,7 +31,7 @@ class ObjectivePerturbation final : public BaseOptimizer<Field> {
         continue;
       }
 
-      problem.objective += static_cast<Field>(1) / variable.upper_bound *
+      problem.objective -= static_cast<Field>(1) / variable.upper_bound *
                            problem.get_variable(variable.name);
       perturbed.push_back(variable.name);
     }

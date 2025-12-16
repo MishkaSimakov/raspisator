@@ -8,7 +8,7 @@
 
 template <typename Field>
 class Expression {
-  Field shift_;
+  Field shift_{};
   std::unordered_map<std::string, Field> variables_;
 
   // removes variables with zero coefficient
@@ -161,6 +161,13 @@ template <typename Field>
 auto operator*(details::ExpressionLike auto&& expr, const Field& alpha) {
   Expression copy = expr;
   copy *= alpha;
+  return copy;
+}
+
+template <typename Field>
+auto operator/(details::ExpressionLike auto&& expr, const Field& alpha) {
+  Expression copy = expr;
+  copy *= 1 / alpha;
   return copy;
 }
 
