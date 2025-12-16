@@ -23,9 +23,9 @@ int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 12;
+  size_t H = 15;
 
-  auto problem = small_blomer_problem<Field>(100, 100);
+  auto problem = small_blomer_problem<Field>(100, 200);
 
   // std::cout << to_graphviz(problem) << std::endl;
 
@@ -42,9 +42,10 @@ int main() {
   auto matrices = to_matrices(optimized_problem);
 
   auto settings = BranchAndBoundSettings<Field>{
-      .max_nodes = 100'000,
-      .perturbation = PerturbationMode::DISABLED,
+      .max_nodes = 10'000,
+      .strong_branching_max_iterations_factor = std::nullopt
   };
+
   auto solver =
       FullStrongBranchingBranchAndBound<Field, TreeStoringAccountant<Field>>(
           matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,

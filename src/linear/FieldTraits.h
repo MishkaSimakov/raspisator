@@ -7,7 +7,7 @@ struct FieldTraits;
 
 template <>
 struct FieldTraits<double> {
-  constexpr static double kEpsilon = 1e-9;
+  constexpr static double kEpsilon = 1e-10;
 
   static double abs(double value) { return std::abs(value); }
 

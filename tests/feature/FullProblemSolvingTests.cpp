@@ -12,6 +12,7 @@
 #include "linear/problem/optimization/FullOptimizer.h"
 #include "model/STN.h"
 #include "model/Solution.h"
+#include "problems/Blomer.h"
 #include "problems/Dwarf.h"
 
 auto test_problems() {
@@ -22,6 +23,20 @@ auto test_problems() {
   problems.emplace_back("dwarf_normal_100", dwarf_problem_normal<double>(100));
   problems.emplace_back("dwarf_normal_200", dwarf_problem_normal<double>(200));
   problems.emplace_back("dwarf_normal_300", dwarf_problem_normal<double>(300));
+
+  problems.emplace_back("blomer_small_0_100",
+                        small_blomer_problem<double>(100, 0));
+  problems.emplace_back("blomer_small_100_0",
+                        small_blomer_problem<double>(0, 100));
+  problems.emplace_back("blomer_small_50_50",
+                        small_blomer_problem<double>(50, 50));
+
+  problems.emplace_back("blomer_small_200_0",
+                        small_blomer_problem<double>(200, 0));
+  problems.emplace_back("blomer_small_100_100",
+                        small_blomer_problem<double>(100, 100));
+  problems.emplace_back("blomer_small_0_200",
+                        small_blomer_problem<double>(0, 200));
 
   std::vector<std::pair<std::string, std::shared_ptr<STN<double>>>> result;
 
@@ -39,7 +54,7 @@ class FullProblemSolvingTests
 TEST_P(FullProblemSolvingTests, SolveThenCheck) {
   auto stn = GetParam().second;
 
-  size_t H = 10;
+  size_t H = 15;
 
   auto encoding = to_uniform_time_milp(*stn, H);
 
@@ -51,8 +66,9 @@ TEST_P(FullProblemSolvingTests, SolveThenCheck) {
 
   auto settings = BranchAndBoundSettings<double>{
       .max_nodes = 100'000,
-      .perturbation = PerturbationMode::DISABLED,
+      .strong_branching_max_iterations_factor = std::nullopt,
   };
+
   auto solver = FullStrongBranchingBranchAndBound(
       matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
       matrices.variables, settings);

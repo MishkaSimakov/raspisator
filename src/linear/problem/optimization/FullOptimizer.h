@@ -1,8 +1,9 @@
 #pragma once
 
 #include "BaseOptimizer.h"
-#include "RemoveConstantConstraints.h"
+#include "ObjectivePerturbation.h"
 #include "RemoveConstantAndUnusedVariables.h"
+#include "RemoveConstantConstraints.h"
 #include "RemoveLinearlyDependentConstraints.h"
 #include "RemoveOneVariableConstraints.h"
 #include "Scaling.h"
@@ -72,12 +73,7 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     }
 
     problem = scale(problem);
-
-    // problem = apply<TransformToEqualities<Field>>(problem);
-    //
-    // std::cout << problem << std::endl;
-    //
-    // problem = apply<Substitution<Field>>(problem);
+    problem = apply<ObjectivePerturbation<Field>>(problem);
 
     return problem;
   }

@@ -2,9 +2,8 @@
 
 #include <variant>
 
-#include "../../src/linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/BoundedSimplexMethod.h"
 #include "linear/BigInteger.h"
-#include "linear/CheckBFS.h"
 #include "linear/matrix/Matrix.h"
 
 template <typename Field>

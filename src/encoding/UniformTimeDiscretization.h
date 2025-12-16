@@ -52,7 +52,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
             std::tuple{&unit, task, t},
             builder.new_variable(
                 std::format("Q({}, {}, {})", unit.get_id(), task->get_id(), t),
-                VariableType::INTEGER, 0, info.batch_max_size));
+                VariableType::REAL, 0, info.batch_max_size));
         starts.emplace(
             std::tuple{&unit, task, t},
             builder.new_variable(
@@ -79,7 +79,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
         stocks.emplace(
             std::pair{&state, t},
             builder.new_variable(std::format("p({}, {})", state.get_id(), t),
-                                 VariableType::INTEGER, 0, max_stock));
+                                 VariableType::REAL, 0, max_stock));
       }
     }
   }

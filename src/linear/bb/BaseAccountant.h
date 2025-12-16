@@ -2,7 +2,6 @@
 
 #include "NodeRelativeLocation.h"
 #include "linear/model/LP.h"
-#include "linear/simplex/BaseAccountant.h"
 
 template <typename Field>
 struct BaseAccountant {

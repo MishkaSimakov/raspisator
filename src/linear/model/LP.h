@@ -19,43 +19,23 @@ struct FiniteLPSolution {
   std::vector<VariableState> variables;
 };
 
-struct InfiniteSolution {};
-
 struct NoFeasibleElements {};
 
 template <typename Field>
-using LPSolution =
-    std::variant<FiniteLPSolution<Field>, InfiniteSolution, NoFeasibleElements>;
+struct ReachedIterationsLimit {
+  // dual objective value on the last iteration
+  Field value;
+};
 
 template <typename Field>
 struct SimplexResult {
   size_t iterations_count;
 
-  std::variant<FiniteLPSolution<Field>, NoFeasibleElements> solution;
+  std::variant<FiniteLPSolution<Field>, NoFeasibleElements,
+               ReachedIterationsLimit<Field>>
+      solution;
 
   bool is_feasible() const {
     return std::holds_alternative<FiniteLPSolution<Field>>(solution);
-  }
-};
-
-// basic feasible solution
-template <typename Field>
-struct BFS {
-  Matrix<Field> point;
-  std::vector<size_t> basic_variables;
-
-  static BFS construct_nondegenerate(Matrix<Field> point) {
-    if (point.get_width() != 1) {
-      throw std::invalid_argument("shape of the point must be (d, 1).");
-    }
-
-    std::vector<size_t> basic_variables;
-    for (size_t i = 0; i < point.get_height(); ++i) {
-      if (point[i, 0] != 0) {
-        basic_variables.push_back(i);
-      }
-    }
-
-    return BFS(point, basic_variables);
   }
 };

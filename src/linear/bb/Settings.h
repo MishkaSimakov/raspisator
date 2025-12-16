@@ -2,16 +2,15 @@
 
 #include <optional>
 
-enum class PerturbationMode { DISABLED, CONSTANT, FOR_INTEGER_SOLUTION };
-
 template <typename Field>
 struct BranchAndBoundSettings {
   std::optional<size_t> max_nodes = std::nullopt;
+  std::optional<size_t> strong_branching_max_iterations_factor = 5;
+  size_t initial_simplex_iterations = 100;
 
+  // for reliability branching
   Field initial_pseudocost = 1;
-  size_t reliability_parameter = 1'000'000;
-  Field score_factor = static_cast<Field>(1) / 6;
+  size_t reliability_parameter = 4;
 
-  PerturbationMode perturbation = PerturbationMode::DISABLED;
-  Field perturbation_value = static_cast<Field>(1) / static_cast<Field>(1e5);
+  Field score_factor = static_cast<Field>(1) / 6;
 };

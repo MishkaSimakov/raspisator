@@ -6,7 +6,7 @@
 #include <ranges>
 #include <variant>
 
-#include "BaseAccountant.h"
+#include "Settings.h"
 #include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/Rank.h"
@@ -31,7 +31,7 @@ namespace simplex {
 // it is assumed that n < d
 
 // This version is specifically tuned for sparse A matrix
-template <typename Field, typename Accountant = BaseAccountant<Field>>
+template <typename Field>
 class BoundedSimplexMethod {
   CSCMatrix<Field> A_;
 
@@ -46,14 +46,13 @@ class BoundedSimplexMethod {
   CSCMatrix<Field> U_;
   std::vector<size_t> P_;
 
+  Settings<Field> settings_;
+
   mutable std::mt19937 random_engine_;
 
-  Accountant accountant_;
-
-  SimplexResult<Field> construct_finite_solution(
-      Matrix<Field> point, std::vector<size_t> basic_vars,
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds, size_t iteration) {
+  Matrix<Field> get_point(Matrix<Field> point, std::vector<size_t> basic_vars,
+                          const std::vector<Field>& lower_bounds,
+                          const std::vector<Field>& upper_bounds) {
     auto [n, d] = A_.shape();
 
     Matrix<Field> result(d, 1, 0);
@@ -68,6 +67,15 @@ class BoundedSimplexMethod {
         result[i, 0] = upper_bounds[i];
       }
     }
+
+    return result;
+  }
+
+  SimplexResult<Field> construct_finite_solution(
+      Matrix<Field> point, std::vector<size_t> basic_vars,
+      const std::vector<Field>& lower_bounds,
+      const std::vector<Field>& upper_bounds, size_t iteration) {
+    auto result = get_point(point, basic_vars, lower_bounds, upper_bounds);
 
     Field value = (c_ * result)[0, 0];
 
@@ -233,10 +241,22 @@ class BoundedSimplexMethod {
         continue;
       }
 
+      // if (!((variables_[i] == VariableState::AT_LOWER &&
+      //        !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0]))
+      //        ||
+      //       (variables_[i] == VariableState::AT_UPPER &&
+      //        !FieldTraits<Field>::is_strictly_negative(reduced_costs[i,
+      //        0])))) {
+      //   throw std::runtime_error(
+      //       std::format("Current point is not dual feasible! Reduced cost for
+      //       "
+      //                   "variable #{} has value {}.",
+      //                   i, reduced_costs[i, 0]));
+      // }
       if (!((variables_[i] == VariableState::AT_LOWER &&
-             !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0])) ||
+             reduced_costs[i, 0] < 1e-5) ||
             (variables_[i] == VariableState::AT_UPPER &&
-             !FieldTraits<Field>::is_strictly_negative(reduced_costs[i, 0])))) {
+             reduced_costs[i, 0] > -1e-5))) {
         throw std::runtime_error(
             std::format("Current point is not dual feasible! Reduced cost for "
                         "variable #{} has value {}.",
@@ -268,7 +288,8 @@ class BoundedSimplexMethod {
   }
 
  public:
-  BoundedSimplexMethod(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c)
+  BoundedSimplexMethod(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c,
+                       Settings<Field> settings = {})
       : A_(std::move(A)),
         b_(std::move(b)),
         c_(std::move(c)),
@@ -276,7 +297,8 @@ class BoundedSimplexMethod {
         lupa_(A_),
         L_(A_.shape().first),
         U_(A_.shape().first),
-        P_(A.shape().first) {
+        P_(A.shape().first),
+        settings_(settings) {
     // check sizes
     auto [n, d] = A_.shape();
 
@@ -363,11 +385,13 @@ class BoundedSimplexMethod {
     variables_ = variables;
   }
 
+  void set_max_iterations(std::optional<size_t> max_iterations) {
+    settings_.max_iterations = max_iterations;
+  }
+
   // solves the problem using dual bounded simplex method
   SimplexResult<Field> dual(const std::vector<Field>& lower_bounds,
                             const std::vector<Field>& upper_bounds) {
-    accountant_.new_problem();
-
     auto [n, d] = A_.shape();
 
     std::vector<size_t> basic_vars;
@@ -381,13 +405,11 @@ class BoundedSimplexMethod {
       throw std::invalid_argument("Wrong number of basic variables.");
     }
 
-    size_t iteration = 1;
+    size_t iteration = 0;
+    size_t anticycling_iterations = 0;
 
     while (true) {
-      bool detected_cycling = false;
-      ++iteration;
-
-      if (iteration % 10'000 == 0) {
+      if ((iteration + 1) % 10'000 == 0) {
         // {
         //   size_t since_epoch =
         //       std::chrono::system_clock::now().time_since_epoch() /
@@ -401,7 +423,7 @@ class BoundedSimplexMethod {
         // throw std::runtime_error("Cycling!");
 
         std::cout << "Cycling!" << std::endl;
-        detected_cycling = true;
+        anticycling_iterations = 5;
       }
 
       lupa_.get_lup(basic_vars, L_, U_, P_);
@@ -428,10 +450,23 @@ class BoundedSimplexMethod {
       }
       auto point = linalg::solve_linear(L_, U_, P_, b);
 
+      if (settings_.max_iterations && iteration >= settings_.max_iterations) {
+        auto full_point =
+            get_point(point, basic_vars, lower_bounds, upper_bounds);
+        Field value = (c_ * full_point)[0, 0];
+
+        return SimplexResult<Field>{
+            .iterations_count = iteration,
+            .solution = ReachedIterationsLimit{value},
+        };
+      }
+
       std::optional<std::pair<size_t, VariableState>> leaving;
-      if (detected_cycling) {
+      if (anticycling_iterations > 0) {
         leaving = get_dual_leaving_variable_randomly(
             point, basic_vars, lower_bounds, upper_bounds);
+
+        --anticycling_iterations;
       } else {
         leaving = get_dual_leaving_variable_dantzig(point, basic_vars,
                                                     lower_bounds, upper_bounds);
@@ -453,16 +488,14 @@ class BoundedSimplexMethod {
         };
       }
 
-      accountant_.store_iteration();
-
       // pivot
       variables_[*entering] = VariableState::BASIC;
       variables_[basic_vars[leaving->first]] = leaving->second;
       basic_vars[leaving->first] = *entering;
+
+      ++iteration;
     }
   }
-
-  const Accountant& get_accountant() const { return accountant_; }
 };
 
 }  // namespace simplex
