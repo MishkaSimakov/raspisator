@@ -6,7 +6,6 @@
 
 #include "encoding/UniformTimeDiscretization.h"
 #include "linear/bb/FullStrongBranching.h"
-#include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/FullOptimizer.h"

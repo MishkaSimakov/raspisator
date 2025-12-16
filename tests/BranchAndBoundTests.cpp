@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
 #include "linear/BigInteger.h"
-#include "linear/bb/PseudoCost.h"
+#include "linear/bb/FullStrongBranching.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/model/MILP.h"
+#include "linear/problem/VariableType.h"
 #include "linear/simplex/BoundedSimplexMethod.h"
 
 TEST(BranchAndBoundTests, SimpleProblems) {
@@ -20,7 +22,7 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     std::vector<Rational> lower(4, 0);
     std::vector<Rational> upper(4, 100'000);
 
-    PseudoCostBranchAndBound solver(A, b, c, lower, upper, variables);
+    FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
     auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve());
 
     ASSERT_EQ(solution.value, 1000);
@@ -51,7 +53,7 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     std::vector<Rational> lower(11, 0);
     std::vector<Rational> upper(11, 100'000);
 
-    PseudoCostBranchAndBound solver(A, b, c, lower, upper, variables);
+    FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
     auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve());
 
     ASSERT_EQ(solution.value, 700);
@@ -76,7 +78,7 @@ TEST(BranchAndBoundTests, NoFeasibleElements) {
   std::vector<Rational> lower(4, 0);
   std::vector<Rational> upper(4, 100);
 
-  PseudoCostBranchAndBound solver(A, b, c, lower, upper, variables);
+  FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
   auto solution = solver.solve();
 
   ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(solution));

@@ -6,6 +6,7 @@
 #include "Settings.h"
 #include "linear/bb/NodeRelativeLocation.h"
 #include "linear/model/MILP.h"
+#include "linear/problem/VariableType.h"
 #include "linear/simplex/BoundedSimplexMethod.h"
 #include "utils/Accumulators.h"
 
@@ -145,7 +146,8 @@ class FullStrongBranchingBranchAndBound {
           },
           run_result.solution);
 
-      if (std::holds_alternative<ReachedIterationsLimit<Field>>(run_result.solution)) {
+      if (std::holds_alternative<ReachedIterationsLimit<Field>>(
+              run_result.solution)) {
         std::cout << "iterations limit!" << std::endl;
       }
 
@@ -173,7 +175,8 @@ class FullStrongBranchingBranchAndBound {
           },
           run_result.solution);
 
-      if (std::holds_alternative<ReachedIterationsLimit<Field>>(run_result.solution)) {
+      if (std::holds_alternative<ReachedIterationsLimit<Field>>(
+              run_result.solution)) {
         std::cout << "iterations limit!" << std::endl;
       }
 
@@ -340,11 +343,11 @@ class FullStrongBranchingBranchAndBound {
   }
 
  public:
-  explicit FullStrongBranchingBranchAndBound(
-      Matrix<Field> A, Matrix<Field> b, Matrix<Field> c,
-      std::vector<Field> lower, std::vector<Field> upper,
-      std::vector<VariableType> variables,
-      BranchAndBoundSettings<Field> settings = {})
+  FullStrongBranchingBranchAndBound(Matrix<Field> A, Matrix<Field> b,
+                                    Matrix<Field> c, std::vector<Field> lower,
+                                    std::vector<Field> upper,
+                                    std::vector<VariableType> variables,
+                                    BranchAndBoundSettings<Field> settings = {})
       : total_nodes_count_(0),
         lp_solver_(CSCMatrix(A), b, c),
         variables_(variables),

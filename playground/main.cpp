@@ -6,7 +6,6 @@
 #include "encoding/UniformTimeDiscretization.h"
 #include "linear/BigInteger.h"
 #include "linear/bb/FullStrongBranching.h"
-#include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
 #include "linear/bb/TreeStoringAccountant.h"
 #include "linear/matrix/NPY.h"
@@ -43,8 +42,7 @@ int main() {
 
   auto settings = BranchAndBoundSettings<Field>{
       .max_nodes = 10'000,
-      .strong_branching_max_iterations_factor = std::nullopt
-  };
+      .strong_branching_max_iterations_factor = std::nullopt};
 
   auto solver =
       FullStrongBranchingBranchAndBound<Field, TreeStoringAccountant<Field>>(
