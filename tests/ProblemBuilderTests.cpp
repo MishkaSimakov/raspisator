@@ -8,6 +8,7 @@
 #include "linear/problem/optimization/RemoveConstantConstraints.h"
 #include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
 #include "linear/problem/optimization/Scaling.h"
+#include "linear/problem/optimization/Substitution.h"
 #include "linear/problem/optimization/TransformToEqualities.h"
 #include "linear/simplex/BoundedSimplexMethod.h"
 
@@ -119,6 +120,41 @@ TEST(ProblemBuilderTests, ScalingTest) {
 
   ASSERT_DOUBLE_EQ(solution.value, 10);
   ASSERT_DOUBLE_EQ(value, 10);
+}
+
+TEST(ProblemBuilderTests, SimpleSubstitute) {
+  MILPProblem<Rational> builder;
+
+  auto x = builder.new_variable("x", VariableType::REAL, 0, 10);
+  auto y = builder.new_variable("y", VariableType::REAL, 0, 10);
+
+  builder.add_constraint(x + y == Expression<Rational>(10));
+  builder.add_constraint(x == Expression<Rational>(10));
+
+  auto optimizer = Substitution<Rational>().apply(builder);
+
+  ASSERT_EQ(optimizer.constraints.size(), 1);
+  ASSERT_EQ(std::format("{}", optimizer.constraints[0]), "x + -10 == 0");
+}
+
+TEST(ProblemBuilderTests, ComplexSubstitute) {
+  MILPProblem<Rational> builder;
+
+  auto x = builder.new_variable("x", VariableType::REAL, 0, 10);
+  auto y = builder.new_variable("y", VariableType::REAL, 0, 10);
+
+  builder.add_constraint(y == Expression<Rational>(1));
+  builder.add_constraint(x + y == Expression<Rational>(10));
+  builder.add_constraint(x == Expression<Rational>(10));
+  builder.add_constraint(2 * x == Expression<Rational>(20));
+
+  auto optimizer = Substitution<Rational>().apply(builder);
+
+  ASSERT_EQ(optimizer.constraints.size(), 3);
+
+  ASSERT_EQ(std::format("{}", optimizer.constraints[0]), "-x + 9 == 0");
+  ASSERT_EQ(std::format("{}", optimizer.constraints[1]), "x + -10 == 0");
+  ASSERT_EQ(std::format("{}", optimizer.constraints[2]), "2*x + -20 == 0");
 }
 
 // TEST(ProblemBuilderTests, WithBranchAndBound) {

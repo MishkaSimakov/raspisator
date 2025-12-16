@@ -2,11 +2,12 @@
 
 #include "BaseOptimizer.h"
 #include "RemoveConstantConstraints.h"
-#include "RemoveConstantVariables.h"
+#include "RemoveConstantAndUnusedVariables.h"
 #include "RemoveLinearlyDependentConstraints.h"
 #include "RemoveOneVariableConstraints.h"
 #include "Scaling.h"
 #include "StrictenBounds.h"
+#include "Substitution.h"
 #include "TransformToEqualities.h"
 
 template <typename Field>
@@ -36,9 +37,10 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     problem = apply<RemoveConstantConstraints<Field>>(problem);
     problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
     problem = apply<RemoveLinearlyDependentConstraints<Field>>(problem);
-    problem = apply<RemoveConstantVariables<Field>>(problem);
+    problem = apply<RemoveConstantAndUnusedVariables<Field>>(problem);
     problem = apply<RemoveOneVariableConstraints<Field>>(problem);
     problem = apply<StrictenBounds<Field>>(problem);
+    problem = apply<Substitution<Field>>(problem);
 
     return problem;
   }
@@ -70,6 +72,12 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     }
 
     problem = scale(problem);
+
+    // problem = apply<TransformToEqualities<Field>>(problem);
+    //
+    // std::cout << problem << std::endl;
+    //
+    // problem = apply<Substitution<Field>>(problem);
 
     return problem;
   }

@@ -52,6 +52,11 @@ class StrictenBounds final : public BaseOptimizer<Field> {
           info.lower_bound = std::max(upper / coef, info.lower_bound);
           info.upper_bound = std::min(lower / coef, info.upper_bound);
         }
+
+        if (FieldTraits<Field>::is_strictly_negative(info.upper_bound -
+                                                     info.lower_bound)) {
+          throw std::runtime_error("Problem is trivially infeasible.");
+        }
       }
     }
 

@@ -119,7 +119,8 @@ struct MILPProblem {
 
 template <typename Field>
 std::ostream& operator<<(std::ostream& os, const MILPProblem<Field>& problem) {
-  std::println(os, "problem with {} constraints", problem.constraints.size());
+  std::println(os, "problem with {} constraints and {} variables",
+               problem.constraints.size(), problem.variables.size());
 
   os << "max " << problem.objective << "\n";
   os << "such that:\n";

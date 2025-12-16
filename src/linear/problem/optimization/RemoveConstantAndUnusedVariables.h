@@ -4,7 +4,7 @@
 #include "linear/problem/MILPProblem.h"
 
 template <typename Field>
-class RemoveConstantVariables final : public BaseOptimizer<Field> {
+class RemoveConstantAndUnusedVariables final : public BaseOptimizer<Field> {
   std::unordered_map<size_t, Field> constants_;
 
   void replace_in_constraints(MILPProblem<Field>& problem,
@@ -31,15 +31,37 @@ class RemoveConstantVariables final : public BaseOptimizer<Field> {
     }
   }
 
+  bool is_unused(const MILPProblem<Field>& problem,
+                 const std::string& variable) {
+    for (auto& constraint : problem.constraints) {
+      if (constraint.expr.get_variables().contains(variable)) {
+        return false;
+      }
+    }
+
+    if (problem.objective.get_variables().contains(variable)) {
+      return false;
+    }
+
+    return true;
+  }
+
  public:
-  RemoveConstantVariables() = default;
+  RemoveConstantAndUnusedVariables() = default;
 
   MILPProblem<Field> apply(MILPProblem<Field> problem) override {
     size_t i = 0;
 
     for (auto itr = problem.variables.begin();
          itr != problem.variables.end();) {
-      if (FieldTraits<Field>::is_nonzero(itr->upper_bound - itr->lower_bound)) {
+      if (is_unused(problem, itr->name)) {
+        // unused variable may be equal to any value within its bounds
+        Field value = itr->upper_bound;
+        constants_.emplace(i, value);
+
+        itr = problem.variables.erase(itr);
+      } else if (FieldTraits<Field>::is_nonzero(itr->upper_bound -
+                                                itr->lower_bound)) {
         ++itr;
       } else {
         Field value = itr->upper_bound;

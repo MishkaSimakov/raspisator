@@ -114,7 +114,7 @@ class Expression {
   }
 
   std::optional<Expression> express(Variable<Field> variable) const {
-    auto itr = variables_.find(variable);
+    auto itr = variables_.find(variable.get_name());
 
     if (itr == variables_.end()) {
       return std::nullopt;
@@ -125,6 +125,7 @@ class Expression {
     for (auto& coef : copy.variables_ | std::views::values) {
       coef /= itr->second;
     }
+    copy.shift_ /= itr->second;
 
     return copy;
   }

@@ -198,12 +198,13 @@ class Solution {
   bool check_output_states() {
     for (const State<Field>& s : stn->get_states()) {
       Field filled = state_filled[s.get_id()];
-      bool result =
-          std::visit(Overload{[&filled](OutputState<Field> state) {
-                                return filled >= state.target;
-                              },
-                              [&filled](const auto&) { return true; }},
-                     s);
+      bool result = std::visit(
+          Overload{[&filled](OutputState<Field> state) {
+                     return !FieldTraits<Field>::is_strictly_negative(
+                         filled - state.target);
+                   },
+                   [&filled](const auto&) { return true; }},
+          s);
       if (!result) {
         std::println("target not acquired for output state {}", s.get_id());
         return false;
