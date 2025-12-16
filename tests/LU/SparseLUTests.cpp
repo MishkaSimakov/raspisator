@@ -53,7 +53,14 @@ TEST(SparseLUTests, SolvesTransposedLinearSystem) {
     auto [L, U, P] = linalg::sparse_lup(sparse, columns);
 
     Matrix<Rational> b(N, 1, 123);
-    auto x = linalg::solve_transposed_linear(L, U, P, b);
+
+    // returns a point y, such that x[i] = y[P[i]]
+    auto y = linalg::solve_transposed_linear(L, U, P, b);
+
+    Matrix<Rational> x(N, 1);
+    for (size_t i = 0; i < N; ++i) {
+      x[i, 0] = y[P[i], 0];
+    }
 
     ASSERT_EQ(linalg::transposed(matrix) * x, b);
   }

@@ -26,8 +26,8 @@ TEST(ProblemBuilderTests, RemoveConstantConstraints) {
   auto optimized = RemoveConstantConstraints<Rational>().apply(problem);
 
   ASSERT_EQ(optimized.constraints.size(), 2);
-  ASSERT_EQ(std::format("{}", optimized.constraints[0]), "x + y <= 10");
-  ASSERT_EQ(std::format("{}", optimized.constraints[1]), "x <= 10");
+  ASSERT_EQ(std::format("{}", optimized.constraints[0]), "y + x + -10 <= 0");
+  ASSERT_EQ(std::format("{}", optimized.constraints[1]), "x + -10 <= 0");
 }
 
 TEST(ProblemBuilderTests, ThrowsWhenFalseConstantConstraint) {
@@ -51,8 +51,9 @@ TEST(ProblemBuilderTests, RemoveLinearlyDependent) {
       RemoveLinearlyDependentConstraints<Rational>().apply(problem);
 
   ASSERT_EQ(optimized.constraints.size(), 1);
-  ASSERT_TRUE(std::format("{}", optimized.constraints[0]) == "x + y == 10" ||
-              std::format("{}", optimized.constraints[0]) == "2*x + 2*y == 20");
+  ASSERT_TRUE(
+      std::format("{}", optimized.constraints[0]) == "y + x + -10 == 0" ||
+      std::format("{}", optimized.constraints[0]) == "2*y + 2*x + -20 == 0");
 }
 
 TEST(ProblemBuilderTests, WithSimplexMethod) {

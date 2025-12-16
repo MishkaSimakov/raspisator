@@ -254,9 +254,9 @@ class BoundedSimplexMethod {
       //                   i, reduced_costs[i, 0]));
       // }
       if (!((variables_[i] == VariableState::AT_LOWER &&
-             reduced_costs[i, 0] < 1e-5) ||
+             reduced_costs[i, 0] < Field(1) / Field(1e5)) ||
             (variables_[i] == VariableState::AT_UPPER &&
-             reduced_costs[i, 0] > -1e-5))) {
+             reduced_costs[i, 0] > -Field(1) / Field(1e5)))) {
         throw std::runtime_error(
             std::format("Current point is not dual feasible! Reduced cost for "
                         "variable #{} has value {}.",
