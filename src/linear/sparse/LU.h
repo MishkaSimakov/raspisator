@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "CSCMatrix.h"
+#include "utils/Accumulators.h"
 
 namespace linalg {
 
@@ -191,7 +192,6 @@ std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, std::vector<size_t>> sparse_lup(
   return {std::move(L), std::move(U), std::move(rows_permutation)};
 }
 
-
 // solves Ax = b, where PA = LU
 // L must be without ones on the main diagonal
 template <typename Field>
@@ -249,15 +249,24 @@ void solve_transposed_linear_inplace(const CSCMatrix<Field>& L,
   for (size_t col = 0; col < n; ++col) {
     Field diagonal;
 
+    // std::cout << b[col, 0] << " -= ";
+
     for (const auto& [row, value] : U.get_column(col)) {
       if (row != col) {
         b[col, 0] -= value * b[row, 0];
+
+        // std::cout << value << "*" << b[row, 0] << " + ";
       } else {
         diagonal = value;
       }
     }
 
+    // std::cout << " | " << b[col, 0] << " " << diagonal << "\n";
     b[col, 0] /= diagonal;
+
+    if (!FieldTraits<Field>::is_nonzero(b[col, 0])) {
+      b[col, 0] = 0;
+    }
   }
 
   // solve L^T x = y
@@ -266,6 +275,10 @@ void solve_transposed_linear_inplace(const CSCMatrix<Field>& L,
 
     for (const auto& [row, value] : L.get_column(col)) {
       b[col, 0] -= b[row, 0] * value;
+    }
+
+    if (!FieldTraits<Field>::is_nonzero(b[col, 0])) {
+      b[col, 0] = 0;
     }
   }
 }

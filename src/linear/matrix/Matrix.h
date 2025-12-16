@@ -546,4 +546,21 @@ common_field_t<L, R> dot(L&& left, R&& right) {
 
   return result;
 }
+
+template <MatrixLike T>
+double norm(T&& matrix)
+  requires(std::same_as<matrix_field_t<T>, double>)
+{
+  auto [n, d] = matrix.shape();
+
+  double result = 0;
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < d; ++j) {
+      result += matrix[i, j] * matrix[i, j];
+    }
+  }
+
+  return std::sqrt(result);
+}
 }  // namespace linalg

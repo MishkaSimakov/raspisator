@@ -9,6 +9,7 @@
 #include "linear/bb/PseudoCost.h"
 #include "linear/bb/Settings.h"
 #include "linear/bb/TreeStoringAccountant.h"
+#include "linear/matrix/NPY.h"
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/FullOptimizer.h"
 #include "model/Solution.h"
@@ -16,19 +17,21 @@
 #include "problems/Dwarf.h"
 #include "utils/Drawing.h"
 
-using Field = Rational;
+using Field = double;
 
 int main() {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
 
-  size_t H = 10;
+  size_t H = 25;
 
-  auto problem = small_blomer_problem<Field>(100, 100);
+  auto problem = small_blomer_problem<Field>(200, 100);
 
   // std::cout << to_graphviz(problem) << std::endl;
 
   auto encoding = to_uniform_time_milp(problem, H);
+
+  std::cout << encoding.builder << std::endl;
 
   auto optimizer = FullOptimizer<Field>(true);
   auto optimized_problem = optimizer.apply(encoding.builder);
@@ -48,7 +51,7 @@ int main() {
           matrices.variables, settings);
   auto solution = solver.solve();
 
-  // std::cout << solver.get_accountant().to_graphviz() << std::endl;
+  std::cout << solver.get_accountant().to_graphviz() << std::endl;
 
   // {
   //   std::ofstream os("iterations_data.csv");
@@ -114,5 +117,3 @@ int main() {
       "Overall: {}",
       std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));
 }
-
-// Overall: 4478023834ns

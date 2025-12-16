@@ -65,7 +65,7 @@ class FullOptimizer final : public BaseOptimizer<Field> {
 
     problem = apply<TransformToEqualities<Field>>(problem);
 
-    for (size_t i = 0; i < 5; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       problem = apply_main_loop(problem);
     }
 

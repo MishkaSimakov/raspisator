@@ -57,6 +57,10 @@ class Minimum {
  public:
   Minimum() : minimum_(std::nullopt) {}
 
+  void reset() {
+    minimum_ = std::nullopt;
+  }
+
   void record(Field value) {
     if (!minimum_ ||
         FieldTraits<Field>::is_strictly_positive(*minimum_ - value)) {
@@ -79,6 +83,10 @@ class Maximum {
 
  public:
   Maximum() : maximum_(std::nullopt) {}
+
+  void reset() {
+    maximum_ = std::nullopt;
+  }
 
   void record(Field value) {
     if (!maximum_ ||

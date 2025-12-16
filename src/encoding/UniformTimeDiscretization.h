@@ -35,7 +35,7 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
 
   // decision variables
   auto makespan =
-      builder.new_variable("MS", VariableType::INTEGER, 0, max_periods);
+      builder.new_variable("MS", VariableType::INTEGER, 0, max_periods - 1);
   std::unordered_map<std::tuple<const Unit<Field>*, const Task<Field>*, size_t>,
                      Variable<Field>>
       quantities;
@@ -202,10 +202,10 @@ ProblemEncoding<Field> to_uniform_time_milp(const STN<Field>& problem,
       Expression<Field> running_batches_cnt(0);
 
       for (const auto& [task, props] : unit.get_tasks()) {
-        if (props.batch_processing_time <= t) {
-          for (size_t t2 = t - props.batch_processing_time; t2 < t; ++t2) {
-            running_batches_cnt += starts.at({&unit, task, t2});
-          }
+        for (size_t t2 = std::max(t, props.batch_processing_time) -
+                         props.batch_processing_time;
+             t2 < t; ++t2) {
+          running_batches_cnt += starts.at({&unit, task, t2});
         }
       }
 

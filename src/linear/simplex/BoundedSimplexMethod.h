@@ -190,6 +190,11 @@ class BoundedSimplexMethod {
     linalg::solve_transposed_linear_inplace(L, U, P, cb);
 
     for (size_t i = 0; i < d; ++i) {
+      if (variables_[i] == VariableState::BASIC) {
+        result[i, 0] = 0;
+        continue;
+      }
+
       result[i, 0] = c_[0, i];
 
       for (const auto& [row, value] : A_.get_column(i)) {
@@ -376,13 +381,13 @@ class BoundedSimplexMethod {
       throw std::invalid_argument("Wrong number of basic variables.");
     }
 
-    size_t iteration = 0;
+    size_t iteration = 1;
 
     while (true) {
       bool detected_cycling = false;
       ++iteration;
 
-      if (iteration > 10'000) {
+      if (iteration % 10'000 == 0) {
         // {
         //   size_t since_epoch =
         //       std::chrono::system_clock::now().time_since_epoch() /

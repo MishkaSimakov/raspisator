@@ -221,12 +221,11 @@ class FullStrongBranchingBranchAndBound {
     }
 
     auto solution = std::get<FiniteLPSolution<Field>>(run_result.solution);
+    log_bounds(node, solution);
 
     if (try_prune(solution, node)) {
       return;
     }
-
-    log_bounds(node, solution);
 
     // branch
     node.value = solution.value;

@@ -55,6 +55,13 @@ class StrictenBounds final : public BaseOptimizer<Field> {
       }
     }
 
+    for (auto& info : problem.variables) {
+      if (info.type == VariableType::INTEGER) {
+        info.lower_bound = -FieldTraits<Field>::floor(-info.lower_bound);
+        info.upper_bound = FieldTraits<Field>::floor(info.upper_bound);
+      }
+    }
+
     return problem;
   }
 
