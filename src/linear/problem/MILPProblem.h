@@ -10,6 +10,7 @@
 #include "grammar/Expression.h"
 #include "grammar/Variable.h"
 #include "linear/matrix/Matrix.h"
+#include "utils/Accumulators.h"
 
 template <typename Field>
 struct VariableInfo {
@@ -114,6 +115,16 @@ struct MILPProblem {
 
     return static_cast<double>(nz_count) /
            static_cast<double>(constraints.size() * variables.size());
+  }
+
+  Field average_boundary_gap() const {
+    ArithmeticMean<Field> gap;
+
+    for (const auto& variable : variables) {
+      gap.record(variable.upper_bound - variable.lower_bound);
+    }
+
+    return gap.mean();
   }
 };
 

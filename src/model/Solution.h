@@ -285,6 +285,14 @@ class Solution {
     return check_output_states();
   }
 
+  size_t get_total_time() const {
+    return std::ranges::max(
+        task_instances |
+        std::views::transform([this](const TaskInstance& instance) {
+          return get_instance_end_time(instance);
+        }));
+  }
+
   void to_graphviz(std::ostream& os) const {
     os << "digraph {\n";
     os << "graph [ pad=\"0.5\", nodesep=\"0.5\", ranksep=\"2\" ]\n";
@@ -293,11 +301,7 @@ class Solution {
     os << "Foo [label=<\n";
     os << "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n";
 
-    size_t max_time = std::ranges::max(
-        task_instances |
-        std::views::transform([this](const TaskInstance& instance) {
-          return get_instance_end_time(instance);
-        }));
+    size_t max_time = get_total_time();
 
     os << "<tr><td></td>";
     for (size_t i = 0; i < max_time; ++i) {

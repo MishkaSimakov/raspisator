@@ -15,5 +15,10 @@ struct NoFiniteSolution {};
 struct ReachedNodesLimit {};
 
 template <typename Field>
-using MILPSolution = std::variant<FiniteMILPSolution<Field>, NoFiniteSolution,
-                                  ReachedNodesLimit>;
+struct BBRunResult {
+  std::variant<FiniteMILPSolution<Field>, NoFiniteSolution, ReachedNodesLimit>
+      solution;
+
+  size_t nodes_count;
+  double average_simplex_iterations;
+};

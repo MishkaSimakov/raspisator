@@ -5,8 +5,9 @@
 template <typename Field>
 struct BranchAndBoundSettings {
   std::optional<size_t> max_nodes = std::nullopt;
+
   std::optional<size_t> strong_branching_max_iterations_factor = 5;
-  size_t initial_simplex_iterations = 100;
+  size_t strong_branching_min_iterations_limit = 0;
 
   // for reliability branching
   Field initial_pseudocost = 1;

@@ -7,10 +7,10 @@
 
 using Field = double;
 
-#include "simplex_core_dump_0.h"
+#include "../../playground/simplex_core_dump_0.h"
+#include "../../playground/simplex_core_dump_5.h"
 #include "simplex_core_dump_1.h"
 #include "simplex_core_dump_2.h"
-#include "simplex_core_dump_5.h"
 
 TEST(BigTests, PotentiallyCyclingProblem1) {
   using namespace SimplexDump_0;

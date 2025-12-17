@@ -379,35 +379,41 @@ std::optional<Solution<Field>> apply_time_grid_model(
     const STN<Field>& problem, size_t max_periods, const TimeGrid& time_grid) {
   TimeGridModel<Field> model(problem, max_periods, time_grid);
 
-  std::println("before constraints {}, variables {}",
-               model.builder.constraints.size(),
-               model.builder.variables.size());
+  std::println("    before: constraints {}, variables {}, average gap: {}",
+               model.builder.constraints.size(), model.builder.variables.size(),
+               model.builder.average_boundary_gap());
 
-  auto optimizer = FullOptimizer<Field>(false);
+  auto optimizer = FullOptimizer<Field>();
   auto optimized_problem = optimizer.apply(model.builder);
 
-  std::println("after  constraints {}, variables {}",
+  std::println("    after: constraints {}, variables {}, average gap: {}",
                optimized_problem.constraints.size(),
-               optimized_problem.variables.size());
+               optimized_problem.variables.size(),
+               optimized_problem.average_boundary_gap());
 
   // solve MILP problem
   auto matrices = to_matrices(optimized_problem);
 
   auto settings = BranchAndBoundSettings<Field>{
       .max_nodes = 50'000,
-      .strong_branching_max_iterations_factor = std::nullopt};
+      .strong_branching_max_iterations_factor = 100,
+      .strong_branching_min_iterations_limit = 10'000,
+  };
 
   auto solver = FullStrongBranchingBranchAndBound<Field>(
       matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
       matrices.variables, settings);
-  auto milp_solution = solver.solve();
+  auto run_result = solver.solve();
 
-  if (!std::holds_alternative<FiniteMILPSolution<Field>>(milp_solution)) {
+  if (!std::holds_alternative<FiniteMILPSolution<Field>>(run_result.solution)) {
     return std::nullopt;
   }
 
+  std::println("    nodes count: {}, average simplex iterations: {}",
+               run_result.nodes_count, run_result.average_simplex_iterations);
+
   auto point = optimizer.inverse(
-      std::get<FiniteMILPSolution<Field>>(milp_solution).point);
+      std::get<FiniteMILPSolution<Field>>(run_result.solution).point);
 
   Solution solution(&problem);
 
@@ -437,35 +443,41 @@ std::optional<Solution<Field>> apply_left_shift_model(
     const Solution<Field>& solution) {
   LeftShiftModel<Field> model(problem, max_periods, solution);
 
-  std::println("before constraints {}, variables {}",
-               model.builder.constraints.size(),
-               model.builder.variables.size());
+  std::println("    before: constraints {}, variables {}, average gap: {}",
+               model.builder.constraints.size(), model.builder.variables.size(),
+               model.builder.average_boundary_gap());
 
   auto optimizer = FullOptimizer<Field>();
   auto optimized_problem = optimizer.apply(model.builder);
 
-  std::println("after  constraints {}, variables {}",
+  std::println("    after: constraints {}, variables {}, average gap: {}",
                optimized_problem.constraints.size(),
-               optimized_problem.variables.size());
+               optimized_problem.variables.size(),
+               optimized_problem.average_boundary_gap());
 
   // solve MILP problem
   auto matrices = to_matrices(optimized_problem);
 
   auto settings = BranchAndBoundSettings<Field>{
       .max_nodes = 50'000,
-      .strong_branching_max_iterations_factor = std::nullopt};
+      .strong_branching_max_iterations_factor = 100,
+      .strong_branching_min_iterations_limit = 10'000,
+  };
 
   auto solver = FullStrongBranchingBranchAndBound<Field>(
       matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
       matrices.variables, settings);
-  auto milp_solution = solver.solve();
+  auto run_result = solver.solve();
 
-  if (!std::holds_alternative<FiniteMILPSolution<Field>>(milp_solution)) {
+  if (!std::holds_alternative<FiniteMILPSolution<Field>>(run_result.solution)) {
     return std::nullopt;
   }
 
+  std::println("    nodes count: {}, average simplex iterations: {}",
+               run_result.nodes_count, run_result.average_simplex_iterations);
+
   auto point = optimizer.inverse(
-      std::get<FiniteMILPSolution<Field>>(milp_solution).point);
+      std::get<FiniteMILPSolution<Field>>(run_result.solution).point);
 
   Solution refined_solution(&problem);
 
@@ -498,6 +510,7 @@ std::optional<Solution<Field>> apply_left_shift_model(
 template <typename Field>
 std::optional<Solution<Field>> blomer_heuristic_model(
     const STN<Field>& problem, size_t max_periods, const TimeGrid& time_grid) {
+  std::println("  solving rough:");
   auto rough_solution = apply_time_grid_model(problem, max_periods, time_grid);
 
   if (!rough_solution) {
@@ -508,10 +521,14 @@ std::optional<Solution<Field>> blomer_heuristic_model(
     throw std::runtime_error("Rough solution is invalid.");
   }
 
-  rough_solution->to_graphviz(std::cout);
+  std::println("    periods: {}", rough_solution->get_total_time());
+  // rough_solution->to_graphviz(std::cout);
 
+  std::println("  solving left shift:");
   auto refined_solution =
       apply_left_shift_model(problem, max_periods, *rough_solution);
+
+  std::println("    periods: {}", refined_solution->get_total_time());
 
   return refined_solution;
 }

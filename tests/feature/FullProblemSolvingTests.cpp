@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "../../src/linear/scheduling/UniformTimeDiscretization.h"
 #include "linear/bb/FullStrongBranching.h"
 #include "linear/bb/Settings.h"
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/FullOptimizer.h"
+#include "linear/scheduling/BlomersHeuristic.h"
 #include "model/STN.h"
 #include "model/Solution.h"
 #include "problems/Blomer.h"
@@ -55,7 +55,12 @@ TEST_P(FullProblemSolvingTests, SolveThenCheck) {
 
   size_t H = 15;
 
-  auto encoding = to_uniform_time_milp(*stn, H);
+  TimeGrid dense_grid;
+  for (const auto& unit : stn->get_units()) {
+    dense_grid.emplace(unit.get_id(), [](size_t time) { return true; });
+  }
+
+  auto encoding = TimeGridModel<double>(*stn, H, dense_grid);
 
   // solve MILP problem
   auto optimizer = FullOptimizer<double>();
@@ -71,11 +76,13 @@ TEST_P(FullProblemSolvingTests, SolveThenCheck) {
   auto solver = FullStrongBranchingBranchAndBound(
       matrices.A, matrices.b, matrices.c, matrices.lower, matrices.upper,
       matrices.variables, settings);
-  auto solution = solver.solve();
+  auto run_result = solver.solve();
 
   // check solution
-  ASSERT_TRUE(std::holds_alternative<FiniteMILPSolution<double>>(solution));
-  auto finite_solution = std::get<FiniteMILPSolution<double>>(solution);
+  ASSERT_TRUE(
+      std::holds_alternative<FiniteMILPSolution<double>>(run_result.solution));
+  auto finite_solution =
+      std::get<FiniteMILPSolution<double>>(run_result.solution);
 
   auto point = optimizer.inverse(finite_solution.point);
 

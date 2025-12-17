@@ -26,7 +26,6 @@ class FullStrongBranchingBranchAndBound {
     size_t branch_variable;
 
     Field value;
-    Field expected;
 
     Field branch_value;
     Field fractional;
@@ -42,7 +41,6 @@ class FullStrongBranchingBranchAndBound {
 
   BranchAndBoundSettings<Field> settings_;
 
-  // used to calculate average simplex iterations count
   ArithmeticMean<double> simplex_iterations_;
 
   Accountant accountant_;
@@ -116,17 +114,25 @@ class FullStrongBranchingBranchAndBound {
            settings_.score_factor * std::max(*left_score, *right_score);
   }
 
+  std::optional<size_t> get_strong_branching_iterations_limit() {
+    if (!settings_.strong_branching_max_iterations_factor) {
+      return std::nullopt;
+    }
+
+    size_t limit = simplex_iterations_.mean() *
+                   *settings_.strong_branching_max_iterations_factor;
+
+    return std::max(settings_.strong_branching_min_iterations_limit, limit);
+  }
+
   std::optional<Field> score_via_simplex(
       size_t index, const Node& node, const FiniteLPSolution<Field>& solution) {
     // full strong branching
     Field fractional = FieldTraits<Field>::fractional(solution.point[index, 0]);
     Field branch_value = FieldTraits<Field>::floor(solution.point[index, 0]);
 
-    if (settings_.strong_branching_max_iterations_factor) {
-      lp_solver_.set_max_iterations(
-          simplex_iterations_.mean() *
-          *settings_.strong_branching_max_iterations_factor);
-    }
+    auto iterations_limit = get_strong_branching_iterations_limit();
+    lp_solver_.set_max_iterations(iterations_limit);
 
     // calculate left node
     std::optional<Field> lower_score;
@@ -198,6 +204,7 @@ class FullStrongBranchingBranchAndBound {
           !is_integer(solution.point[i, 0])) {
         auto current_score = score_via_simplex(i, node, solution);
         score.record(i, current_score);
+
         // auto f = FieldTraits<Field>::fractional(solution.point[i, 0]);
         // score.record(i, std::min(f, 1 - f));
       }
@@ -226,8 +233,8 @@ class FullStrongBranchingBranchAndBound {
       lb = ss.str();
     }
 
-    std::println("#{}; LB: {}; UB: {}; waiting: {}", node.id, lb,
-                 current_solution.value, waiting_.size());
+    // std::println("#{}; LB: {}; UB: {}; waiting: {}", node.id, lb,
+                 // current_solution.value, waiting_.size());
   }
 
   void record_simplex_run(const Node& parent, NodeRelativeLocation location,
@@ -255,9 +262,6 @@ class FullStrongBranchingBranchAndBound {
     node.value = solution.value;
     node.variables_states = solution.variables;
 
-    // TODO: expected value
-    node.expected = node.value;
-
     node.branch_variable = find_branching_variable(node, solution);
     node.branch_value =
         FieldTraits<Field>::floor(solution.point[node.branch_variable, 0]);
@@ -269,7 +273,7 @@ class FullStrongBranchingBranchAndBound {
 
     if (!lifo_slot_) {
       lifo_slot_ = std::move(node);
-    } else if (lifo_slot_->expected > node.expected) {
+    } else if (lifo_slot_->value < node.value) {
       waiting_.push_back(std::move(*lifo_slot_));
       lifo_slot_ = std::move(node);
     } else {
@@ -325,20 +329,25 @@ class FullStrongBranchingBranchAndBound {
       return std::nullopt;
     }
 
-    // choose node with the lowest expected value
-    ArgMinimum<Field> min_expected;
+    // choose node with the lowest the highest value
+    ArgMinimum<Field> max_value;
     for (size_t i = 0; i < waiting_.size(); ++i) {
-      min_expected.record(i, waiting_[i].expected);
+      max_value.record(i, -waiting_[i].value);
     }
 
-    auto result = std::move(waiting_[*min_expected.argmin()]);
-    waiting_.erase(waiting_.begin() + *min_expected.argmin());
+    auto result = std::move(waiting_[*max_value.argmin()]);
+    waiting_.erase(waiting_.begin() + *max_value.argmin());
 
     return result;
-    // auto result = std::move(waiting_.back());
-    // waiting_.pop_back();
-    //
-    // return result;
+  }
+
+  template <typename T, typename... Args>
+  BBRunResult<Field> wrap_solution(Args&&... args) const {
+    return BBRunResult<Field>{
+        .solution = T(std::forward<Args>(args)...),
+        .nodes_count = total_nodes_count_,
+        .average_simplex_iterations = simplex_iterations_.mean(),
+    };
   }
 
  public:
@@ -351,8 +360,6 @@ class FullStrongBranchingBranchAndBound {
         lp_solver_(CSCMatrix(A), b, c),
         variables_(variables),
         settings_(settings) {
-    simplex_iterations_.record(settings.initial_simplex_iterations);
-
     Node root;
 
     root.id = ++total_nodes_count_;
@@ -369,7 +376,7 @@ class FullStrongBranchingBranchAndBound {
 
   const Accountant& get_accountant() const { return accountant_; }
 
-  MILPSolution<Field> solve() {
+  BBRunResult<Field> solve() {
     // solve for root
     std::optional<Node> root = pop_node();
     assert(root.has_value());
@@ -384,14 +391,14 @@ class FullStrongBranchingBranchAndBound {
       calculate_node(*parent, NodeRelativeLocation::RIGHT_CHILD);
 
       if (settings_.max_nodes && total_nodes_count_ > settings_.max_nodes) {
-        return ReachedNodesLimit{};
+        return wrap_solution<ReachedNodesLimit>();
       }
     }
 
     if (incumbent_) {
-      return *incumbent_;
+      return wrap_solution<FiniteMILPSolution<Field>>(*incumbent_);
     }
 
-    return NoFiniteSolution{};
+    return wrap_solution<NoFiniteSolution>();
   }
 };

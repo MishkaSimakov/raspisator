@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Types.h"
+#include "linear/FieldTraits.h"
 
 template <typename Field>
 class MatrixSlice {
@@ -369,6 +370,27 @@ class Matrix {
     }
 
     return true;
+  }
+
+  size_t nonzero_count() const {
+    size_t result = 0;
+    auto [n, d] = shape();
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < d; ++j) {
+        if (FieldTraits<Field>::is_nonzero((*this)[i, j])) {
+          ++result;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  Field density() const {
+    auto [n, d] = shape();
+
+    return Field(nonzero_count()) / Field(n * d);
   }
 };
 
