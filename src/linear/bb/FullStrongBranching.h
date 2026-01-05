@@ -81,21 +81,6 @@ class FullStrongBranchingBranchAndBound {
     return false;
   }
 
-  void register_simplex_fail(const std::vector<VariableState>& states,
-                             const std::vector<Field>& lower,
-                             const std::vector<Field>& upper) {
-    size_t since_epoch = std::chrono::system_clock::now().time_since_epoch() /
-                         std::chrono::milliseconds(1);
-    std::string dump_name = std::format("simplex_core_dump_{}.h", since_epoch);
-
-    lp_solver_.setup_warm_start(states);
-
-    std::ofstream os(dump_name);
-    lp_solver_.dump_state(os, since_epoch, lower, upper);
-
-    std::println("Registered failed simplex run into {}.", dump_name);
-  }
-
   Field merge_score(std::optional<Field> left_score,
                     std::optional<Field> right_score) {
     if (!left_score && !right_score) {
@@ -139,58 +124,46 @@ class FullStrongBranchingBranchAndBound {
     auto tight_upper = node.upper;
     tight_upper[index] = branch_value;
 
-    try {
-      lp_solver_.setup_warm_start(node.variables_states);
-      auto run_result = lp_solver_.dual(node.lower, tight_upper);
+    auto left_run_result =
+        lp_solver_.dual(node.lower, tight_upper, node.variables_states);
 
-      std::visit(
-          Overload{
-              [](NoFeasibleElements) {},
-              [&lower_score, &solution](const auto& subproblem_solution) {
-                lower_score = subproblem_solution.value - solution.value;
-              },
-          },
-          run_result.solution);
+    std::visit(Overload{
+                   [](NoFeasibleElements) {},
+                   [&lower_score, &solution](const auto& subproblem_solution) {
+                     lower_score = subproblem_solution.value - solution.value;
+                   },
+               },
+               left_run_result.solution);
 
-      if (std::holds_alternative<ReachedIterationsLimit<Field>>(
-              run_result.solution)) {
-        std::cout << "iterations limit!" << std::endl;
-      }
-
-      accountant_.strong_branching_simplex_run(node.id, index, run_result);
-    } catch (...) {
-      register_simplex_fail(node.variables_states, node.lower, tight_upper);
-      throw;
+    if (std::holds_alternative<ReachedIterationsLimit<Field>>(
+            left_run_result.solution)) {
+      std::cout << "iterations limit!" << std::endl;
     }
+
+    accountant_.strong_branching_simplex_run(node.id, index, left_run_result);
 
     // calculate right node
     std::optional<Field> upper_score;
     auto tight_lower = node.lower;
     tight_lower[index] = branch_value + 1;
 
-    try {
-      lp_solver_.setup_warm_start(node.variables_states);
-      auto run_result = lp_solver_.dual(tight_lower, node.upper);
+    auto right_run_result =
+        lp_solver_.dual(tight_lower, node.upper, node.variables_states);
 
-      std::visit(
-          Overload{
-              [](NoFeasibleElements) {},
-              [&upper_score, &solution](const auto& subproblem_solution) {
-                upper_score = subproblem_solution.value - solution.value;
-              },
-          },
-          run_result.solution);
+    std::visit(Overload{
+                   [](NoFeasibleElements) {},
+                   [&upper_score, &solution](const auto& subproblem_solution) {
+                     upper_score = subproblem_solution.value - solution.value;
+                   },
+               },
+               right_run_result.solution);
 
-      if (std::holds_alternative<ReachedIterationsLimit<Field>>(
-              run_result.solution)) {
-        std::cout << "iterations limit!" << std::endl;
-      }
-
-      accountant_.strong_branching_simplex_run(node.id, index, run_result);
-    } catch (...) {
-      register_simplex_fail(node.variables_states, tight_lower, node.upper);
-      throw;
+    if (std::holds_alternative<ReachedIterationsLimit<Field>>(
+            right_run_result.solution)) {
+      std::cout << "iterations limit!" << std::endl;
     }
+
+    accountant_.strong_branching_simplex_run(node.id, index, right_run_result);
 
     return merge_score(lower_score, upper_score);
   }
@@ -234,7 +207,7 @@ class FullStrongBranchingBranchAndBound {
     }
 
     // std::println("#{}; LB: {}; UB: {}; waiting: {}", node.id, lb,
-                 // current_solution.value, waiting_.size());
+    // current_solution.value, waiting_.size());
   }
 
   void record_simplex_run(const Node& parent, NodeRelativeLocation location,
@@ -301,13 +274,12 @@ class FullStrongBranchingBranchAndBound {
 
     // run simplex method for subproblem
     lp_solver_.set_max_iterations(std::nullopt);
-    lp_solver_.setup_warm_start(parent.variables_states);
     SimplexResult<Field> run_result;
 
     try {
-      run_result = lp_solver_.dual(child.lower, child.upper);
+      run_result =
+          lp_solver_.dual(child.lower, child.upper, parent.variables_states);
     } catch (...) {
-      register_simplex_fail(parent.variables_states, child.lower, child.upper);
       throw;
     }
 
@@ -366,9 +338,7 @@ class FullStrongBranchingBranchAndBound {
     root.lower = lower;
     root.upper = upper;
 
-    auto basic_variables = linalg::get_row_basis(linalg::transposed(A));
-    lp_solver_.setup_warm_start(basic_variables);
-    root.variables_states = lp_solver_.get_variables_states();
+    root.variables_states = lp_solver_.get_initial_states();
 
     accountant_.set_root(root.id);
     lifo_slot_ = std::move(root);

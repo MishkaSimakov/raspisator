@@ -19,3 +19,11 @@ TEST(BigIntegerTests, LongMultiplication) {
     ASSERT_EQ(a * b, c);
   }
 }
+
+TEST(BigIntegerTests, RationalPower) {
+  ASSERT_EQ(FieldTraits<Rational>::exp2(10), Rational{1024});
+  ASSERT_EQ(FieldTraits<Rational>::exp2(-10), Rational{1} / 1024);
+  ASSERT_EQ(FieldTraits<Rational>::exp2(0), Rational{1});
+  ASSERT_EQ(FieldTraits<Rational>::exp2(1), Rational{2});
+  ASSERT_EQ(FieldTraits<Rational>::exp2(-1), Rational{1} / 2);
+}

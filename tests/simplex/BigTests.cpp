@@ -16,8 +16,7 @@ TEST(BigTests, PotentiallyCyclingProblem1) {
   using namespace SimplexDump_0;
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-  solver.setup_warm_start(states);
-  auto solution = solver.dual(lower, upper).solution;
+  auto solution = solver.dual(lower, upper, states).solution;
 
   auto finite_solution = std::get<FiniteLPSolution<Field>>(solution);
 
@@ -29,8 +28,7 @@ TEST(BigTests, PotentiallyCyclingProblem2) {
   using namespace SimplexDump_1;
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-  solver.setup_warm_start(states);
-  auto solution = solver.dual(lower, upper).solution;
+  auto solution = solver.dual(lower, upper, states).solution;
 
   auto finite_solution = std::get<FiniteLPSolution<Field>>(solution);
 
@@ -42,8 +40,7 @@ TEST(BigTests, PotentiallyCyclingProblem3) {
   using namespace SimplexDump_2;
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-  solver.setup_warm_start(states);
-  auto solution = solver.dual(lower, upper).solution;
+  auto solution = solver.dual(lower, upper, states).solution;
 
   auto finite_solution = std::get<FiniteLPSolution<Field>>(solution);
 

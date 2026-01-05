@@ -1020,27 +1020,30 @@ struct FieldTraits<Rational> {
   static bool is_strictly_negative(const Rational& value) { return value < 0; }
 
   static bool is_nonzero(const Rational& value) { return value != 0; }
+
+  static Rational exp2(int power) {
+    if (power > 0) {
+      BigInteger numerator = 1;
+      for (size_t i = 0; i < power; ++i) {
+        numerator *= 2;
+      }
+
+      return numerator;
+    } else {
+      BigInteger denominator = 1;
+      for (size_t i = 0; i < -power; ++i) {
+        denominator *= 2;
+      }
+
+      return Rational{1} / denominator;
+    }
+  }
 };
 
 template <>
-struct std::formatter<Rational, char> {
-  template <class ParseContext>
-  constexpr ParseContext::iterator parse(ParseContext& ctx) {
-    // auto it = ctx.begin();
-    // if (it == ctx.end()) return it;
-    //
-    // if (*it == '#') {
-    //   quoted = true;
-    //   ++it;
-    // }
-    // if (it != ctx.end() && *it != '}')
-    //   throw std::format_error("Invalid format args for QuotableString.");
-    //
-    return ctx.begin();
-  }
-
+struct std::formatter<Rational, char> : std::formatter<std::string> {
   template <class FmtContext>
-  FmtContext::iterator format(const Rational& value, FmtContext& ctx) const {
+  auto format(const Rational& value, FmtContext& ctx) const {
     std::ostringstream out;
     out << value;
 

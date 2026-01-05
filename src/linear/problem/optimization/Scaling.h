@@ -9,14 +9,11 @@
 
 template <typename Field>
 class Scaling final : public BaseOptimizer<Field> {
-  static_assert(std::is_floating_point_v<Field>,
-                "Currently works only for standard types.");
-
   std::vector<Field> variables_scale_factors_;
 
   static Field round_scale_factor(Field scale_factor) {
-    double power = std::round(std::log2(scale_factor));
-    return std::exp2(-power);
+    int power = std::round(std::log2(static_cast<double>(scale_factor)));
+    return FieldTraits<Field>::exp2(-power);
   }
 
   static Field get_scale_factor(const Constraint<Field>& constraint) {
@@ -107,7 +104,7 @@ class Scaling final : public BaseOptimizer<Field> {
       }
     }
 
-    return std::log10(*max.max() / *min.min());
+    return std::log10(static_cast<double>(*max.max() / *min.min()));
   }
 
   Matrix<Field> inverse(const Matrix<Field>& point) override {

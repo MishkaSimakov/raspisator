@@ -198,11 +198,6 @@ class BoundedSimplexMethod {
     linalg::solve_transposed_linear_inplace(L, U, P, cb);
 
     for (size_t i = 0; i < d; ++i) {
-      if (variables_[i] == VariableState::BASIC) {
-        result[i, 0] = 0;
-        continue;
-      }
-
       result[i, 0] = c_[0, i];
 
       for (const auto& [row, value] : A_.get_column(i)) {
@@ -287,111 +282,9 @@ class BoundedSimplexMethod {
     return min_ratio.argmin();
   }
 
- public:
-  BoundedSimplexMethod(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c,
-                       Settings<Field> settings = {})
-      : A_(std::move(A)),
-        b_(std::move(b)),
-        c_(std::move(c)),
-        variables_(A_.shape().second),
-        lupa_(A_),
-        L_(A_.shape().first),
-        U_(A_.shape().first),
-        P_(A.shape().first),
-        settings_(settings) {
-    // check sizes
-    auto [n, d] = A_.shape();
-
-    if (n >= d) {
-      throw std::invalid_argument(
-          "Solve a system of linear equations instead.");
-    }
-
-    if (b_.shape() != std::pair{n, 1}) {
-      throw std::invalid_argument("Matrix b has wrong dimensions.");
-    }
-
-    if (c_.shape() != std::pair{1, d}) {
-      throw std::invalid_argument("Matrix c has wrong dimensions.");
-    }
-  }
-
-  void dump_state(std::ostream& os, size_t dump_id,
-                  const std::vector<Field>& lower,
-                  const std::vector<Field>& upper) {
-    os << "namespace SimplexDump_" << dump_id << " {\n";
-
-    os << "Matrix<Field> A = {" << linalg::to_dense(A_) << "};\n";
-    os << "Matrix<Field> b = {" << b_ << "};\n";
-    os << "Matrix<Field> c = {" << c_ << "};\n";
-
-    os << "std::vector<Field> upper = {";
-    for (auto value : upper) {
-      os << value << ", ";
-    }
-    os << "};\n";
-
-    os << "std::vector<Field> lower = {";
-    for (auto value : lower) {
-      os << value << ", ";
-    }
-    os << "};\n";
-
-    os << "std::vector<VariableState> states = {";
-    for (auto state : variables_) {
-      if (state == VariableState::BASIC) {
-        os << "VariableState::BASIC, ";
-      } else if (state == VariableState::AT_LOWER) {
-        os << "VariableState::AT_LOWER, ";
-      } else {
-        os << "VariableState::AT_UPPER, ";
-      }
-    }
-    os << "};\n";
-    os << "}\n";
-
-    os << std::flush;
-  }
-
-  const std::vector<VariableState>& get_variables_states() const {
-    return variables_;
-  }
-
-  void setup_warm_start(const std::vector<size_t>& basic_variables) {
-    auto [n, d] = A_.shape();
-
-    if (basic_variables.size() != n) {
-      throw std::invalid_argument("Wrong basic variables count.");
-    }
-
-    lupa_.get_lup(basic_variables, L_, U_, P_);
-
-    auto reduced_costs = get_reduced_costs(L_, U_, P_, basic_variables);
-
-    for (size_t i = 0; i < d; ++i) {
-      if (reduced_costs[i, 0] <= 0) {
-        variables_[i] = VariableState::AT_LOWER;
-      } else {
-        variables_[i] = VariableState::AT_UPPER;
-      }
-    }
-
-    for (size_t basic_var : basic_variables) {
-      variables_[basic_var] = VariableState::BASIC;
-    }
-  }
-
-  void setup_warm_start(const std::vector<VariableState>& variables) {
-    variables_ = variables;
-  }
-
-  void set_max_iterations(std::optional<size_t> max_iterations) {
-    settings_.max_iterations = max_iterations;
-  }
-
-  // solves the problem using dual bounded simplex method
-  SimplexResult<Field> dual(const std::vector<Field>& lower_bounds,
-                            const std::vector<Field>& upper_bounds) {
+  SimplexResult<Field> dual_implementation(
+      const std::vector<Field>& lower_bounds,
+      const std::vector<Field>& upper_bounds) {
     auto [n, d] = A_.shape();
 
     std::vector<size_t> basic_vars;
@@ -410,18 +303,6 @@ class BoundedSimplexMethod {
 
     while (true) {
       if ((iteration + 1) % 10'000 == 0) {
-        // {
-        //   size_t since_epoch =
-        //       std::chrono::system_clock::now().time_since_epoch() /
-        //       std::chrono::milliseconds(1);
-        //
-        //   std::ofstream os(std::format("simplex_core_dump_{}.h",
-        //   since_epoch)); dump_state(os, since_epoch, lower_bounds,
-        //   upper_bounds);
-        // }
-        //
-        // throw std::runtime_error("Cycling!");
-
         std::cout << "Cycling!" << std::endl;
         anticycling_iterations = 5;
       }
@@ -430,8 +311,6 @@ class BoundedSimplexMethod {
 
       for (size_t i : P_) {
         if (i >= L_.shape().first) {
-          std::ofstream os("simplex_core_dump_4.h");
-          dump_state(os, 4, lower_bounds, upper_bounds);
           throw std::runtime_error("Wrong!!!");
         }
       }
@@ -494,6 +373,175 @@ class BoundedSimplexMethod {
       basic_vars[leaving->first] = *entering;
 
       ++iteration;
+    }
+  }
+
+  void dump_state(const std::vector<Field>& lower,
+                  const std::vector<Field>& upper,
+                  const std::vector<VariableState>& initial_variables) {
+    size_t dump_id = std::chrono::system_clock::now().time_since_epoch() /
+                     std::chrono::milliseconds(1);
+    std::string dump_name = std::format("simplex_core_dump_{}.h", dump_id);
+
+    std::ofstream os(dump_name);
+
+    os << "namespace SimplexDump_" << dump_id << " {\n";
+
+    os << "Matrix<Field> A = {" << linalg::to_dense(A_) << "};\n";
+    os << "Matrix<Field> b = {" << b_ << "};\n";
+    os << "Matrix<Field> c = {" << c_ << "};\n";
+
+    os << "std::vector<Field> upper = {";
+    for (auto value : upper) {
+      os << value << ", ";
+    }
+    os << "};\n";
+
+    os << "std::vector<Field> lower = {";
+    for (auto value : lower) {
+      os << value << ", ";
+    }
+    os << "};\n";
+
+    os << "std::vector<VariableState> last_states = {";
+    for (auto state : variables_) {
+      if (state == VariableState::BASIC) {
+        os << "VariableState::BASIC, ";
+      } else if (state == VariableState::AT_LOWER) {
+        os << "VariableState::AT_LOWER, ";
+      } else {
+        os << "VariableState::AT_UPPER, ";
+      }
+    }
+    os << "};\n";
+
+    os << "std::vector<VariableState> init_states = {";
+    for (auto state : initial_variables) {
+      if (state == VariableState::BASIC) {
+        os << "VariableState::BASIC, ";
+      } else if (state == VariableState::AT_LOWER) {
+        os << "VariableState::AT_LOWER, ";
+      } else {
+        os << "VariableState::AT_UPPER, ";
+      }
+    }
+    os << "};\n";
+
+    os << "}\n";
+
+    os << std::flush;
+
+    std::println("Registered failed simplex run into {}.", dump_name);
+  }
+
+ public:
+  BoundedSimplexMethod(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c,
+                       Settings<Field> settings = {})
+      : A_(std::move(A)),
+        b_(std::move(b)),
+        c_(std::move(c)),
+        variables_(A_.shape().second),
+        lupa_(A_),
+        L_(A_.shape().first),
+        U_(A_.shape().first),
+        P_(A.shape().first),
+        settings_(settings) {
+    // check sizes
+    auto [n, d] = A_.shape();
+
+    if (n >= d) {
+      throw std::invalid_argument(
+          "Solve a system of linear equations instead.");
+    }
+
+    if (b_.shape() != std::pair{n, 1}) {
+      throw std::invalid_argument("Matrix b has wrong dimensions.");
+    }
+
+    if (c_.shape() != std::pair{1, d}) {
+      throw std::invalid_argument("Matrix c has wrong dimensions.");
+    }
+  }
+
+  void set_max_iterations(std::optional<size_t> max_iterations) {
+    settings_.max_iterations = max_iterations;
+  }
+
+  std::vector<VariableState> get_initial_states(
+      const std::vector<size_t>& basic_variables) {
+    auto [n, d] = A_.shape();
+
+    if (basic_variables.size() != n) {
+      throw std::invalid_argument("Wrong basic variables count.");
+    }
+
+    std::vector<VariableState> states(d);
+
+    lupa_.get_lup(basic_variables, L_, U_, P_);
+
+    auto reduced_costs = get_reduced_costs(L_, U_, P_, basic_variables);
+
+    for (size_t i = 0; i < d; ++i) {
+      if (reduced_costs[i, 0] <= 0) {
+        states[i] = VariableState::AT_LOWER;
+      } else {
+        states[i] = VariableState::AT_UPPER;
+      }
+    }
+
+    for (size_t basic_var : basic_variables) {
+      states[basic_var] = VariableState::BASIC;
+    }
+
+    return states;
+  }
+
+  std::vector<VariableState> get_initial_states() {
+    auto basic_variables =
+        linalg::get_row_basis(linalg::transposed(linalg::to_dense(A_)));
+
+    return get_initial_states(basic_variables);
+  }
+
+  SimplexResult<Field> dual(
+      const std::vector<Field>& lower_bounds,
+      const std::vector<Field>& upper_bounds,
+      const std::vector<VariableState>& initial_variables) {
+    variables_ = initial_variables;
+
+    try {
+      return dual_implementation(lower_bounds, upper_bounds);
+    } catch (...) {
+      dump_state(lower_bounds, upper_bounds, initial_variables);
+      throw;
+    }
+  }
+
+  SimplexResult<Field> dual(
+      const std::vector<Field>& lower_bounds,
+      const std::vector<Field>& upper_bounds,
+      const std::vector<size_t>& initial_basic_variables) {
+    auto initial_variables = get_initial_states(initial_basic_variables);
+    variables_ = initial_variables;
+
+    try {
+      return dual_implementation(lower_bounds, upper_bounds);
+    } catch (...) {
+      dump_state(lower_bounds, upper_bounds, initial_variables);
+      throw;
+    }
+  }
+
+  SimplexResult<Field> dual(const std::vector<Field>& lower_bounds,
+                            const std::vector<Field>& upper_bounds) {
+    auto initial_variables = get_initial_states();
+    variables_ = initial_variables;
+
+    try {
+      return dual_implementation(lower_bounds, upper_bounds);
+    } catch (...) {
+      dump_state(lower_bounds, upper_bounds, initial_variables);
+      throw;
     }
   }
 };

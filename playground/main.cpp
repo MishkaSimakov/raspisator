@@ -1,81 +1,92 @@
 #include <chrono>
 #include <print>
 
+#include "linear/matrix/NPY.h"
+#include "linear/problem/MPS.h"
 #include "linear/scheduling/BlomersHeuristic.h"
 #include "problems/Blomer.h"
 #include "problems/Dwarf.h"
 #include "utils/Drawing.h"
+#include "utils/ShadowFloat.h"
 
 using Field = double;
 
 int main() {
-  std::vector<std::pair<Field, Field>> targets = {
-      {200, 200}, {50, 50}, {0, 100}, {100, 0}, {100, 100},
+  const std::filesystem::path problems{"resources/lp_problems"};
+
+  const std::string small_files[] = {
+    "BOEING2"
   };
 
-  for (auto [first, second] : targets) {
-    size_t H = 20;
+  for (const auto& dir_entry : small_files) {
+    // if (dir_entry.path().extension() != ".SIF") {
+    //   continue;
+    // }
 
-    auto problem = small_blomer_problem<Field>(first, second);
+    std::string name = problems.string() + "/" + dir_entry + ".SIF";
 
-    {
-      auto begin = std::chrono::steady_clock::now();
+    std::println("Solving {}", name);
 
-      std::println("heuristic small_blomer_{}_{} ({})", first, second, H);
+    // read problem
+    MPSReader<Field> reader;
+    reader.read(name);
+    auto problem = reader.get_canonical_representation();
 
-      TimeGrid time_grid;
+    std::cout << problem << std::endl;
 
-      time_grid.emplace(0, [](size_t time) { return true; });
-      time_grid.emplace(1, [](size_t time) { return time % 2 == 0; });
-      time_grid.emplace(2, [](size_t time) { return time % 2 == 0; });
-      time_grid.emplace(3, [](size_t time) { return true; });
+    problem = RemoveLinearlyDependentConstraints<Field>().apply(problem);
+    problem = TransformToEqualities<Field>().apply(problem);
 
-      auto solution = blomer_heuristic_model(problem, H, time_grid);
+    auto matrices = to_matrices(problem);
 
-      if (!solution) {
-        std::println("No solution");
-      }
+    // run simplex method
+    auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A),
+                                                matrices.b, matrices.c);
 
-      if (!solution->check()) {
-        throw std::runtime_error("Invalid solution!");
-      }
-      //
-      // solution->to_graphviz(std::cout);
+    auto run_result = solver.dual(matrices.lower, matrices.upper);
 
-      auto end = std::chrono::steady_clock::now();
+    std::println("  iterations: {}", run_result.iterations_count);
+
+    if (run_result.is_feasible()) {
       std::println(
-          " Overall: {}",
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));
-    }
-
-    {
-      auto begin = std::chrono::steady_clock::now();
-
-      std::println("precise small_blomer_{}_{} ({})", first, second, H);
-
-      TimeGrid time_grid;
-
-      time_grid.emplace(0, [](size_t time) { return true; });
-      time_grid.emplace(1, [](size_t time) { return true; });
-      time_grid.emplace(2, [](size_t time) { return true; });
-      time_grid.emplace(3, [](size_t time) { return true; });
-
-      auto solution = apply_time_grid_model(problem, H, time_grid);
-
-      if (!solution) {
-        std::println("No solution");
-      }
-
-      if (!solution->check()) {
-        throw std::runtime_error("Invalid solution!");
-      }
-
-      std::println("    periods: {}", solution->get_total_time());
-
-      auto end = std::chrono::steady_clock::now();
-      std::println(
-          " Overall: {}",
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));
+          "  solution: {}",
+          std::get<FiniteLPSolution<Field>>(run_result.solution).value);
+    } else {
+      std::println("  infeasible");
     }
   }
 }
+
+// size_t H = 12;
+// Field first = 100;
+// Field second = 100;
+//
+// auto problem = small_blomer_problem<Field>(first, second);
+//
+// auto begin = std::chrono::steady_clock::now();
+//
+// std::println("precise small_blomer_{}_{} ({})", first, second, H);
+//
+// TimeGrid time_grid;
+//
+// time_grid.emplace(0, [](size_t time) { return true; });
+// time_grid.emplace(1, [](size_t time) { return true; });
+// time_grid.emplace(2, [](size_t time) { return true; });
+// time_grid.emplace(3, [](size_t time) { return true; });
+//
+// auto solution = apply_time_grid_model(problem, H, time_grid);
+//
+// if (!solution) {
+//   std::println("No solution");
+// }
+//
+// if (!solution->check()) {
+//   throw std::runtime_error("Invalid solution!");
+// }
+//
+// std::println("    periods: {}", solution->get_total_time());
+//
+// auto end = std::chrono::steady_clock::now();
+// std::println(
+//     " Overall: {}",
+//     std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin));

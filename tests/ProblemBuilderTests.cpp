@@ -77,9 +77,8 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
                                               matrices.c);
-  solver.setup_warm_start(basic_vars);
   auto solution = std::get<FiniteLPSolution<Rational>>(
-      solver.dual(matrices.lower, matrices.upper).solution);
+      solver.dual(matrices.lower, matrices.upper, basic_vars).solution);
   auto point = optimizer.inverse(solution.point);
 
   // check solution
@@ -112,9 +111,8 @@ TEST(ProblemBuilderTests, ScalingTest) {
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
                                               matrices.c);
-  solver.setup_warm_start(basic_vars);
   auto solution = std::get<FiniteLPSolution<double>>(
-      solver.dual(matrices.lower, matrices.upper).solution);
+      solver.dual(matrices.lower, matrices.upper, basic_vars).solution);
   auto point = optimizer1.inverse(optimizer2.inverse(solution.point));
 
   // check solution
@@ -158,7 +156,6 @@ TEST(ProblemBuilderTests, ComplexSubstitute) {
   ASSERT_EQ(std::format("{}", optimizer.constraints[1]), "x + -10 == 0");
   ASSERT_EQ(std::format("{}", optimizer.constraints[2]), "2*x + -20 == 0");
 }
-
 
 TEST(ProblemBuilderTests, RemoveConstantVariables) {
   MILPProblem<Rational> builder;

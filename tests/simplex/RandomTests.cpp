@@ -63,8 +63,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
 
     // calculate solution
     auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-    solver.setup_warm_start(basic_variables);
-    auto run_result = solver.dual(lower, upper);
+    auto run_result = solver.dual(lower, upper, basic_variables);
 
     // check solution
     auto finite_solution = std::get<FiniteLPSolution<Rational>>(run_result.solution);

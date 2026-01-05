@@ -37,6 +37,8 @@ struct FieldTraits<double> {
   static bool is_nonzero(double value) {
     return is_strictly_negative(value) || is_strictly_positive(value);
   }
+
+  static double exp2(int exponent) { return std::exp2(exponent); }
 };
 
 template <std::integral T>
