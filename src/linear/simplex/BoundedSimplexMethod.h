@@ -4,6 +4,7 @@
 #include <fstream>
 #include <random>
 #include <ranges>
+#include <unordered_map>
 #include <variant>
 
 #include "Settings.h"
@@ -14,16 +15,17 @@
 #include "linear/model/LP.h"
 #include "linear/sparse/LU.h"
 #include "utils/Accumulators.h"
+#include "utils/Hashers.h"
 #include "utils/Variant.h"
 
 namespace simplex {
 
 // Double, double toil and trouble;
 // Fire burn and caldron bubble.
-// - Macbeth
+// - from Macbeth
 //
 // Though this be madness, yet there is method in't.
-// - Hamlet
+// - from Hamlet
 
 // Solves cx -> max, Ax = b, l <= x <= u
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
@@ -287,6 +289,8 @@ class BoundedSimplexMethod {
       const std::vector<Field>& upper_bounds) {
     auto [n, d] = A_.shape();
 
+    std::unordered_map<size_t, size_t> visited_bases;
+
     std::vector<size_t> basic_vars;
     for (size_t i = 0; i < variables_.size(); ++i) {
       if (variables_[i] == VariableState::BASIC) {
@@ -302,8 +306,13 @@ class BoundedSimplexMethod {
     size_t anticycling_iterations = 0;
 
     while (true) {
-      if ((iteration + 1) % 10'000 == 0) {
-        std::cout << "Cycling!" << std::endl;
+      const auto hash = hash_basic_variables(basic_vars);
+      const auto [itr, was_emplaced] = visited_bases.emplace(hash, iteration);
+      if (!was_emplaced) {
+        std::println(
+            "Cycling! iteration delta: {}, iteration: {}, last visited on "
+            "iteration: {}",
+            iteration - itr->second, iteration, itr->second);
         anticycling_iterations = 5;
       }
 
@@ -328,6 +337,14 @@ class BoundedSimplexMethod {
         }
       }
       auto point = linalg::solve_linear(L_, U_, P_, b);
+
+      if (iteration % 500 == 0) {
+        auto full_point =
+            get_point(point, basic_vars, lower_bounds, upper_bounds);
+        Field value = (c_ * full_point)[0, 0];
+
+        std::println("{}: {}", iteration, value);
+      }
 
       if (settings_.max_iterations && iteration >= settings_.max_iterations) {
         auto full_point =
@@ -432,6 +449,24 @@ class BoundedSimplexMethod {
     os << std::flush;
 
     std::println("Registered failed simplex run into {}.", dump_name);
+  }
+
+  static size_t hash_basic_variables(
+      const std::vector<size_t>& basic_variables) {
+    // simple implementation of order-independent hashing
+    // https://github.com/scala/scala/blob/2.11.x/src/library/scala/util/hashing/MurmurHash3.scala
+
+    size_t values_sum = 0;
+    size_t values_xor = 0;
+    size_t values_mul = 0;
+
+    for (size_t i : basic_variables) {
+      values_sum += i;
+      values_xor ^= i;
+      values_mul *= i + 1;
+    }
+
+    return tuple_hasher_fn(values_sum, values_xor, values_mul);
   }
 
  public:

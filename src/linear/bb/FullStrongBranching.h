@@ -357,6 +357,8 @@ class FullStrongBranchingBranchAndBound {
     // main branch and bound cycle
     std::optional<Node> parent;
     while ((parent = pop_node())) {
+      std::cout << total_nodes_count_ << std::endl;
+
       calculate_node(*parent, NodeRelativeLocation::LEFT_CHILD);
       calculate_node(*parent, NodeRelativeLocation::RIGHT_CHILD);
 
