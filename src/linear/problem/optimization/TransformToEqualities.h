@@ -14,7 +14,7 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
     for (auto [var, coef] : constraint.expr.get_variables()) {
       const auto& info = problem.get_variable_info(var);
 
-      if (coef > 0) {
+      if (coef > Field(0)) {
         result -= coef * info.lower_bound;
       } else {
         result -= coef * info.upper_bound;

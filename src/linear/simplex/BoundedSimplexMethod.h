@@ -236,6 +236,10 @@ class BoundedSimplexMethod {
         continue;
       }
 
+      if (!FieldTraits<Field>::is_nonzero(reduced_costs[i, 0])) {
+        reduced_costs[i, 0] = 0;
+      }
+
       // if (!((variables_[i] == VariableState::AT_LOWER &&
       //        !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0]))
       //        ||
@@ -265,13 +269,13 @@ class BoundedSimplexMethod {
       }
 
       if (leaving_state == VariableState::AT_LOWER) {
-        if (variables_[i] == VariableState::AT_LOWER && coef > 0 ||
-            variables_[i] == VariableState::AT_UPPER && coef < 0) {
+        if (variables_[i] == VariableState::AT_LOWER && coef > Field(0) ||
+            variables_[i] == VariableState::AT_UPPER && coef < Field(0)) {
           continue;
         }
       } else {
-        if (variables_[i] == VariableState::AT_LOWER && coef < 0 ||
-            variables_[i] == VariableState::AT_UPPER && coef > 0) {
+        if (variables_[i] == VariableState::AT_LOWER && coef < Field(0) ||
+            variables_[i] == VariableState::AT_UPPER && coef > Field(0)) {
           continue;
         }
       }
@@ -482,7 +486,7 @@ class BoundedSimplexMethod {
     auto reduced_costs = get_reduced_costs(L_, U_, P_, basic_variables);
 
     for (size_t i = 0; i < d; ++i) {
-      if (reduced_costs[i, 0] <= 0) {
+      if (reduced_costs[i, 0] <= Field(0)) {
         states[i] = VariableState::AT_LOWER;
       } else {
         states[i] = VariableState::AT_UPPER;

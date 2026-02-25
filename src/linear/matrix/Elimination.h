@@ -29,18 +29,18 @@ void gaussian_elimination(MatrixLike auto&& matrix, size_t row_index,
         "Element must be non-zero for gaussian elimination.");
   }
 
-  Field inverse = 1 / matrix[row_index, col_index];
+  Field inverse = Field(1) / matrix[row_index, col_index];
   multiply_hook(row_index, inverse);
 
   matrix[row_index, {0, d}] *= inverse;
 
   for (size_t i = 0; i < n; ++i) {
-    if (i == row_index ||
-        !FieldTraits<Field>::is_nonzero(matrix[i, col_index])) {
+    Field coef = matrix[i, col_index];
+
+    if (i == row_index || !FieldTraits<Field>::is_nonzero(coef)) {
       continue;
     }
 
-    Field coef = matrix[i, col_index];
     subtract_hook(i, row_index, coef);
 
     matrix[i, {0, col_index}].sub_mul(matrix[row_index, {0, col_index}], coef);

@@ -813,7 +813,30 @@ class Rational {
  public:
   Rational(const BigInteger& value) : numerator_(value), denominator_(1) {}
 
-  Rational(long long value = 0) : numerator_(value), denominator_(1) {}
+  Rational() : numerator_(0), denominator_(1) {}
+
+  template <typename T>
+    requires std::is_arithmetic_v<T>
+  Rational(T value) {
+    if constexpr (std::is_integral_v<T>) {
+      numerator_ = value;
+      denominator_ = 1;
+    } else {
+      if (value == 0) {
+        numerator_ = 0;
+        denominator_ = 1;
+        return;
+      }
+
+      int exponent;
+      double fraction = std::frexp(value, &exponent);
+
+      numerator_ = fraction * std::exp2(50);
+      denominator_ = std::exp2(50 - exponent);
+
+      normalize();
+    }
+  }
 
   Rational floor() const { return numerator_ / denominator_; }
 

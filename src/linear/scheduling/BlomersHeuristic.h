@@ -375,21 +375,27 @@ LeftShiftModel<Field>::LeftShiftModel(const STN<Field>& problem,
 // clang-format on
 
 template <typename Field>
+void print_problem_quality(const MILPProblem<Field>& problem) {
+  std::println(
+      "constraints {}, variables {}, average gap: {}, scaling quality: {}",
+      problem.constraints.size(), problem.variables.size(),
+      problem.average_boundary_gap(),
+      Scaling<Field>().get_scaling_quality(problem));
+}
+
+template <typename Field>
 std::optional<Solution<Field>> apply_time_grid_model(
     const STN<Field>& problem, size_t max_periods, const TimeGrid& time_grid) {
   TimeGridModel<Field> model(problem, max_periods, time_grid);
 
-  std::println("    before: constraints {}, variables {}, average gap: {}",
-               model.builder.constraints.size(), model.builder.variables.size(),
-               model.builder.average_boundary_gap());
+  std::print("    before: ");
+  print_problem_quality(model.builder);
 
   auto optimizer = FullOptimizer<Field>();
   auto optimized_problem = optimizer.apply(model.builder);
 
-  std::println("    after: constraints {}, variables {}, average gap: {}",
-               optimized_problem.constraints.size(),
-               optimized_problem.variables.size(),
-               optimized_problem.average_boundary_gap());
+  std::print("    after: ");
+  print_problem_quality(optimized_problem);
 
   // solve MILP problem
   auto matrices = to_matrices(optimized_problem);
@@ -443,17 +449,14 @@ std::optional<Solution<Field>> apply_left_shift_model(
     const Solution<Field>& solution) {
   LeftShiftModel<Field> model(problem, max_periods, solution);
 
-  std::println("    before: constraints {}, variables {}, average gap: {}",
-               model.builder.constraints.size(), model.builder.variables.size(),
-               model.builder.average_boundary_gap());
+  std::print("    before: ");
+  print_problem_quality(model.builder);
 
   auto optimizer = FullOptimizer<Field>();
   auto optimized_problem = optimizer.apply(model.builder);
 
-  std::println("    after: constraints {}, variables {}, average gap: {}",
-               optimized_problem.constraints.size(),
-               optimized_problem.variables.size(),
-               optimized_problem.average_boundary_gap());
+  std::print("    after: ");
+  print_problem_quality(model.builder);
 
   // solve MILP problem
   auto matrices = to_matrices(optimized_problem);

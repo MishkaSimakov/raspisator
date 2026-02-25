@@ -11,7 +11,11 @@ class ShadowFloat {
   Field value_;
   Rational shadow_;
 
-  void precision_guard() {}
+  void precision_guard() {
+    if (std::abs(value_ - static_cast<double>(shadow_)) > 1e-5) {
+      throw std::runtime_error("Precision error!");
+    }
+  }
 
  public:
   ShadowFloat() = default;
@@ -25,7 +29,7 @@ class ShadowFloat {
   Rational get_shadow() const { return shadow_; }
   Field get_value() const { return value_; }
 
-  operator Field() const { return value_; }
+  explicit operator Field() const { return value_; }
 
   // comparisons
   bool is_strictly_positive() const {
@@ -99,6 +103,26 @@ class ShadowFloat {
 
     return *this;
   }
+
+  ShadowFloat operator-() const {
+    ShadowFloat result = *this;
+    result *= -1;
+    return result;
+  }
+
+  friend std::partial_ordering operator<=>(const ShadowFloat& left, const ShadowFloat& right) {
+    auto value_result = left.get_value() <=> right.get_value();
+    auto shadow_result = left.get_shadow() <=> right.get_shadow();
+
+    if (value_result != shadow_result) {
+      throw std::runtime_error(
+          "Comparison result is altered by rounding errors");
+    }
+
+    return value_result;
+  }
+
+  bool operator==(const ShadowFloat& right) const = default;
 };
 
 template <typename Field>
@@ -174,8 +198,25 @@ template <typename Field>
 struct std::formatter<ShadowFloat<Field>, char> : std::formatter<std::string> {
   template <class FmtContext>
   auto format(const ShadowFloat<Field>& value, FmtContext& ctx) const {
-    auto str = std::to_string(static_cast<Field>(value));
+    auto str = std::format("{} ({})", value.get_shadow(), value.get_value());
 
     return std::ranges::copy(str, ctx.out()).out;
   }
 };
+
+template <typename Field>
+std::istream& operator>>(std::istream& is, ShadowFloat<Field>& value) {
+  Field input;
+  is >> input;
+
+  value = input;
+
+  return is;
+}
+
+template <typename Field>
+std::ostream& operator<<(std::ostream& os, const ShadowFloat<Field>& value) {
+  std::print(os, "{}", value);
+
+  return os;
+}

@@ -42,7 +42,7 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
       std::swap(rows_map[maximizing_row], rows_map[current_row]);
     }
 
-    linalg::gaussian_elimination(matrix, current_row, col);
+    linalg::gaussian_elimination(matrix[{current_row, n}, {0, d}], 0, col);
 
     ++current_row;
 

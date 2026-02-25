@@ -25,6 +25,9 @@ class FullStrongBranchingBranchAndBound {
     std::vector<VariableState> variables_states;
     size_t branch_variable;
 
+    // Value obtained by solving LP-relaxation in the current node
+    // for each Child in a subtree of a Parent:
+    // Child.value <= Parent.value
     Field value;
 
     Field branch_value;
@@ -135,11 +138,6 @@ class FullStrongBranchingBranchAndBound {
                },
                left_run_result.solution);
 
-    if (std::holds_alternative<ReachedIterationsLimit<Field>>(
-            left_run_result.solution)) {
-      std::cout << "iterations limit!" << std::endl;
-    }
-
     accountant_.strong_branching_simplex_run(node.id, index, left_run_result);
 
     // calculate right node
@@ -158,11 +156,6 @@ class FullStrongBranchingBranchAndBound {
                },
                right_run_result.solution);
 
-    if (std::holds_alternative<ReachedIterationsLimit<Field>>(
-            right_run_result.solution)) {
-      std::cout << "iterations limit!" << std::endl;
-    }
-
     accountant_.strong_branching_simplex_run(node.id, index, right_run_result);
 
     return merge_score(lower_score, upper_score);
@@ -177,9 +170,6 @@ class FullStrongBranchingBranchAndBound {
           !is_integer(solution.point[i, 0])) {
         auto current_score = score_via_simplex(i, node, solution);
         score.record(i, current_score);
-
-        // auto f = FieldTraits<Field>::fractional(solution.point[i, 0]);
-        // score.record(i, std::min(f, 1 - f));
       }
     }
 
@@ -301,7 +291,6 @@ class FullStrongBranchingBranchAndBound {
       return std::nullopt;
     }
 
-    // choose node with the lowest the highest value
     ArgMinimum<Field> max_value;
     for (size_t i = 0; i < waiting_.size(); ++i) {
       max_value.record(i, -waiting_[i].value);
