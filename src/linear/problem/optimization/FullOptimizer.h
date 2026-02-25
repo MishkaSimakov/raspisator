@@ -24,7 +24,8 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     auto result = optimizer->apply(problem);
 
     if (log_) {
-      std::println("{}: {} variables, {} constraints", typeid(T).name(),
+      std::println("{}: delta variables {} variables, delta constraints {}",
+                   typeid(T).name(),
                    static_cast<ssize_t>(result.variables.size()) -
                        static_cast<ssize_t>(problem.variables.size()),
                    static_cast<ssize_t>(result.constraints.size()) -
