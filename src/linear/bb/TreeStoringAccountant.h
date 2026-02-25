@@ -7,6 +7,8 @@
 #include <variant>
 
 #include "linear/bb/BaseAccountant.h"
+#include "utils/GraphvizDrawer.h"
+#include "utils/Variant.h"
 
 template <typename Field>
 struct TreeStoringAccountant : BaseAccountant<Field> {
@@ -42,46 +44,6 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
 
   // graphviz methods
  private:
-  static std::string get_node_graphviz_attributes(PrunedByInfeasibility,
-                                                  bool minimalistic) {
-    if (minimalistic) {
-      return "style=filled, fillcolor=red";
-    } else {
-      return "label=\"unfeasible\", style=filled, fillcolor=red";
-    }
-  }
-
-  static std::string get_node_graphviz_attributes(
-      const PrunedByIntegrality& state, bool minimalistic) {
-    if (minimalistic) {
-      return "style=filled, fillcolor=green)";
-    } else {
-      return std::format(
-          R"(label="integer\n{}", style=filled, fillcolor=green)", state.value);
-    }
-  }
-
-  static std::string get_node_graphviz_attributes(const PrunedByBounds& state,
-                                                  bool minimalistic) {
-    if (minimalistic) {
-      return "style=filled, fillcolor=orange";
-    } else {
-      return std::format(
-          R"(label="bounded\n{}", style=filled, fillcolor=orange)",
-          state.value);
-    }
-  }
-
-  static std::string get_node_graphviz_attributes(const Branched& state,
-                                                  bool minimalistic) {
-    if (minimalistic) {
-      return "";
-    } else {
-      return std::format(R"(label="{}\nx_{} <> {}")", state.value,
-                         state.branch_variable, state.branch_value);
-    }
-  }
-
   static std::string get_node_graphviz_attributes(Unvisited,
                                                   bool minimalistic) {
     if (minimalistic) {
@@ -91,34 +53,57 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
     }
   }
 
-  void node_to_graphviz(std::stringstream& os, size_t id,
-                        bool minimalistic) const {
+  void node_to_graphviz(size_t id, GraphvizDrawer& drawer) const {
     const Node& node = tree.at(id);
 
-    std::string attrs = std::visit(
-        [minimalistic](const auto& node) {
-          return get_node_graphviz_attributes(node, minimalistic);
+    NodeParameters parameters = {
+        .id = id,
+    };
+
+    std::visit(
+        Overload{
+            [&parameters](PrunedByInfeasibility) {
+              parameters.fill = "red";
+              parameters.label = "infeasible";
+            },
+            [&parameters](const PrunedByIntegrality& state) {
+              parameters.fill = "green";
+              parameters.label = std::format("integer\\n{}", state.value);
+            },
+            [&parameters](const PrunedByBounds& state) {
+              parameters.fill = "orange";
+              parameters.label = std::format("bounded\\n{}", state.value);
+            },
+            [&parameters](const Branched& state) {
+              parameters.label =
+                  std::format("{}\\nx_{} <> {}", state.value,
+                              state.branch_variable, state.branch_value);
+            },
+            [&parameters](Unvisited) {
+              parameters.fill = "gray";
+              parameters.label = "unvisited";
+            },
         },
         node.state);
-    std::println(os, "  {} [{}]", id, attrs);
+
+    drawer.add_node(parameters);
 
     if (node.left_child) {
-      if (minimalistic) {
-        std::println(os, "  {} -> {};", id, *node.left_child);
-      } else {
-        std::println(os, "  {} -> {} [label=\"left\"];", id, *node.left_child);
-      }
-      node_to_graphviz(os, *node.left_child, minimalistic);
+      drawer.add_edge({
+          .from = id,
+          .to = *node.left_child,
+          .label = "left",
+      });
+      node_to_graphviz(*node.left_child, drawer);
     }
 
     if (node.right_child) {
-      if (minimalistic) {
-        std::println(os, "  {} -> {};", id, *node.right_child);
-      } else {
-        std::println(os, "  {} -> {} [label=\"right\"];", id,
-                     *node.right_child);
-      }
-      node_to_graphviz(os, *node.right_child, minimalistic);
+      drawer.add_edge({
+          .from = id,
+          .to = *node.right_child,
+          .label = "right",
+      });
+      node_to_graphviz(*node.right_child, drawer);
     }
   }
 
@@ -223,16 +208,19 @@ struct TreeStoringAccountant : BaseAccountant<Field> {
   }
 
   std::string to_graphviz(bool minimalistic = false) const {
-    std::stringstream os;
-
-    std::println(os, "digraph G {{");
-    std::println(os, "  node [shape=box];");
+    GraphvizDrawer drawer;
 
     if (root) {
-      node_to_graphviz(os, *root, minimalistic);
+      node_to_graphviz(*root, drawer);
     }
 
-    std::println(os, "}}");
+    std::stringstream os;
+
+    drawer.set_settings({
+        .draw_labels = !minimalistic,
+    });
+    drawer.draw(os);
+
     return os.str();
   }
 

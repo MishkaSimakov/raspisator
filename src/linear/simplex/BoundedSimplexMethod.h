@@ -342,14 +342,6 @@ class BoundedSimplexMethod {
       }
       auto point = linalg::solve_linear(L_, U_, P_, b);
 
-      if (iteration % 500 == 0) {
-        auto full_point =
-            get_point(point, basic_vars, lower_bounds, upper_bounds);
-        Field value = (c_ * full_point)[0, 0];
-
-        std::println("{}: {}", iteration, value);
-      }
-
       if (settings_.max_iterations && iteration >= settings_.max_iterations) {
         auto full_point =
             get_point(point, basic_vars, lower_bounds, upper_bounds);

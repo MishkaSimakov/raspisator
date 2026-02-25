@@ -68,6 +68,8 @@ class GraphvizDrawer {
     edges_.push_back(std::move(parameters));
   }
 
+  void set_settings(DrawerSettings settings) { settings_ = settings; }
+
   void draw(std::ostream& os) const {
     std::println(os, "digraph G {{");
     std::println(os, "  node [shape=box];");

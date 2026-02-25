@@ -6,6 +6,7 @@
 
 #include "linear/bb/FullStrongBranching.h"
 #include "linear/bb/Settings.h"
+#include "linear/bb/TreeStoringAccountant.h"
 #include "linear/model/MILP.h"
 #include "linear/problem/MILPProblem.h"
 #include "linear/problem/ToMatrices.h"
