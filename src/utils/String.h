@@ -25,4 +25,27 @@ inline std::string rtrim(std::string s) {
 }
 
 inline std::string trim(std::string s) { return ltrim(rtrim(s)); }
+
+std::string join(std::ranges::range auto&& range, std::string_view delimiter) {
+  std::string result;
+
+  auto itr = std::ranges::begin(range);
+  auto end = std::ranges::end(range);
+
+  if (itr == end) {
+    return result;
+  }
+
+  result += *itr;
+  ++itr;
+
+  while (itr != end) {
+    result += delimiter;
+    result += itr;
+
+    ++itr;
+  }
+
+  return result;
+}
 }  // namespace str

@@ -44,10 +44,6 @@ class BoundedSimplexMethod {
 
   linalg::LUPA<Field> lupa_;
 
-  CSCMatrix<Field> L_;
-  CSCMatrix<Field> U_;
-  std::vector<size_t> P_;
-
   Settings<Field> settings_;
 
   mutable std::mt19937 random_engine_;
@@ -81,8 +77,7 @@ class BoundedSimplexMethod {
 
     Field value = (c_ * result)[0, 0];
 
-    FiniteLPSolution solution{std::move(result), std::move(basic_vars),
-                              std::move(value), variables_};
+    FiniteLPSolution solution{std::move(result), std::move(value), variables_};
 
     return SimplexResult<Field>{
         .iterations_count = iteration,
@@ -185,25 +180,21 @@ class BoundedSimplexMethod {
     return result.at(index);
   }
 
-  Matrix<Field> get_reduced_costs(const CSCMatrix<Field>& L,
-                                  const CSCMatrix<Field>& U,
-                                  const std::vector<size_t>& P,
-                                  const std::vector<size_t>& basic_vars) {
+  Matrix<Field> get_reduced_costs(const std::vector<size_t>& basic_vars) {
     auto [n, d] = A_.shape();
-
-    Matrix<Field> result(d, 1);
 
     Matrix<Field> cb(n, 1);
     for (size_t i = 0; i < n; ++i) {
       cb[i, 0] = c_[0, basic_vars[i]];
     }
-    linalg::solve_transposed_linear_inplace(L, U, P, cb);
+    cb = lupa_.solve_linear_transposed(cb);
 
+    Matrix<Field> result(d, 1);
     for (size_t i = 0; i < d; ++i) {
       result[i, 0] = c_[0, i];
 
       for (const auto& [row, value] : A_.get_column(i)) {
-        result[i, 0] -= value * cb[P[row], 0];
+        result[i, 0] -= value * cb[row, 0];
       }
     }
 
@@ -211,18 +202,15 @@ class BoundedSimplexMethod {
   }
 
   std::optional<size_t> get_dual_entering_variable(
-      const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
-      const std::vector<size_t>& P, size_t entering_var,
-      VariableState leaving_state, const std::vector<size_t>& basic_vars) {
+      size_t entering_var, VariableState leaving_state,
+      const std::vector<size_t>& basic_vars) {
     auto [n, d] = A_.shape();
 
     ArgMinimum<Field> min_ratio;
 
-    auto reduced_costs = get_reduced_costs(L, U, P, basic_vars);
+    auto reduced_costs = get_reduced_costs(basic_vars);
 
-    Matrix<Field> e(n, 1, 0);
-    e[entering_var, 0] = 1;
-    linalg::solve_transposed_linear_inplace(L, U, P, e);
+    auto inverse_row = lupa_.get_row(entering_var);
 
     for (size_t i = 0; i < d; ++i) {
       if (variables_[i] == VariableState::BASIC) {
@@ -231,7 +219,7 @@ class BoundedSimplexMethod {
 
       Field coef = 0;
       for (const auto& [row, value] : A_.get_column(i)) {
-        coef += e[P[row], 0] * value;
+        coef += inverse_row[row, 0] * value;
       }
 
       if (!FieldTraits<Field>::is_nonzero(coef)) {
@@ -302,6 +290,8 @@ class BoundedSimplexMethod {
       }
     }
 
+    lupa_.set_columns(basic_vars);
+
     if (basic_vars.size() != n) {
       throw std::invalid_argument("Wrong number of basic variables.");
     }
@@ -309,23 +299,27 @@ class BoundedSimplexMethod {
     size_t iteration = 0;
     size_t anticycling_iterations = 0;
 
+    auto last_time = std::chrono::high_resolution_clock::now();
+    size_t iterations_since_last_time = 0;
+
     while (true) {
+      ++iterations_since_last_time;
+      auto curr_time = std::chrono::high_resolution_clock::now();
+      if (curr_time - last_time > std::chrono::seconds{1}) {
+        std::println("{} itr/s", iterations_since_last_time);
+
+        last_time = curr_time;
+        iterations_since_last_time = 0;
+      }
+
       const auto hash = hash_basic_variables(basic_vars);
       const auto [itr, was_emplaced] = visited_bases.emplace(hash, iteration);
       if (!was_emplaced) {
-        std::println(
-            "Cycling! iteration delta: {}, iteration: {}, last visited on "
-            "iteration: {}",
-            iteration - itr->second, iteration, itr->second);
+        // std::println(
+        //     "Cycling! iteration delta: {}, iteration: {}, last visited on "
+        //     "iteration: {}",
+        //     iteration - itr->second, iteration, itr->second);
         anticycling_iterations = 5;
-      }
-
-      lupa_.get_lup(basic_vars, L_, U_, P_);
-
-      for (size_t i : P_) {
-        if (i >= L_.shape().first) {
-          throw std::runtime_error("Wrong!!!");
-        }
       }
 
       Matrix<Field> b(b_);
@@ -340,7 +334,8 @@ class BoundedSimplexMethod {
           }
         }
       }
-      auto point = linalg::solve_linear(L_, U_, P_, b);
+
+      auto point = lupa_.solve_linear(b);
 
       if (settings_.max_iterations && iteration >= settings_.max_iterations) {
         auto full_point =
@@ -370,7 +365,7 @@ class BoundedSimplexMethod {
                                          upper_bounds, iteration);
       }
 
-      auto entering = get_dual_entering_variable(L_, U_, P_, leaving->first,
+      auto entering = get_dual_entering_variable(leaving->first,
                                                  leaving->second, basic_vars);
 
       if (!entering.has_value()) {
@@ -381,6 +376,8 @@ class BoundedSimplexMethod {
       }
 
       // pivot
+      lupa_.change_column(leaving->first, *entering);
+
       variables_[*entering] = VariableState::BASIC;
       variables_[basic_vars[leaving->first]] = leaving->second;
       basic_vars[leaving->first] = *entering;
@@ -473,9 +470,6 @@ class BoundedSimplexMethod {
         c_(std::move(c)),
         variables_(A_.shape().second),
         lupa_(A_),
-        L_(A_.shape().first),
-        U_(A_.shape().first),
-        P_(A.shape().first),
         settings_(settings) {
     // check sizes
     auto [n, d] = A_.shape();
@@ -508,9 +502,9 @@ class BoundedSimplexMethod {
 
     std::vector<VariableState> states(d);
 
-    lupa_.get_lup(basic_variables, L_, U_, P_);
+    lupa_.set_columns(basic_variables);
 
-    auto reduced_costs = get_reduced_costs(L_, U_, P_, basic_variables);
+    auto reduced_costs = get_reduced_costs(basic_variables);
 
     for (size_t i = 0; i < d; ++i) {
       if (reduced_costs[i, 0] <= Field(0)) {

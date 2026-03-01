@@ -27,8 +27,8 @@ void validate_simplex_solution(const Matrix<Field>& A, const Matrix<Field>& b,
     ASSERT_TRUE(!FieldTraits<Field>::is_strictly_positive(solution.point[i, 0] -
                                                           upper[i]));
 
-    if (std::ranges::find(solution.basic_variables, i) ==
-        solution.basic_variables.end()) {
+    auto basic_vars = solution.get_basic_variables();
+    if (std::ranges::find(basic_vars, i) == basic_vars.end()) {
       ASSERT_TRUE(
           (!FieldTraits<Field>::is_nonzero(lower[i] - solution.point[i, 0]) ||
            !FieldTraits<Field>::is_nonzero(solution.point[i, 0] - upper[i])));
@@ -37,11 +37,12 @@ void validate_simplex_solution(const Matrix<Field>& A, const Matrix<Field>& b,
 
   // check optimality
   auto sparse_A = CSCMatrix(A);
-  auto [L, U, P] = linalg::sparse_lup(sparse_A, solution.basic_variables);
+  auto basic_vars = solution.get_basic_variables();
+  auto [L, U, P] = linalg::sparse_lup(sparse_A, basic_vars);
 
   Matrix<Field> cb(n, 1);
   for (size_t i = 0; i < n; ++i) {
-    cb[i, 0] = c[0, solution.basic_variables[i]];
+    cb[i, 0] = c[0, basic_vars[i]];
   }
   linalg::solve_transposed_linear_inplace(L, U, P, cb);
 

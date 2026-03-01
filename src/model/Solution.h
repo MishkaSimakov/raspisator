@@ -115,7 +115,7 @@ class Solution {
   bool check_state_bounds(Event e) {
     // checks that states are not overflowed
 
-    // fmt::println("event time: {}, current_time: {}", e.time, current_time);
+    // std::println("event time: {}, current_time: {}", e.time, current_time);
     // if e happens at current time, overflowed states might be relaxed in e, so
     // no need to worry
     if (e.time == current_time) {
@@ -129,7 +129,7 @@ class Solution {
                      return !FieldTraits<Field>::is_nonzero(filled);
                    },
                    [&filled](NormalState<Field> state) {
-                     // fmt::println("min: {}, max: {}, filled: {}",
+                     // std::println("min: {}, max: {}, filled: {}",
                      // state.min_level, state.max_level, filled);
                      return !FieldTraits<Field>::is_strictly_positive(
                                 state.min_level - filled) &&
@@ -149,7 +149,7 @@ class Solution {
   }
 
   void increase_state(const State<Field>* s, const Field& value) {
-    // fmt::println("current_value: {}, add: {}", state_filled[s->get_id()],
+    // std::println("current_value: {}, add: {}", state_filled[s->get_id()],
     // value);
     state_filled[s->get_id()] += value;
   }
@@ -158,7 +158,7 @@ class Solution {
     const Unit* unit = stn->get_unit_by_id(e.unit_id);
     const Task* task = stn->get_task_by_id(e.task_id);
     const TaskOnUnitProperties* prop = unit->get_properties(task);
-    // fmt::println("e batch_size: {}, prop_min: {}, prop_max: {}",
+    // std::println("e batch_size: {}, prop_min: {}, prop_max: {}",
     // e.batch_size, prop->batch_min_size, prop->batch_max_size);
     if (FieldTraits<Field>::is_strictly_positive(e.batch_size -
                                                  prop->batch_max_size) ||

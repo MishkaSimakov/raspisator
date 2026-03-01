@@ -71,7 +71,7 @@ TEST_P(CommonLUTests, SparseDecomposeThenCompose) {
   ASSERT_NO_FATAL_FAILURE(check_L(dense_L));
   ASSERT_NO_FATAL_FAILURE(check_U(dense_U));
 
-  auto expected = linalg::to_dense(linalg::apply_permutation(sparse, P));
+  auto expected = linalg::to_dense(P.apply(sparse));
 
   ASSERT_EQ(dense_L * dense_U, expected);
 }

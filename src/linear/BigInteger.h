@@ -1,7 +1,5 @@
 #pragma once
 
-#include <fmt/ostream.h>
-
 #include <algorithm>
 #include <cassert>
 #include <compare>

@@ -98,17 +98,11 @@ TEST(SparseLUTests, LUPATest) {
   auto matrix = sparse_matrix(N, 5);
   auto sparse = CSCMatrix(matrix);
 
-  linalg::LUPA<Rational> lupa(sparse);
-
   std::vector<size_t> columns(matrix.get_width());
   std::iota(columns.begin(), columns.end(), 0);
 
-  CSCMatrix<Rational> L(N);
-  CSCMatrix<Rational> U(N);
-  std::vector<size_t> P(N);
-
   for (size_t i = 0; i < 5; ++i) {
-    lupa.get_lup(columns, L, U, P);
+    auto [L, U, P] = linalg::sparse_lup(sparse, columns);
 
     auto dense_L = linalg::to_dense(L);
     auto dense_U = linalg::to_dense(U);
@@ -118,8 +112,48 @@ TEST(SparseLUTests, LUPATest) {
       dense_L[i, i] = 1;
     }
 
-    auto expected = linalg::to_dense(linalg::apply_permutation(sparse, P));
+    auto expected = linalg::to_dense(P.apply(sparse));
 
     ASSERT_EQ(dense_L * dense_U, expected);
   }
+}
+
+TEST(SparseLUTests, SmallSolveLinearTransposedTest) {
+  Matrix<Rational> A = {
+      {3, -7, -2, 2},
+      {-3, 5, 1, 0},
+      {6, -4, 0, -5},
+      {-9, 5, -5, 12},
+  };
+
+  auto sparse = CSCMatrix(A);
+  auto lupa = linalg::LUPA(sparse);
+
+  lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
+
+  Matrix<Rational> b = {{0}, {2}, {0}, {1}};
+  auto solution = lupa.solve_linear_transposed(b);
+
+  Matrix<Rational> expected = {{30}, {50}, {7}, {-2}};
+
+  ASSERT_EQ(solution, expected);
+}
+
+TEST(SparseLUTests, SmallGetRowTest) {
+  Matrix<Rational> A = {
+      {3, -7, -2, 2},
+      {-3, 5, 1, 0},
+      {6, -4, 0, -5},
+      {-9, 5, -5, 12},
+  };
+
+  auto sparse = CSCMatrix(A);
+  auto lupa = linalg::LUPA(sparse);
+
+  lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
+
+  auto row = lupa.get_row(2);
+  Matrix<Rational> expected = {{11}, {18}, {2}, {-1}};
+
+  ASSERT_EQ(row, expected);
 }

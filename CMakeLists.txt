@@ -10,9 +10,7 @@ add_subdirectory(src)
 add_subdirectory(benchmark)
 add_subdirectory(tests)
 
-add_executable(playground playground/main.cpp)
-target_link_libraries(playground raspisator)
-set_target_properties(playground PROPERTIES CMAKE_CXX_FLAGS " -fsanitize=address -O0")
+add_subdirectory(playground)
 
 add_custom_target(copy_resources
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/resources

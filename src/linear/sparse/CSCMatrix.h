@@ -112,6 +112,15 @@ class CSCMatrix {
     index_pointers_.push_back(nonzero_cnt);
   }
 
+  void add_column(std::span<const std::pair<size_t, Field>> sparse) {
+    for (auto [row, value] : sparse) {
+      data_.push_back(value);
+      indices_.push_back(row);
+    }
+
+    index_pointers_.push_back(indices_.size());
+  }
+
   // adds zero column
   void add_column() { index_pointers_.push_back(index_pointers_.back()); }
 

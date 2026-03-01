@@ -1,10 +1,9 @@
 #pragma once
-#include <fmt/format.h>
-#include <fmt/ranges.h>
 
 #include <format>
 #include <string>
 
+#include "String.h"
 #include "model/STN.h"
 #include "utils/Variant.h"
 
@@ -43,17 +42,19 @@ std::vector<std::string> translate_tasks(const STN<Field>& stn) {
 
   for (size_t i = 0; i < tasks.size(); ++i) {
     size_t id = tasks[i].get_id();
-    std::vector<std::string> units_description;
+    std::vector<std::string> units_description_parts;
 
     for (const auto [unit, props] : stn.get_task_units(tasks[i])) {
-      units_description.push_back(
+      units_description_parts.push_back(
           std::format("{{ Unit {}|({}u, bs: {}-{}) }}", unit->get_id(),
                       props.batch_processing_time, props.batch_min_size,
                       props.batch_max_size));
     }
 
-    result[i] = fmt::format("T{} [label=\"{{ Task {} | {} }}\"];", id, id,
-                            fmt::join(units_description, "|"));
+    std::string units_description = str::join(units_description_parts, "|");
+
+    result[i] = std::format("T{} [label=\"{{ Task {} | {} }}\"];", id, id,
+                            units_description);
   }
 
   return result;
@@ -103,6 +104,6 @@ std::string to_graphviz(const STN<Field>& stn) {
   std::vector<std::string> tasks = translate_tasks(stn);
   std::vector<std::string> arcs = translate_arcs(stn);
 
-  return fmt::format(graph_template, fmt::join(states, "\n"),
-                     fmt::join(tasks, "\n"), fmt::join(arcs, "\n"));
+  return std::format(graph_template, str::join(states, "\n"),
+                     str::join(tasks, "\n"), str::join(arcs, "\n"));
 }

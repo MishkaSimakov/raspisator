@@ -38,8 +38,7 @@ TEST(DenseLUTests, SimpleLUP) {
 
   auto [L, U, P] = linalg::get_lup(A);
 
-  auto product = linalg::apply_permutation(L * U, P);
-  ASSERT_EQ(product, A);
+  ASSERT_EQ(L * U, P.apply(A));
 }
 
 TEST(DenseLUTests, BigInPlaceLUP) {
@@ -60,7 +59,7 @@ TEST(DenseLUTests, BigInPlaceLUP) {
   }
 
   // LU = PA
-  ASSERT_EQ(L * U, linalg::apply_permutation(A_copy, P));
+  ASSERT_EQ(L * U, P.apply(A_copy));
 }
 
 TEST(DenseLUTests, SolveL) {
@@ -118,7 +117,7 @@ TEST(DenseLUTests, SolveUsingLUChain) {
   // Ax = b iff LUx = Pb
 
   // calculate Pb
-  auto Pb = linalg::apply_permutation(b, P);
+  auto Pb = P.apply(b);
 
   // solve Ly = Pb
   auto y = linalg::solve_lower(L, Pb, std::true_type{});
@@ -155,12 +154,7 @@ TEST(DenseLUTests, SolveTransposedUsingLUChain) {
   // P^-T x = y iff x = P^T y
 
   // transpose permutation
-  std::vector<size_t> transposed_P(N);
-  for (size_t i = 0; i < N; ++i) {
-    transposed_P[P[i]] = i;
-  }
-
-  auto x = linalg::apply_permutation(y, transposed_P);
+  auto x = P.apply_transposed(y);
 
   ASSERT_EQ(x.shape(), (std::pair{N, 1}));
   ASSERT_EQ(linalg::transposed(A) * x, b);

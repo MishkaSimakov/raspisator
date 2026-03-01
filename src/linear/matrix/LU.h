@@ -4,6 +4,7 @@
 
 #include "Matrix.h"
 #include "linear/FieldTraits.h"
+#include "linear/sparse/Permutation.h"
 
 namespace linalg {
 template <MatrixLike T>
@@ -46,8 +47,7 @@ void inplace_lu(MatrixLike auto&& matrix) {
 }
 
 template <MatrixLike T>
-std::tuple<Matrix<matrix_field_t<T>>, Matrix<matrix_field_t<T>>,
-           std::vector<size_t>>
+std::tuple<Matrix<matrix_field_t<T>>, Matrix<matrix_field_t<T>>, Permutation>
 get_lup(T&& matrix) {
   using Field = matrix_field_t<T>;
 
@@ -59,9 +59,7 @@ get_lup(T&& matrix) {
 
   Matrix<Field> U = matrix;
   Matrix<Field> L = Matrix<Field>::unity(n);
-
-  std::vector<size_t> P(n);
-  std::iota(P.begin(), P.end(), 0);
+  auto P = Permutation::id(n);
 
   for (size_t i = 0; i < n; ++i) {
     size_t maximizing_row = i;
@@ -74,7 +72,7 @@ get_lup(T&& matrix) {
 
     std::swap(U[i, {i, n}], U[maximizing_row, {i, n}]);
     std::swap(L[i, {0, i}], L[maximizing_row, {0, i}]);
-    std::swap(P[i], P[maximizing_row]);
+    P.swap(i, maximizing_row);
 
     for (size_t j = i + 1; j < n; ++j) {
       L[j, i] = U[j, i] / U[i, i];
@@ -82,11 +80,11 @@ get_lup(T&& matrix) {
     }
   }
 
-  return std::tuple{std::move(L), std::move(U), std::move(P)};
+  return std::tuple{std::move(L), std::move(U), P.transposed()};
 }
 
 template <MatrixLike T>
-std::vector<size_t> inplace_lup(T&& matrix) {
+Permutation inplace_lup(T&& matrix) {
   using Field = matrix_field_t<T>;
 
   auto [n, d] = matrix.shape();
@@ -95,8 +93,7 @@ std::vector<size_t> inplace_lup(T&& matrix) {
         "Square matrix is required for LU decomposition.");
   }
 
-  std::vector<size_t> P(n);
-  std::iota(P.begin(), P.end(), 0);
+  auto P = Permutation::id(n);
 
   for (size_t i = 0; i < n; ++i) {
     size_t maximizing_row = i;
@@ -108,7 +105,7 @@ std::vector<size_t> inplace_lup(T&& matrix) {
     }
 
     std::swap(matrix[i, {0, n}], matrix[maximizing_row, {0, n}]);
-    std::swap(P[i], P[maximizing_row]);
+    P.swap(i, maximizing_row);
 
     for (size_t j = i + 1; j < n; ++j) {
       matrix[j, i] /= matrix[i, i];
@@ -116,7 +113,7 @@ std::vector<size_t> inplace_lup(T&& matrix) {
     }
   }
 
-  return P;
+  return P.transposed();
 }
 
 // solves Ax = b, where A is lower triangular
@@ -157,22 +154,6 @@ Matrix<common_field_t<U, V>> solve_upper(U&& A, V&& b,
     if constexpr (!ones_on_diagonal) {
       result[n - i - 1, 0] /= A[n - i - 1, n - i - 1];
     }
-  }
-
-  return result;
-}
-
-// this method combines with LUP decomposition
-// if LU = PA, then L * U = apply_permutation(A, P)
-template <MatrixLike T>
-Matrix<matrix_field_t<T>> apply_permutation(
-    T&& matrix, const std::vector<size_t>& permutation) {
-  auto [n, d] = matrix.shape();
-
-  Matrix<matrix_field_t<T>> result(n, d);
-
-  for (size_t i = 0; i < n; ++i) {
-    result[i, {0, d}] = matrix[permutation[i], {0, d}];
   }
 
   return result;
