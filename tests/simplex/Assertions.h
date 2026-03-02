@@ -11,8 +11,7 @@
 template <typename Field>
 void validate_simplex_solution(const Matrix<Field>& A, const Matrix<Field>& b,
                                const Matrix<Field>& c,
-                               const std::vector<Field>& lower,
-                               const std::vector<Field>& upper,
+                               const Bounds<Field>& bounds,
                                const FiniteLPSolution<Field>& solution) {
   auto [n, d] = A.shape();
 
@@ -22,16 +21,25 @@ void validate_simplex_solution(const Matrix<Field>& A, const Matrix<Field>& b,
   }
 
   for (size_t i = 0; i < d; ++i) {
-    ASSERT_TRUE(!FieldTraits<Field>::is_strictly_positive(
-        lower[i] - solution.point[i, 0]));
-    ASSERT_TRUE(!FieldTraits<Field>::is_strictly_positive(solution.point[i, 0] -
-                                                          upper[i]));
+    if (bounds[i].lower) {
+      ASSERT_TRUE(!FieldTraits<Field>::is_strictly_positive(
+          *bounds[i].lower - solution.point[i, 0]));
+    }
+    if (bounds[i].upper) {
+      ASSERT_TRUE(!FieldTraits<Field>::is_strictly_positive(
+          solution.point[i, 0] - *bounds[i].upper));
+    }
 
-    auto basic_vars = solution.get_basic_variables();
-    if (std::ranges::find(basic_vars, i) == basic_vars.end()) {
-      ASSERT_TRUE(
-          (!FieldTraits<Field>::is_nonzero(lower[i] - solution.point[i, 0]) ||
-           !FieldTraits<Field>::is_nonzero(solution.point[i, 0] - upper[i])));
+    for (size_t i = 0; i < d; ++i) {
+      if (solution.variables[i] == VariableState::AT_LOWER) {
+        ASSERT_TRUE(bounds[i].lower &&
+                    !FieldTraits<Field>::is_nonzero(*bounds[i].lower -
+                                                    solution.point[i, 0]));
+      } else if (solution.variables[i] == VariableState::AT_UPPER) {
+        ASSERT_TRUE(bounds[i].upper &&
+                    !FieldTraits<Field>::is_nonzero(*bounds[i].upper -
+                                                    solution.point[i, 0]));
+      }
     }
   }
 

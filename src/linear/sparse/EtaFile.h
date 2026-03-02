@@ -133,24 +133,13 @@ class EtaFile {
           vector[row, col] += a * value;
         }
       } else {
-        Field dot = 0;
-        KahanSum<Field> kahan_dot;
+        KahanSum<Field> dot;
 
         for (auto [row, value] : entry.values) {
-          dot += value * vector[row, col];
-          kahan_dot.add(value * vector[row, col]);
+          dot.add(value * vector[row, col]);
         }
 
-        auto delta = std::abs(kahan_dot.sum() - dot);
-        if (delta > 1e-10) {
-          for (auto [row, value] : entry.values) {
-            std::println("+ {} * {}", value, vector[row, col]);
-          }
-
-          throw std::runtime_error(std::format("alert!!! {}", delta));
-        }
-
-        vector[entry.index, col] = dot;
+        vector[entry.index, col] = dot.sum();
       }
     }
 

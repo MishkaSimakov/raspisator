@@ -4,6 +4,7 @@
 
 #include "MILPProblem.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/model/LP.h"
 
 template <typename Field>
 struct MILPProblemAsMatrices {
@@ -11,9 +12,7 @@ struct MILPProblemAsMatrices {
   Matrix<Field> b;
   Matrix<Field> c;
 
-  std::vector<Field> lower;
-  std::vector<Field> upper;
-
+  Bounds<Field> bounds;
   std::vector<VariableType> variables;
 };
 
@@ -48,14 +47,12 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
   }
 
   std::vector<VariableType> types(d);
-  std::vector<Field> lower(d);
-  std::vector<Field> upper(d);
+  Bounds<Field> bounds(d);
 
   for (const auto& info : problem.variables) {
     types[enumeration.at(info.name)] = info.type;
-    lower[enumeration.at(info.name)] = info.lower_bound;
-    upper[enumeration.at(info.name)] = info.upper_bound;
+    bounds[enumeration.at(info.name)] = info.bound;
   }
 
-  return {A, b, c, lower, upper, types};
+  return {A, b, c, bounds, types};
 }

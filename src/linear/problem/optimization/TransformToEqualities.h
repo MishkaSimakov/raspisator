@@ -7,23 +7,6 @@ template <typename Field>
 class TransformToEqualities final : public BaseOptimizer<Field> {
   size_t slack_count_{0};
 
-  Field get_slack_upper_bound(const MILPProblem<Field>& problem,
-                              const Constraint<Field>& constraint) const {
-    Field result = -constraint.expr.get_shift();
-
-    for (auto [var, coef] : constraint.expr.get_variables()) {
-      const auto& info = problem.get_variable_info(var);
-
-      if (coef > Field(0)) {
-        result -= coef * info.lower_bound;
-      } else {
-        result -= coef * info.upper_bound;
-      }
-    }
-
-    return result;
-  }
-
   size_t slack_variables_count(const MILPProblem<Field>& problem) {
     size_t result = 0;
 
@@ -48,9 +31,8 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
       ++slack_count_;
 
       auto var_name = std::format("slack({})", slack_variables_count(problem));
-      Field upper_bound = get_slack_upper_bound(problem, constraint);
       auto slack_var =
-          problem.new_variable(var_name, VariableType::SLACK, 0, upper_bound);
+          problem.new_variable(var_name, VariableType::SLACK, 0, std::nullopt);
 
       constraint.expr += slack_var;
       constraint.type = ConstraintType::EQUAL_ZERO;

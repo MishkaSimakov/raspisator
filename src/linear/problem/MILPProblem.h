@@ -10,6 +10,7 @@
 #include "grammar/Expression.h"
 #include "grammar/Variable.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/model/LP.h"
 #include "utils/Accumulators.h"
 
 template <typename Field>
@@ -17,8 +18,7 @@ struct VariableInfo {
   std::string name;
   VariableType type;
 
-  Field lower_bound;
-  Field upper_bound;
+  Bound<Field> bound;
 };
 
 template <typename Field>
@@ -85,7 +85,8 @@ struct MILPProblem {
   }
 
   Variable<Field> new_variable(std::string name, VariableType type,
-                               Field lower_bound, Field upper_bound) {
+                               std::optional<Field> lower_bound,
+                               std::optional<Field> upper_bound) {
     for (const VariableInfo<Field>& info : variables) {
       if (info.name == name) {
         throw std::runtime_error(
@@ -93,7 +94,7 @@ struct MILPProblem {
       }
     }
 
-    variables.emplace_back(name, type, lower_bound, upper_bound);
+    variables.emplace_back(name, type, Bound<Field>{lower_bound, upper_bound});
 
     return Variable<Field>{name};
   }

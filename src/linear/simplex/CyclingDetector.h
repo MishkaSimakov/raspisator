@@ -56,6 +56,10 @@ class CyclingDetector {
 
     return CyclingState::NORMAL;
   }
+
+  void clear() {
+    visited_bases.clear();
+  }
 };
 
 }  // namespace simplex

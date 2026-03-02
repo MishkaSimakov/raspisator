@@ -20,8 +20,7 @@ class FullStrongBranchingBranchAndBound {
   struct Node {
     size_t id;
 
-    std::vector<Field> upper;
-    std::vector<Field> lower;
+    Bounds<Field> bounds;
 
     std::vector<VariableState> variables_states;
     size_t branch_variable;
@@ -125,14 +124,16 @@ class FullStrongBranchingBranchAndBound {
 
     // calculate left node
     std::optional<Field> lower_score;
-    auto tight_upper = node.upper;
-    tight_upper[index] = branch_value;
+    auto tight_upper = node.bounds;
+    tight_upper[index].upper = branch_value;
 
-    auto left_run_result =
-        lp_solver_.dual(node.lower, tight_upper, node.variables_states);
+    auto left_run_result = lp_solver_.dual(tight_upper, node.variables_states);
 
     std::visit(Overload{
                    [](NoFeasibleElements) {},
+                   [](Unbounded) {
+                     // TODO: think about this case
+                   },
                    [&lower_score, &solution](const auto& subproblem_solution) {
                      lower_score = subproblem_solution.value - solution.value;
                    },
@@ -143,14 +144,16 @@ class FullStrongBranchingBranchAndBound {
 
     // calculate right node
     std::optional<Field> upper_score;
-    auto tight_lower = node.lower;
-    tight_lower[index] = branch_value + 1;
+    auto tight_lower = node.bounds;
+    tight_lower[index].lower = branch_value + 1;
 
-    auto right_run_result =
-        lp_solver_.dual(tight_lower, node.upper, node.variables_states);
+    auto right_run_result = lp_solver_.dual(tight_lower, node.variables_states);
 
     std::visit(Overload{
                    [](NoFeasibleElements) {},
+                   [](Unbounded) {
+                     // TODO: think about this case
+                   },
                    [&upper_score, &solution](const auto& subproblem_solution) {
                      upper_score = subproblem_solution.value - solution.value;
                    },
@@ -248,28 +251,23 @@ class FullStrongBranchingBranchAndBound {
   void calculate_node(const Node& parent, NodeRelativeLocation location) {
     assert(location != NodeRelativeLocation::ROOT);
 
-    Node child;
-    child.id = ++total_nodes_count_;
-
-    accountant_.set_child(parent.id, child.id, location);
+    Node child = {.id = ++total_nodes_count_, .bounds = parent.bounds};
 
     // tighten bounds
-    child.lower = parent.lower;
-    child.upper = parent.upper;
-
     if (location == NodeRelativeLocation::LEFT_CHILD) {
-      child.upper[parent.branch_variable] = parent.branch_value;
+      child.bounds[parent.branch_variable].upper = parent.branch_value;
     } else {
-      child.lower[parent.branch_variable] = parent.branch_value + 1;
+      child.bounds[parent.branch_variable].lower = parent.branch_value + 1;
     }
+
+    accountant_.set_child(parent.id, child.id, location);
 
     // run simplex method for subproblem
     lp_solver_.set_max_iterations(std::nullopt);
     SimplexResult<Field> run_result;
 
     try {
-      run_result =
-          lp_solver_.dual(child.lower, child.upper, parent.variables_states);
+      run_result = lp_solver_.dual(child.bounds, parent.variables_states);
     } catch (...) {
       throw;
     }
@@ -314,21 +312,18 @@ class FullStrongBranchingBranchAndBound {
 
  public:
   FullStrongBranchingBranchAndBound(Matrix<Field> A, Matrix<Field> b,
-                                    Matrix<Field> c, std::vector<Field> lower,
-                                    std::vector<Field> upper,
+                                    Matrix<Field> c, Bounds<Field> bounds,
                                     std::vector<VariableType> variables,
                                     BranchAndBoundSettings<Field> settings = {})
       : total_nodes_count_(0),
         lp_solver_(CSCMatrix(A), b, c),
-        variables_(variables),
+        variables_(std::move(variables)),
         settings_(settings) {
-    Node root;
-
-    root.id = ++total_nodes_count_;
-    root.lower = lower;
-    root.upper = upper;
-
-    root.variables_states = lp_solver_.get_initial_states();
+    Node root = {
+        .id = ++total_nodes_count_,
+        .bounds = std::move(bounds),
+        .variables_states = lp_solver_.get_initial_states(),
+    };
 
     accountant_.set_root(root.id);
     lifo_slot_ = std::move(root);
@@ -341,7 +336,7 @@ class FullStrongBranchingBranchAndBound {
     std::optional<Node> root = pop_node();
     assert(root.has_value());
 
-    auto run_result = lp_solver_.dual(root->lower, root->upper);
+    auto run_result = lp_solver_.dual(root->bounds);
     try_push_to_waiting(std::move(*root), run_result);
 
     // main branch and bound cycle

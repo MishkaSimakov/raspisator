@@ -2,9 +2,9 @@
 
 #include <variant>
 
-#include "linear/simplex/BoundedSimplexMethod.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/simplex/BoundedSimplexMethod.h"
 
 template <typename Field>
 auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
@@ -12,7 +12,7 @@ auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
                  const std::vector<Field>& upper,
                  const std::vector<size_t>& basic_variables) {
   simplex::BoundedSimplexMethod solver(CSCMatrix(A), b, c);
-  return solver.dual(lower, upper, basic_variables).solution;
+  return solver.dual(Bounds(lower, upper), basic_variables).solution;
 }
 
 TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {

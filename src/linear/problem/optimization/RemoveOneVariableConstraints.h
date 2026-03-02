@@ -22,20 +22,17 @@ class RemoveOneVariableConstraints final : public BaseOptimizer<Field> {
       Field value = -itr->expr.get_shift() / coef;
 
       if (itr->type == ConstraintType::EQUAL_ZERO) {
-        if (FieldTraits<Field>::is_strictly_negative(value -
-                                                     info.lower_bound) ||
-            FieldTraits<Field>::is_strictly_negative(info.upper_bound -
-                                                     value)) {
+        if (!info.bound.is_inside(value)) {
           throw std::runtime_error("Problem is trivially unfeasible.");
         }
 
-        info.lower_bound = value;
-        info.upper_bound = value;
+        info.bound.lower = value;
+        info.bound.upper = value;
       } else {
         if (coef > 0) {
-          info.upper_bound = std::min(info.upper_bound, value);
+          info.bound.stricten_upper(value);
         } else {
-          info.lower_bound = std::max(info.lower_bound, value);
+          info.bound.stricten_lower(value);
         }
       }
 

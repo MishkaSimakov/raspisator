@@ -6,29 +6,21 @@
 
 template <typename Field>
 class StrictenBounds final : public BaseOptimizer<Field> {
-  std::pair<Field, Field> get_bounds(const MILPProblem<Field>& problem,
-                                     const Expression<Field>& expression,
-                                     const std::string& target) {
-    Field lower = -expression.get_shift();
-    Field upper = -expression.get_shift();
+  Bound<Field> get_bound(const MILPProblem<Field>& problem,
+                         const Expression<Field>& expression,
+                         const std::string& target) {
+    Bound<Field> result(expression.get_shift(), expression.get_shift());
+    Field target_coef = 0;
 
     for (const auto& [var, coef] : expression.get_variables()) {
-      if (var == target) {
-        continue;
-      }
-
-      const auto& info = problem.get_variable_info(var);
-
-      if (coef > 0) {
-        lower -= coef * info.upper_bound;
-        upper -= coef * info.lower_bound;
+      if (var != target) {
+        result += coef * problem.get_variable_info(var).bound;
       } else {
-        lower -= coef * info.lower_bound;
-        upper -= coef * info.upper_bound;
+        target_coef = coef;
       }
     }
 
-    return {lower, upper};
+    return -result / target_coef;
   }
 
  public:
@@ -41,29 +33,26 @@ class StrictenBounds final : public BaseOptimizer<Field> {
       }
 
       for (const auto& [var, coef] : constraint.expr.get_variables()) {
-        auto [lower, upper] = get_bounds(problem, constraint.expr, var);
-
-        auto& info = problem.get_variable_info(var);
-
-        if (coef > 0) {
-          info.lower_bound = std::max(lower / coef, info.lower_bound);
-          info.upper_bound = std::min(upper / coef, info.upper_bound);
-        } else {
-          info.lower_bound = std::max(upper / coef, info.lower_bound);
-          info.upper_bound = std::min(lower / coef, info.upper_bound);
-        }
-
-        if (FieldTraits<Field>::is_strictly_negative(info.upper_bound -
-                                                     info.lower_bound)) {
-          throw std::runtime_error("Problem is trivially infeasible.");
-        }
+        problem.get_variable_info(var).bound ^=
+            get_bound(problem, constraint.expr, var);
       }
     }
 
     for (auto& info : problem.variables) {
       if (info.type == VariableType::INTEGER) {
-        info.lower_bound = -FieldTraits<Field>::floor(-info.lower_bound);
-        info.upper_bound = FieldTraits<Field>::floor(info.upper_bound);
+        if (info.bound.lower) {
+          info.bound.lower = -FieldTraits<Field>::floor(-*info.bound.lower);
+        }
+
+        if (info.bound.upper) {
+          info.bound.upper = FieldTraits<Field>::floor(*info.bound.upper);
+        }
+      }
+
+      if (info.bound.lower && info.bound.upper &&
+          FieldTraits<Field>::is_strictly_negative(*info.bound.upper -
+                                                   *info.bound.lower)) {
+        throw std::runtime_error("Problem is trivially infeasible.");
       }
     }
 

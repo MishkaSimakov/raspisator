@@ -27,7 +27,7 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
     // choose maximum element in the column for gaussian elimination
     ArgMaximum<Field> max_row;
 
-    for (size_t row = current_row + 1; row < n; ++row) {
+    for (size_t row = current_row; row < n; ++row) {
       max_row.record(row, FieldTraits<Field>::abs(matrix[row, col]));
     }
 

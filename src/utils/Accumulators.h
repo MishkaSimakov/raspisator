@@ -160,9 +160,7 @@ class ArgMaximum {
     return minimum_.min().transform([](Field value) { return -value; });
   }
 
-  std::optional<size_t> argmax() const {
-    return minimum_.argmin();
-  }
+  std::optional<size_t> argmax() const { return minimum_.argmin(); }
 };
 
 template <typename Field>
@@ -172,8 +170,8 @@ class KahanSum {
 
  public:
   void add(Field value) {
-    double y = value - compensation_;
-    double t = sum_ + y;
+    Field y = value - compensation_;
+    Field t = sum_ + y;
 
     compensation_ = (t - sum_) - y;
     sum_ = t;
@@ -181,3 +179,4 @@ class KahanSum {
 
   Field sum() const { return sum_; }
 };
+

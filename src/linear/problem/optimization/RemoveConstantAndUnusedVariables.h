@@ -56,21 +56,20 @@ class RemoveConstantAndUnusedVariables final : public BaseOptimizer<Field> {
          itr != problem.variables.end();) {
       if (is_unused(problem, itr->name)) {
         // unused variable may be equal to any value within its bounds
-        Field value = itr->upper_bound;
-        constants_.emplace(i, value);
+        constants_.emplace(i, itr->bound.get_point_inside());
 
         itr = problem.variables.erase(itr);
-      } else if (FieldTraits<Field>::is_nonzero(itr->upper_bound -
-                                                itr->lower_bound)) {
-        ++itr;
-      } else {
-        Field value = itr->upper_bound;
+      } else if (itr->bound.is_fixed()) {
+        // fixed variable can be replaced with its value
+        Field value = *itr->bound.upper;
         constants_.emplace(i, value);
 
         replace_in_constraints(problem, itr->name, value);
         replace_in_objective(problem, itr->name, value);
 
         itr = problem.variables.erase(itr);
+      } else {
+        ++itr;
       }
 
       ++i;

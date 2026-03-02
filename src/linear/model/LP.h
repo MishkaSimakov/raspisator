@@ -1,26 +1,30 @@
 #pragma once
 
-#include <concepts>
-#include <optional>
 #include <variant>
 #include <vector>
 
+#include "Bound.h"
 #include "linear/matrix/Matrix.h"
-#include "linear/sparse/CSCMatrix.h"
 
 enum class VariableState { AT_LOWER, AT_UPPER, BASIC };
-
-template <typename Field>
-struct Bound {
-  std::optional<Field> lower;
-  std::optional<Field> upper;
-};
 
 template <typename Field>
 class Bounds {
   std::vector<Bound<Field>> variables_bounds_;
 
  public:
+  explicit Bounds(size_t size) : variables_bounds_(size) {}
+
+  Bounds(const std::vector<Field>& lower, const std::vector<Field>& upper)
+      : Bounds(lower.size()) {
+    assert(lower.size() == upper.size());
+
+    for (size_t i = 0; i < lower.size(); ++i) {
+      variables_bounds_[i].lower = lower[i];
+      variables_bounds_[i].upper = upper[i];
+    }
+  }
+
   Bound<Field>& operator[](size_t index) { return variables_bounds_[index]; }
 
   const Bound<Field>& operator[](size_t index) const {

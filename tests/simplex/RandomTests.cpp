@@ -2,11 +2,11 @@
 
 #include <random>
 
-#include "../../src/linear/simplex/BoundedSimplexMethod.h"
 #include "Assertions.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/Random.h"
+#include "linear/simplex/BoundedSimplexMethod.h"
 
 TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
   constexpr size_t kIterations = 1'000;
@@ -39,8 +39,8 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
 
     Matrix<Rational> point(d, 1);
 
-    std::vector<Rational> lower(d);
-    std::vector<Rational> upper(d);
+    Bounds<Rational> bounds(d);
+
     for (size_t i = 0; i < d; ++i) {
       int first = elements_generator();
       int second = elements_generator();
@@ -49,8 +49,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
         std::swap(first, second);
       }
 
-      lower[i] = first;
-      upper[i] = second;
+      bounds[i] = Bound<Rational>(first, second);
 
       point[i, 0] = std::uniform_int_distribution<int>(first, second)(engine);
     }
@@ -63,12 +62,13 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
 
     // calculate solution
     auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-    auto run_result = solver.dual(lower, upper, basic_variables);
+    auto run_result = solver.dual(bounds, basic_variables);
 
     // check solution
-    auto finite_solution = std::get<FiniteLPSolution<Rational>>(run_result.solution);
+    auto finite_solution =
+        std::get<FiniteLPSolution<Rational>>(run_result.solution);
 
     ASSERT_NO_FATAL_FAILURE(
-        validate_simplex_solution(A, b, c, lower, upper, finite_solution));
+        validate_simplex_solution(A, b, c, bounds, finite_solution));
   }
 }

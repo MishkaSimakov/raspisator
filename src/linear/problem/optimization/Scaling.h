@@ -75,8 +75,7 @@ class Scaling final : public BaseOptimizer<Field> {
         }
       }
 
-      info.lower_bound /= scale_factor;
-      info.upper_bound /= scale_factor;
+      info.bound /= scale_factor;
 
       auto& objective_variables = problem.objective.get_variables();
       auto itr = objective_variables.find(info.name);

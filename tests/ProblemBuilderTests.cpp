@@ -78,7 +78,7 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
                                               matrices.c);
   auto solution = std::get<FiniteLPSolution<Rational>>(
-      solver.dual(matrices.lower, matrices.upper, basic_vars).solution);
+      solver.dual(matrices.bounds, basic_vars).solution);
   auto point = optimizer.inverse(solution.point);
 
   // check solution
@@ -112,7 +112,7 @@ TEST(ProblemBuilderTests, ScalingTest) {
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
                                               matrices.c);
   auto solution = std::get<FiniteLPSolution<double>>(
-      solver.dual(matrices.lower, matrices.upper, basic_vars).solution);
+      solver.dual(matrices.bounds, basic_vars).solution);
   auto point = optimizer1.inverse(optimizer2.inverse(solution.point));
 
   // check solution

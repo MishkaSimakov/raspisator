@@ -294,8 +294,6 @@ class MPSReader {
   // generates a problem suitable for simplex method:
   // c x -> max, s.t. Ax = b, l <= x <= u
   MILPProblem<Field> get_canonical_representation() {
-    const Field kInfinity = 1e7;
-
     MILPProblem<Field> result;
     std::unordered_map<std::string, Variable<Field>> variables;
 

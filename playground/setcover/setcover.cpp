@@ -51,5 +51,5 @@ int main() {
   auto simplex = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A),
                                                matrices.b, matrices.c);
 
-  auto result = simplex.dual(matrices.lower, matrices.upper);
+  auto result = simplex.dual(matrices.bounds);
 }

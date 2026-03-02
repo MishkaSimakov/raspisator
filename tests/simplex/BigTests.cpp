@@ -14,22 +14,26 @@ TEST(BigTests, PotentiallyCyclingProblem2) {
   using namespace SimplexDump_1;
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-  auto solution = solver.dual(lower, upper, states).solution;
+
+  Bounds bounds(lower, upper);
+  auto solution = solver.dual(bounds, states).solution;
 
   auto finite_solution = std::get<FiniteLPSolution<Field>>(solution);
 
   ASSERT_NO_FATAL_FAILURE(
-      validate_simplex_solution(A, b, c, lower, upper, finite_solution));
+      validate_simplex_solution(A, b, c, bounds, finite_solution));
 }
 
 TEST(BigTests, PotentiallyCyclingProblem3) {
   using namespace SimplexDump_2;
 
   auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-  auto solution = solver.dual(lower, upper, states).solution;
+
+  Bounds bounds(lower, upper);
+  auto solution = solver.dual(bounds, states).solution;
 
   auto finite_solution = std::get<FiniteLPSolution<Field>>(solution);
 
   ASSERT_NO_FATAL_FAILURE(
-      validate_simplex_solution(A, b, c, lower, upper, finite_solution));
+      validate_simplex_solution(A, b, c, bounds, finite_solution));
 }

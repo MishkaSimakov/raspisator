@@ -22,7 +22,8 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     std::vector<Rational> lower(4, 0);
     std::vector<Rational> upper(4, 100'000);
 
-    FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
+    FullStrongBranchingBranchAndBound solver(A, b, c, Bounds(lower, upper),
+                                             variables);
     auto solution =
         std::get<FiniteMILPSolution<Rational>>(solver.solve().solution);
 
@@ -54,8 +55,10 @@ TEST(BranchAndBoundTests, SimpleProblems) {
     std::vector<Rational> lower(11, 0);
     std::vector<Rational> upper(11, 100'000);
 
-    FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
-    auto solution = std::get<FiniteMILPSolution<Rational>>(solver.solve().solution);
+    FullStrongBranchingBranchAndBound solver(A, b, c, Bounds(lower, upper),
+                                             variables);
+    auto solution =
+        std::get<FiniteMILPSolution<Rational>>(solver.solve().solution);
 
     ASSERT_EQ(solution.value, 700);
 
@@ -79,7 +82,8 @@ TEST(BranchAndBoundTests, NoFeasibleElements) {
   std::vector<Rational> lower(4, 0);
   std::vector<Rational> upper(4, 100);
 
-  FullStrongBranchingBranchAndBound solver(A, b, c, lower, upper, variables);
+  FullStrongBranchingBranchAndBound solver(A, b, c, Bounds(lower, upper),
+                                           variables);
   auto run_result = solver.solve();
 
   ASSERT_TRUE(std::holds_alternative<NoFiniteSolution>(run_result.solution));

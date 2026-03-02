@@ -16,22 +16,22 @@ class ObjectivePerturbation final : public BaseOptimizer<Field> {
         continue;
       }
 
-      if (FieldTraits<Field>::is_nonzero(variable.lower_bound)) {
+      if (!variable.bound.lower ||
+          FieldTraits<Field>::is_nonzero(*variable.bound.lower)) {
         continue;
       }
 
-      if (!FieldTraits<Field>::is_nonzero(variable.lower_bound -
-                                          variable.upper_bound)) {
+      if (variable.bound.is_fixed()) {
         continue;
       }
 
       // remove variables with big upper bounds so that coefficients are not
       // too small
-      if (variable.upper_bound > 500) {
+      if (!variable.bound.upper || variable.bound.upper > 500) {
         continue;
       }
 
-      problem.objective -= static_cast<Field>(1) / variable.upper_bound *
+      problem.objective -= static_cast<Field>(1) / *variable.bound.upper *
                            problem.get_variable(variable.name);
       perturbed.push_back(variable.name);
     }
