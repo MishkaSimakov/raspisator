@@ -228,7 +228,7 @@ class LUPA {
         }
       }
 
-      logging::log_value(largest_value, "lu_pivoting_value.txt");
+      // logging::log_value(largest_value, "lu_pivoting_value.txt");
       assert(largest_value_row != n);
 
       P_impl_[largest_value_row] = j;
@@ -303,7 +303,7 @@ class LUPA {
       ls_.push_back(i, column);
     }
 
-    logging::log_value(*max.max(), "max_us_value.txt");
+    // logging::log_value(*max.max(), "max_us_value.txt");
   }
 
   void refactorize() {
@@ -377,7 +377,7 @@ class LUPA {
       force_refactorization_ = true;
     }
 
-    logging::log_value(*r_max.max(), "r_max.txt");
+    // logging::log_value(*r_max.max(), "r_max.txt");
 
     ls_.push_back(current_column, r, EtaType::ROW);
 
@@ -396,7 +396,7 @@ class LUPA {
       max.record(FieldTraits<Field>::abs(column[i, 0]));
     }
 
-    logging::log_value(*max.max(), "max_additional_us_value.txt");
+    // logging::log_value(*max.max(), "max_additional_us_value.txt");
 
     us_.push_back(current_column, column, EtaType::COLUMN);
   }

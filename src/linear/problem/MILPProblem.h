@@ -142,8 +142,7 @@ std::ostream& operator<<(std::ostream& os, const MILPProblem<Field>& problem) {
   }
 
   for (const VariableInfo<Field>& info : problem.variables) {
-    std::println(os, "{} <= {} <= {}", info.lower_bound, info.name,
-                 info.upper_bound);
+    std::println(os, "{} ∈ ({}, {})", info.name, info.lower_bound, info.upper_bound);
   }
 
   return os;

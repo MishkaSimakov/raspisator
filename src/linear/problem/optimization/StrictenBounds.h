@@ -49,9 +49,7 @@ class StrictenBounds final : public BaseOptimizer<Field> {
         }
       }
 
-      if (info.bound.lower && info.bound.upper &&
-          FieldTraits<Field>::is_strictly_negative(*info.bound.upper -
-                                                   *info.bound.lower)) {
+      if (info.bound.is_infeasible()) {
         throw std::runtime_error("Problem is trivially infeasible.");
       }
     }

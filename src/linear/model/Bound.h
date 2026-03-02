@@ -37,8 +37,10 @@ struct Bound {
       lower = lower.transform([scalar](Field value) { return value * scalar; });
       upper = upper.transform([scalar](Field value) { return value * scalar; });
     } else {
+      auto old_lower = lower;
       lower = upper.transform([scalar](Field value) { return value * scalar; });
-      upper = lower.transform([scalar](Field value) { return value * scalar; });
+      upper =
+          old_lower.transform([scalar](Field value) { return value * scalar; });
     }
 
     return *this;
@@ -85,6 +87,11 @@ struct Bound {
 
   bool is_fixed() const {
     return lower && upper && !FieldTraits<Field>::is_nonzero(*lower - *upper);
+  }
+
+  bool is_infeasible() const {
+    return lower && upper &&
+           FieldTraits<Field>::is_strictly_negative(*upper - *lower);
   }
 
   // Returns a point inside bounds

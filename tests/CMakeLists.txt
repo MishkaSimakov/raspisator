@@ -11,6 +11,7 @@ target_sources(tests PUBLIC
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
         NumericalStabilityTests.cpp
+        BoundsTests.cpp
 
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
