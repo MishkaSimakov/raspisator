@@ -7,6 +7,7 @@
 #include "EtaFile.h"
 #include "Permutation.h"
 #include "linear/matrix/LU.h"
+#include "utils/Logging.h"
 
 namespace linalg {
 
@@ -120,6 +121,10 @@ class LUPA {
   EtaFile<Field> ls_;  // stores L1^-1 ... Ln^-1 R1^-1 ... Rt^-1
   Permutation P_;
   Permutation Q_;
+
+  // Forrest-Tomlin update helpers
+  size_t changes_since_refactorization_{0};
+  size_t changes_since_purge_{0};
 
   // LU-decomposition implementation buffers
   std::vector<Field> dense_;
@@ -293,6 +298,82 @@ class LUPA {
     }
   }
 
+  void refactorize() {
+    get_lup(columns_);
+
+    changes_since_refactorization_ = 0;
+    changes_since_purge_ = 0;
+  }
+
+  void purge() {
+    ls_.purge();
+    us_.purge();
+
+    changes_since_purge_ = 0;
+  }
+
+  void forrest_tomlin_update(size_t current_column, size_t new_column) {
+    auto [n, d] = A_.shape();
+
+    Matrix<Field> column(n, 1, 0);
+    for (const auto [row, value] : A_.get_column(new_column)) {
+      column[row, 0] = value;
+    }
+
+    column = P_.apply(std::move(column));
+    for (auto entry : ls_) {
+      column = ls_.apply(std::move(column), entry);
+    }
+
+    Matrix<Field> r(n, 1, 0);
+
+    auto itr = us_.begin();
+    for (; itr != us_.end(); ++itr) {
+      if ((*itr).index == current_column) {
+        itr = us_.erase(itr);
+        break;
+      }
+    }
+
+    // TODO: it was noticed that r is often empty in setcover problem!
+    // Check this for other problems
+    for (; itr != us_.end(); ++itr) {
+      Field diagonal = 0;
+      Field main_value = 0;
+
+      for (auto& [row, value] : (*itr).values) {
+        if (row == current_column) {
+          main_value = value;
+          value = 0;
+        } else if (row == (*itr).index) {
+          diagonal = value;
+        }
+      }
+
+      assert(FieldTraits<Field>::is_nonzero(diagonal));
+
+      r[(*itr).index, 0] = main_value / diagonal;
+      r = us_.apply_transposed(std::move(r), *itr);
+    }
+
+    r[current_column, 0] = 1;
+
+    ls_.push_back(current_column, r, EtaType::ROW);
+
+    // add new eta matrix to U1 ... Un
+    column = ls_.apply(std::move(column), *(--ls_.cend()));
+    assert(FieldTraits<Field>::is_nonzero(R_column[current_column, 0]));
+
+    Field diagonal = column[current_column, 0];
+
+    for (size_t i = 0; i < n; ++i) {
+      column[i, 0] =
+          i != current_column ? -column[i, 0] / diagonal : Field(1) / diagonal;
+    }
+
+    us_.push_back(current_column, column, EtaType::COLUMN);
+  }
+
  public:
   explicit LUPA(const CSCMatrix<Field>& A)
       : A_(A),
@@ -316,7 +397,18 @@ class LUPA {
 
   void change_column(size_t current_column, size_t new_column) {
     columns_[current_column] = new_column;
-    get_lup(columns_);
+    ++changes_since_refactorization_;
+    ++changes_since_purge_;
+
+    if (changes_since_refactorization_ > 1000) {
+      refactorize();
+    } else {
+      forrest_tomlin_update(current_column, new_column);
+
+      if (changes_since_purge_ > 100) {
+        purge();
+      }
+    }
   }
 
   // solves Ax = b
@@ -354,6 +446,25 @@ class LUPA {
   }
 
   auto get_lup() const { return std::tie(L_, U_, P_); }
+
+  // This method is for testing, it is not optimized in any way
+  Matrix<Field> get_inverse() const {
+    auto result = Matrix<Field>::unity(A_.shape().first);
+
+    result = P_.apply(std::move(result));
+
+    for (auto entry : ls_) {
+      result = linalg::to_dense(ls_.as_matrix(entry)) * result;
+    }
+
+    for (auto entry : us_ | std::views::reverse) {
+      result = linalg::to_dense(us_.as_matrix(entry)) * result;
+    }
+
+    return result;
+  }
+
+  size_t size() const { return ls_.size() + us_.size(); }
 };
 
 template <typename Field>

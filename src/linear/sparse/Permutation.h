@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <numeric>
+#include <set>
 #include <vector>
 
 #include "linear/matrix/Matrix.h"
@@ -40,6 +42,8 @@ class Permutation {
 
   // Returns PA - row permutation of A
   // Allocates new matrix of the same shape as A.
+  // TODO: this may be implemented without extra allocations:
+  // https://blog.merovius.de/posts/2014-08-12-applying-permutation-in-constant/
   template <typename Field>
   Matrix<Field> apply(const Matrix<Field>& A) const {
     auto [n, d] = A.shape();
@@ -69,6 +73,20 @@ class Permutation {
       for (size_t& row : A.get_column(col) | std::views::keys) {
         row = permutation_[row];
       }
+    }
+
+    return A;
+  }
+
+  // Returns PA - row permutation of A
+  // Does not allocate new matrices, performs transformation in place
+  template <typename Field>
+  std::vector<std::pair<size_t, Field>> apply(
+      std::vector<std::pair<size_t, Field>> A) const {
+    assert(A.size() == size());
+
+    for (size_t& row : A | std::views::keys) {
+      row = permutation_[row];
     }
 
     return A;

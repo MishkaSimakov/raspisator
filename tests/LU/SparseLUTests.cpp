@@ -157,3 +157,24 @@ TEST(SparseLUTests, SmallGetRowTest) {
 
   ASSERT_EQ(row, expected);
 }
+
+TEST(SparseLUTests, ChangeColumnOnce) {
+  auto A = CSCMatrix(Matrix<double>({
+      {3, -7, -2, 2, 1, 1},
+      {-3, 5, 1, 0, 0, 2},
+      {6, -4, 0, -5, 2, 3},
+      {-9, 5, -5, 12, 3, 4},
+  }));
+
+  auto lupa = linalg::LUPA(A);
+  lupa.set_columns({0, 1, 2, 3});
+
+  copy_constructor_calls = 0;
+  default_constructor_calls = 0;
+  assignment_calls = 0;
+
+  lupa.change_column(1, 4);
+  // lupa.change_column(2, 5);
+
+  std::println("copy constructor calls: {}, default constructor calls: {}, assignment calls: {}", copy_constructor_calls, default_constructor_calls, assignment_calls);
+}

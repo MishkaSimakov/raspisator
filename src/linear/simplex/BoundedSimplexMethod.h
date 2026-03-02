@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <random>
 #include <ranges>
@@ -8,15 +9,12 @@
 #include <variant>
 
 #include "Settings.h"
-#include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
-#include "linear/matrix/Rank.h"
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
 #include "linear/sparse/LU.h"
 #include "utils/Accumulators.h"
 #include "utils/Hashers.h"
-#include "utils/Variant.h"
 
 namespace simplex {
 
@@ -303,15 +301,6 @@ class BoundedSimplexMethod {
     size_t iterations_since_last_time = 0;
 
     while (true) {
-      ++iterations_since_last_time;
-      auto curr_time = std::chrono::high_resolution_clock::now();
-      if (curr_time - last_time > std::chrono::seconds{1}) {
-        std::println("{} itr/s", iterations_since_last_time);
-
-        last_time = curr_time;
-        iterations_since_last_time = 0;
-      }
-
       const auto hash = hash_basic_variables(basic_vars);
       const auto [itr, was_emplaced] = visited_bases.emplace(hash, iteration);
       if (!was_emplaced) {
@@ -336,6 +325,24 @@ class BoundedSimplexMethod {
       }
 
       auto point = lupa_.solve_linear(b);
+
+      ++iterations_since_last_time;
+      auto curr_time = std::chrono::high_resolution_clock::now();
+      if (curr_time - last_time > std::chrono::seconds{1}) {
+        auto full_point =
+            get_point(point, basic_vars, lower_bounds, upper_bounds);
+        Field value = (c_ * full_point)[0, 0];
+
+        double speed =
+            static_cast<double>(iterations_since_last_time) /
+            std::chrono::duration<double>(curr_time - last_time).count();
+
+        std::println("{:.1f} itr/s, objective: {}, size: {}, elapsed: {}", speed,
+                     value, lupa_.size(), curr_time - last_time);
+
+        last_time = curr_time;
+        iterations_since_last_time = 0;
+      }
 
       if (settings_.max_iterations && iteration >= settings_.max_iterations) {
         auto full_point =

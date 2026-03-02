@@ -137,6 +137,11 @@ class CSCMatrix {
 
   size_t nonzero_count() const { return data_.size(); }
 
+  double density() const {
+    auto [n, d] = shape();
+    return static_cast<double>(nonzero_count()) / static_cast<double>(n * d);
+  }
+
   void clear() {
     data_.clear();
     indices_.clear();

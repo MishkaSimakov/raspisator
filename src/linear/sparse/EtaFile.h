@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "CSCMatrix.h"
@@ -11,12 +12,15 @@ using const_if = std::conditional_t<is_const, const T, T>;
 
 namespace linalg {
 
+enum class EtaType { ROW, COLUMN };
+
 template <typename Field>
 class EtaFile {
   struct Entry {
     size_t begin;
     size_t index;
-    bool is_column;
+    EtaType type;
+
     bool is_removed;
   };
 
@@ -27,15 +31,13 @@ class EtaFile {
     std::span<ValueT> values;
 
     const size_t index;
-    const bool is_column;
+    const EtaType type;
 
-    EntryView(std::span<ValueT> values, size_t index, bool is_column)
-        : values(values), index(index), is_column(is_column) {}
+    EntryView(std::span<ValueT> values, size_t index, EtaType type)
+        : values(values), index(index), type(type) {}
 
     EntryView(EntryView<false> other)
-        : values(other.values),
-          index(other.index),
-          is_column(other.is_column) {}
+        : values(other.values), index(other.index), type(other.type) {}
   };
 
   std::vector<std::pair<size_t, Field>> values_;
@@ -72,7 +74,7 @@ class EtaFile {
 
       return EntryView<is_const>(
           std::span{values_->begin() + entry_->begin, values_->begin() + end},
-          entry_->index, entry_->is_column);
+          entry_->index, entry_->type);
     }
 
     iterator_base& operator++() {
@@ -121,7 +123,9 @@ class EtaFile {
  private:
   static Matrix<Field> apply_impl(Matrix<Field> vector, EntryView<true> entry,
                                   bool transposed) {
-    if (entry.is_column != transposed) {
+    assert(vector.get_width() == 1);
+
+    if ((entry.type == EtaType::COLUMN) != transposed) {
       Field a = vector[entry.index, 0];
       vector[entry.index, 0] = 0;
 
@@ -144,16 +148,36 @@ class EtaFile {
  public:
   EtaFile() = default;
 
-  void push_back(size_t column,
-                 const std::vector<std::pair<size_t, Field>>& values) {
+  void push_back(size_t pivot_index,
+                 const std::vector<std::pair<size_t, Field>>& values,
+                 EtaType type = EtaType::COLUMN) {
     entries_.push_back(Entry{
         .begin = values_.size(),
-        .index = column,
-        .is_column = true,
+        .index = pivot_index,
+        .type = type,
         .is_removed = false,
     });
 
     values_.append_range(values);
+  }
+
+  void push_back(size_t pivot_index,
+               const Matrix<Field>& vector,
+               EtaType type = EtaType::COLUMN) {
+    assert(values.get_width() == 1);
+
+    entries_.push_back(Entry{
+        .begin = values_.size(),
+        .index = pivot_index,
+        .type = type,
+        .is_removed = false,
+    });
+
+    for (size_t i = 0; i < vector.get_height(); ++i) {
+      if (FieldTraits<Field>::is_nonzero(vector[i, 0])) {
+        values_.emplace_back(i, vector[i, 0]);
+      }
+    }
   }
 
   Matrix<Field> apply(Matrix<Field> vector, EntryView<true> entry) const {
@@ -165,8 +189,64 @@ class EtaFile {
     return apply_impl(std::move(vector), entry, true);
   }
 
+  CSCMatrix<Field> as_matrix(EntryView<true> entry) const {
+    size_t n = get_breadth();
+    auto result = CSCMatrix<Field>(n);
+
+    if (entry.type == EtaType::COLUMN) {
+      for (size_t j = 0; j < n; ++j) {
+        if (j != entry.index) {
+          result.add_column();
+          result.push_to_last_column(j, 1);
+        } else {
+          result.add_column(entry.values);
+        }
+      }
+    } else {
+      std::unordered_map<size_t, Field> values;
+      for (auto [col, value] : entry.values) {
+        values.emplace(col, value);
+      }
+
+      for (size_t j = 0; j < n; ++j) {
+        result.add_column();
+
+        auto itr = values.find(j);
+
+        if (itr == values.end() || j != entry.index) {
+          result.push_to_last_column(j, 1);
+        }
+
+        if (itr != values.end()) {
+          result.push_to_last_column(entry.index, itr->second);
+        }
+      }
+    }
+
+    return result;
+  }
+
   void purge() {
-    // TODO: delete removed eta matrices and zeros
+    std::vector<std::pair<size_t, Field>> new_values;
+    std::vector<Entry> new_entries;
+
+    for (const auto& entry : *this) {
+      new_entries.push_back(Entry{
+          .begin = new_values.size(),
+          .index = entry.index,
+          .type = entry.type,
+          .is_removed = false,
+      });
+
+      for (auto [index, value] : entry.values) {
+        if (FieldTraits<Field>::is_nonzero(value)) {
+          new_values.emplace_back(index, value);
+        }
+      }
+    }
+
+    values_ = std::move(new_values);
+    entries_ = std::move(new_entries);
   }
 
   void clear() {
@@ -189,6 +269,8 @@ class EtaFile {
 
     return result + 1;
   }
+
+  size_t size() const { return entries_.size(); }
 
   iterator erase(iterator itr) {
     itr.entry_->is_removed = true;
@@ -239,21 +321,8 @@ class EtaFile {
 
 template <typename Field>
 std::ostream& operator<<(std::ostream& os, const linalg::EtaFile<Field>& file) {
-  size_t n = file.get_breadth();
-
   for (const auto& entry : file) {
-    auto matrix = CSCMatrix<Field>(n);
-
-    for (size_t j = 0; j < n; ++j) {
-      if (j != entry.index) {
-        matrix.add_column();
-        matrix.push_to_last_column(j, 1);
-      } else {
-        matrix.add_column(entry.values);
-      }
-    }
-
-    os << matrix << "\n";
+    os << file.as_matrix(entry) << "\n";
   }
 
   return os;

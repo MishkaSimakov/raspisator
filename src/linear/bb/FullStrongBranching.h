@@ -9,6 +9,7 @@
 #include "linear/problem/VariableType.h"
 #include "linear/simplex/BoundedSimplexMethod.h"
 #include "utils/Accumulators.h"
+#include "utils/Variant.h"
 
 template <typename Field, typename Accountant = BaseAccountant<Field>>
 class FullStrongBranchingBranchAndBound {

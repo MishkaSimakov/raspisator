@@ -219,7 +219,8 @@ class Matrix {
       : data_(rows * cols), rows_count_(rows), cols_count_(cols) {}
 
   Matrix(size_t rows, size_t cols, const Field& value)
-      : data_(rows * cols, value), rows_count_(rows), cols_count_(cols) {}
+      : data_(rows * cols, value), rows_count_(rows), cols_count_(cols) {
+  }
 
   Matrix(const std::initializer_list<std::initializer_list<Field>>& values)
       : Matrix(values.size(), values.begin()->size()) {
@@ -239,6 +240,31 @@ class Matrix {
       ++row;
       col = 0;
     }
+  }
+
+  Matrix(const Matrix& other) = default;
+
+  Matrix(Matrix&& other)
+      : data_(std::move(other.data_)),
+        rows_count_(other.rows_count_),
+        cols_count_(other.cols_count_) {
+    other.data_.clear();
+    other.rows_count_ = 0;
+    other.cols_count_ = 0;
+  }
+
+  Matrix& operator=(const Matrix& other) = default;
+
+  Matrix& operator=(Matrix&& other) {
+    data_ = std::move(other.data_);
+    rows_count_ = other.rows_count_;
+    cols_count_ = other.cols_count_;
+
+    other.data_.clear();
+    other.rows_count_ = 0;
+    other.cols_count_ = 0;
+
+    return *this;
   }
 
   Matrix(MatrixSlice<Field> slice)
@@ -387,10 +413,10 @@ class Matrix {
     return result;
   }
 
-  Field density() const {
+  double density() const {
     auto [n, d] = shape();
 
-    return Field(nonzero_count()) / Field(n * d);
+    return static_cast<double>(nonzero_count()) / static_cast<double>(n * d);
   }
 };
 

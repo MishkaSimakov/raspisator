@@ -35,48 +35,21 @@ MILPProblem<double> to_milp(const setcover::Problem& problem) {
   return result;
 }
 
-struct Spy {
-  Spy() {
-    std::cout << "construct" << std::endl;
-  }
-
-  Spy(const Spy&) {
-    std::cout << "copy construct" << std::endl;
-  }
-
-  Spy(Spy&&) {
-    std::cout << "move construct" << std::endl;
-  }
-};
-
-Spy test2(Spy v) {
-  return v;
-}
-
-Spy test(Spy v) {
-  return test2(std::move(v));
-}
-
 int main() {
-  Spy spy;
-  test(std::move(spy));
+  auto problem = setcover::read_problem("../resources/setcover/sc_10000_2");
 
-  // auto problem = setcover::read_problem("../resources/setcover/sc_10000_0");
-  //
-  // auto milp_problem = to_milp(problem);
-  //
-  // auto optimizer = TransformToEqualities<double>();
-  // auto optimized = optimizer.apply(milp_problem);
-  // auto matrices = to_matrices(optimized);
-  //
-  // std::cout << matrices.A.get_height() << " x " << matrices.A.get_width()
-  //           << std::endl;
-  //
-  // // run simplex algorithm
-  // auto simplex = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A),
-  //                                              matrices.b, matrices.c);
-  //
-  // auto result = simplex.dual(matrices.lower, matrices.upper);
+  auto milp_problem = to_milp(problem);
 
+  auto optimizer = TransformToEqualities<double>();
+  auto optimized = optimizer.apply(milp_problem);
+  auto matrices = to_matrices(optimized);
 
+  std::cout << matrices.A.get_height() << " x " << matrices.A.get_width()
+            << std::endl;
+
+  // run simplex algorithm
+  auto simplex = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A),
+                                               matrices.b, matrices.c);
+
+  auto result = simplex.dual(matrices.lower, matrices.upper);
 }
