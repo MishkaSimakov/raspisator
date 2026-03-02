@@ -24,12 +24,19 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     auto result = optimizer->apply(problem);
 
     if (log_) {
-      std::println("{}: delta variables {} variables, delta constraints {}",
-                   typeid(T).name(),
-                   static_cast<ssize_t>(result.variables.size()) -
-                       static_cast<ssize_t>(problem.variables.size()),
-                   static_cast<ssize_t>(result.constraints.size()) -
-                       static_cast<ssize_t>(problem.constraints.size()));
+      ssize_t delta_variables = static_cast<ssize_t>(result.variables.size()) -
+                                static_cast<ssize_t>(problem.variables.size());
+
+      ssize_t delta_constraints =
+          static_cast<ssize_t>(result.constraints.size()) -
+          static_cast<ssize_t>(problem.constraints.size());
+
+      Field delta_gap =
+          result.average_boundary_gap() - problem.average_boundary_gap();
+
+      std::println("{}: changes: {} variables, {} constraints, {} gap",
+                   typeid(T).name(), delta_variables, delta_constraints,
+                   delta_gap);
     }
 
     return result;

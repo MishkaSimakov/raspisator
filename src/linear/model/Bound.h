@@ -14,6 +14,7 @@ struct Bound {
   Bound(std::optional<Field> lower, std::optional<Field> upper)
       : lower(lower), upper(upper) {}
 
+
   Bound& operator+=(const Bound& other) {
     lower = lower && other.lower ? std::optional(*lower + *other.lower)
                                  : std::nullopt;
@@ -167,7 +168,7 @@ std::ostream& operator<<(std::ostream& os, const Bound<Field>& bound) {
   if (bound.lower) {
     os << *bound.lower;
   } else {
-    os << "-";
+    os << "-∞";
   }
 
   os << ", ";
@@ -175,7 +176,7 @@ std::ostream& operator<<(std::ostream& os, const Bound<Field>& bound) {
   if (bound.upper) {
     os << *bound.upper;
   } else {
-    os << "-";
+    os << "+∞";
   }
 
   os << ")";

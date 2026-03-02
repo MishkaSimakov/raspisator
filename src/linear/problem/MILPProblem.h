@@ -122,7 +122,9 @@ struct MILPProblem {
     ArithmeticMean<Field> gap;
 
     for (const auto& variable : variables) {
-      gap.record(variable.upper_bound - variable.lower_bound);
+      if (variable.bound.upper && variable.bound.lower) {
+        gap.record(*variable.bound.upper - *variable.bound.lower);
+      }
     }
 
     return gap.mean();
@@ -142,7 +144,7 @@ std::ostream& operator<<(std::ostream& os, const MILPProblem<Field>& problem) {
   }
 
   for (const VariableInfo<Field>& info : problem.variables) {
-    std::println(os, "{} ∈ ({}, {})", info.name, info.lower_bound, info.upper_bound);
+    std::println(os, "{} ∈ {}", info.name, info.bound);
   }
 
   return os;

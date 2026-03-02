@@ -68,10 +68,6 @@ TEST_P(FullProblemSolvingTests, SolveThenCheck) {
 
   auto matrices = to_matrices(optimized_problem);
 
-  for (size_t i = 0; i < matrices.A.get_width(); ++i) {
-    ASSERT_TRUE(matrices.bounds[i].lower && matrices.bounds[i].upper);
-  }
-
   auto settings = BranchAndBoundSettings<double>{
       .max_nodes = 100'000,
       .strong_branching_max_iterations_factor = std::nullopt,

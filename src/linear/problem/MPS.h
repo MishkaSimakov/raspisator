@@ -40,12 +40,18 @@ class MPSReader {
     explicit Row(RowType type) : type(type) {}
   };
 
-  struct Bounds {
-    std::optional<Field> lower = 0;
-    std::optional<Field> upper = std::nullopt;
-
+  struct VariableInfo {
+    Bound<Field> bound = Bound<Field>(0, std::nullopt);
     bool is_integer = false;
   };
+
+  MPSFieldsMode mode_;
+
+  ObjectiveType objective_ = ObjectiveType::MINIMIZE;
+  std::unordered_map<std::string, Row> rows_;
+  std::unordered_map<std::string, VariableInfo> variables_;
+
+  bool is_integer_section_ = false;
 
   std::array<std::string, 6> get_parts(const std::string& str) const {
     constexpr size_t kNumFields = 6;
@@ -133,34 +139,33 @@ class MPSReader {
     return result;
   }
 
-  void store_bounds(const std::string& type, Field value, Bounds& bounds) {
+  VariableInfo parse_bounds(const std::string& type, Field value) {
+    bool is_integer = false;
+    Bound<Field> bound;
+
     if (type == "LO") {
-      bounds.lower = value;
+      bound = {value, std::nullopt};
     } else if (type == "UP") {
-      bounds.upper = value;
+      bound = {std::nullopt, value};
     } else if (type == "FX") {
-      bounds.lower = value;
-      bounds.upper = value;
+      bound = {value, value};
     } else if (type == "FR") {
-      bounds.lower = std::nullopt;
-      bounds.upper = std::nullopt;
+      bound = {std::nullopt, std::nullopt};
     } else if (type == "MI") {
-      bounds.lower = std::nullopt;
-      bounds.upper = 0;
+      bound = {std::nullopt, 0};
     } else if (type == "PL") {
-      bounds.lower = 0;
-      bounds.upper = std::nullopt;
+      bound = {0, std::nullopt};
     } else if (type == "LI") {
-      bounds.is_integer = true;
-      bounds.lower = value;
-      bounds.upper = std::nullopt;
+      bound = {value, std::nullopt};
+      is_integer = true;
     } else if (type == "UI") {
-      bounds.is_integer = true;
-      bounds.lower = std::nullopt;
-      bounds.upper = value;
+      bound = {std::nullopt, value};
+      is_integer = true;
     } else {
       throw std::runtime_error(std::format("Unsupported bound type: {}", type));
     }
+
+    return VariableInfo(bound, is_integer);
   }
 
   bool should_skip_line(const std::string& line) {
@@ -183,14 +188,6 @@ class MPSReader {
 
     return parts[3];
   }
-
-  MPSFieldsMode mode_;
-
-  ObjectiveType objective_ = ObjectiveType::MINIMIZE;
-  std::unordered_map<std::string, Row> rows_;
-  std::unordered_map<std::string, Bounds> bounds_;
-
-  bool is_integer_section_ = false;
 
  public:
   explicit MPSReader(MPSFieldsMode mode) : mode_(mode) {}
@@ -242,7 +239,7 @@ class MPSReader {
           }
         } else {
           std::string variable_name = parts[1];
-          auto [itr, _] = bounds_.emplace(variable_name, Bounds{});
+          auto [itr, _] = variables_.emplace(variable_name, VariableInfo{});
           itr->second.is_integer = is_integer_section_;
 
           for (size_t i = 2; i < parts.size(); i += 2) {
@@ -272,7 +269,7 @@ class MPSReader {
         std::string variable_name = parts[2];
         Field value = parse_field(parts[3]);
 
-        store_bounds(type, value, bounds_.at(variable_name));
+        variables_.at(variable_name) = parse_bounds(type, value);
       } else if (current_section == SectionType::RANGES) {
         for (size_t i = 2; i < parts.size(); i += 2) {
           std::string row_name = parts[i];
@@ -300,14 +297,13 @@ class MPSReader {
     for (const Row& row : rows_ | std::views::values) {
       for (const std::string& name : row.variables | std::views::keys) {
         if (!variables.contains(name)) {
-          const Bounds& bound = bounds_.at(name);
+          const VariableInfo& variable = variables_.at(name);
 
           auto variable_type =
-              bound.is_integer ? VariableType::INTEGER : VariableType::REAL;
+              variable.is_integer ? VariableType::INTEGER : VariableType::REAL;
 
-          auto var = result.new_variable(name, variable_type,
-                                         bound.lower.value_or(-kInfinity),
-                                         bound.upper.value_or(kInfinity));
+          auto var = result.new_variable(
+              name, variable_type, variable.bound.lower, variable.bound.upper);
           variables.emplace(name, var);
         }
       }
