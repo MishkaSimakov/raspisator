@@ -36,7 +36,7 @@ MILPProblem<double> to_milp(const setcover::Problem& problem) {
 }
 
 int main() {
-  auto problem = setcover::read_problem("../resources/setcover/sc_10000_2");
+  auto problem = setcover::read_problem(paths::resource("setcover/sc_10000_0"));
 
   auto milp_problem = to_milp(problem);
 

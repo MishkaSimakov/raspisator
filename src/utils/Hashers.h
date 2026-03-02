@@ -56,3 +56,32 @@ struct std::hash<std::tuple<Args...>> {
     }(std::make_index_sequence<sizeof...(Args)>());
   }
 };
+
+// order independent hashing
+
+// simple implementation of order-independent hashing
+// TODO: check this
+// https://github.com/scala/scala/blob/2.11.x/src/library/scala/util/hashing/MurmurHash3.scala
+
+struct StreamUnorderedHasher {
+ private:
+  size_t values_sum_ = 0;
+  size_t values_xor_ = 0;
+  size_t values_mul_ = 0;
+
+ public:
+  template <typename T>
+  StreamUnorderedHasher& operator<<(const T& value) {
+    size_t hash = std::hash<T>()(value);
+
+    values_sum_ += hash;
+    values_xor_ ^= hash;
+    values_mul_ *= hash + 1;
+
+    return *this;
+  }
+
+  size_t get_hash() const {
+    return tuple_hasher_fn(values_sum_, values_xor_, values_mul_);
+  }
+};

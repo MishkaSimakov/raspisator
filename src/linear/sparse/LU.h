@@ -7,6 +7,7 @@
 #include "EtaFile.h"
 #include "Permutation.h"
 #include "linear/matrix/LU.h"
+#include "utils/Accumulators.h"
 #include "utils/Logging.h"
 
 namespace linalg {
@@ -125,6 +126,7 @@ class LUPA {
   // Forrest-Tomlin update helpers
   size_t changes_since_refactorization_{0};
   size_t changes_since_purge_{0};
+  bool force_refactorization_{false};
 
   // LU-decomposition implementation buffers
   std::vector<Field> dense_;
@@ -226,6 +228,7 @@ class LUPA {
         }
       }
 
+      logging::log_value(largest_value, "lu_pivoting_value.txt");
       assert(largest_value_row != n);
 
       P_impl_[largest_value_row] = j;
@@ -266,6 +269,8 @@ class LUPA {
     us_.clear();
     ls_.clear();
 
+    Maximum<Field> max;
+
     for (size_t i = 0; i < n; ++i) {
       // upper
       std::vector<std::pair<size_t, Field>> column;
@@ -282,6 +287,7 @@ class LUPA {
 
       for (auto& [row, value] : column) {
         value /= diagonal;
+        max.record(FieldTraits<Field>::abs(value));
       }
 
       us_.push_back(i, column);
@@ -296,6 +302,8 @@ class LUPA {
 
       ls_.push_back(i, column);
     }
+
+    logging::log_value(*max.max(), "max_us_value.txt");
   }
 
   void refactorize() {
@@ -303,6 +311,7 @@ class LUPA {
 
     changes_since_refactorization_ = 0;
     changes_since_purge_ = 0;
+    force_refactorization_ = false;
   }
 
   void purge() {
@@ -337,6 +346,7 @@ class LUPA {
 
     // TODO: it was noticed that r is often empty in setcover problem!
     // Check this for other problems
+
     for (; itr != us_.end(); ++itr) {
       Field diagonal = 0;
       Field main_value = 0;
@@ -358,18 +368,35 @@ class LUPA {
 
     r[current_column, 0] = 1;
 
+    Maximum<Field> r_max;
+    for (size_t i = 0; i < n; ++i) {
+      r_max.record(r[i, 0]);
+    }
+
+    if (*r_max.max() > 20) {
+      force_refactorization_ = true;
+    }
+
+    logging::log_value(*r_max.max(), "r_max.txt");
+
     ls_.push_back(current_column, r, EtaType::ROW);
 
     // add new eta matrix to U1 ... Un
     column = ls_.apply(std::move(column), *(--ls_.cend()));
-    assert(FieldTraits<Field>::is_nonzero(R_column[current_column, 0]));
+    assert(FieldTraits<Field>::is_nonzero(column[current_column, 0]));
 
     Field diagonal = column[current_column, 0];
+
+    Maximum<Field> max;
 
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =
           i != current_column ? -column[i, 0] / diagonal : Field(1) / diagonal;
+
+      max.record(FieldTraits<Field>::abs(column[i, 0]));
     }
+
+    logging::log_value(*max.max(), "max_additional_us_value.txt");
 
     us_.push_back(current_column, column, EtaType::COLUMN);
   }
@@ -400,7 +427,7 @@ class LUPA {
     ++changes_since_refactorization_;
     ++changes_since_purge_;
 
-    if (changes_since_refactorization_ > 1000) {
+    if (changes_since_refactorization_ > 500 || force_refactorization_) {
       refactorize();
     } else {
       forrest_tomlin_update(current_column, new_column);
@@ -454,11 +481,11 @@ class LUPA {
     result = P_.apply(std::move(result));
 
     for (auto entry : ls_) {
-      result = linalg::to_dense(ls_.as_matrix(entry)) * result;
+      result = ls_.apply(std::move(result), entry);
     }
 
     for (auto entry : us_ | std::views::reverse) {
-      result = linalg::to_dense(us_.as_matrix(entry)) * result;
+      result = us_.apply(std::move(result), entry);
     }
 
     return result;

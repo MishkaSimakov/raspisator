@@ -6,6 +6,7 @@
 
 #include "CSCMatrix.h"
 #include "linear/matrix/Matrix.h"
+#include "utils/Accumulators.h"
 
 template <typename T, bool is_const>
 using const_if = std::conditional_t<is_const, const T, T>;
@@ -123,23 +124,34 @@ class EtaFile {
  private:
   static Matrix<Field> apply_impl(Matrix<Field> vector, EntryView<true> entry,
                                   bool transposed) {
-    assert(vector.get_width() == 1);
+    for (size_t col = 0; col < vector.get_width(); ++col) {
+      if ((entry.type == EtaType::COLUMN) != transposed) {
+        Field a = vector[entry.index, col];
+        vector[entry.index, col] = 0;
 
-    if ((entry.type == EtaType::COLUMN) != transposed) {
-      Field a = vector[entry.index, 0];
-      vector[entry.index, 0] = 0;
+        for (auto [row, value] : entry.values) {
+          vector[row, col] += a * value;
+        }
+      } else {
+        Field dot = 0;
+        KahanSum<Field> kahan_dot;
 
-      for (auto [row, value] : entry.values) {
-        vector[row, 0] += a * value;
+        for (auto [row, value] : entry.values) {
+          dot += value * vector[row, col];
+          kahan_dot.add(value * vector[row, col]);
+        }
+
+        auto delta = std::abs(kahan_dot.sum() - dot);
+        if (delta > 1e-10) {
+          for (auto [row, value] : entry.values) {
+            std::println("+ {} * {}", value, vector[row, col]);
+          }
+
+          throw std::runtime_error(std::format("alert!!! {}", delta));
+        }
+
+        vector[entry.index, col] = dot;
       }
-    } else {
-      Field dot = 0;
-
-      for (auto [row, value] : entry.values) {
-        dot += value * vector[row, 0];
-      }
-
-      vector[entry.index, 0] = dot;
     }
 
     return vector;
@@ -161,10 +173,9 @@ class EtaFile {
     values_.append_range(values);
   }
 
-  void push_back(size_t pivot_index,
-               const Matrix<Field>& vector,
-               EtaType type = EtaType::COLUMN) {
-    assert(values.get_width() == 1);
+  void push_back(size_t pivot_index, const Matrix<Field>& vector,
+                 EtaType type = EtaType::COLUMN) {
+    assert(vector.get_width() == 1);
 
     entries_.push_back(Entry{
         .begin = values_.size(),

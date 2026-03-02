@@ -11,6 +11,24 @@
 enum class VariableState { AT_LOWER, AT_UPPER, BASIC };
 
 template <typename Field>
+struct Bound {
+  std::optional<Field> lower;
+  std::optional<Field> upper;
+};
+
+template <typename Field>
+class Bounds {
+  std::vector<Bound<Field>> variables_bounds_;
+
+ public:
+  Bound<Field>& operator[](size_t index) { return variables_bounds_[index]; }
+
+  const Bound<Field>& operator[](size_t index) const {
+    return variables_bounds_[index];
+  }
+};
+
+template <typename Field>
 struct FiniteLPSolution {
   Matrix<Field> point;
   Field value;
@@ -38,12 +56,14 @@ struct ReachedIterationsLimit {
   Field value;
 };
 
+struct Unbounded {};
+
 template <typename Field>
 struct SimplexResult {
   size_t iterations_count;
 
   std::variant<FiniteLPSolution<Field>, NoFeasibleElements,
-               ReachedIterationsLimit<Field>>
+               ReachedIterationsLimit<Field>, Unbounded>
       solution;
 
   bool is_feasible() const {

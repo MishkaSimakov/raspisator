@@ -197,6 +197,11 @@ class MPSReader {
 
   void read(const std::filesystem::path& filepath) {
     std::ifstream is(filepath);
+
+    if (!is) {
+      throw std::runtime_error("Failed to open file in MPS reader.");
+    }
+
     std::string line;
 
     std::optional<SectionType> current_section = std::nullopt;

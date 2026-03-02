@@ -12,8 +12,11 @@ class ShadowFloat {
   Rational shadow_;
 
   void precision_guard() {
-    if (std::abs(value_ - static_cast<double>(shadow_)) > 1e-5) {
-      throw std::runtime_error("Precision error!");
+    Field delta = std::abs(value_ - static_cast<double>(shadow_));
+
+    if (delta > 1e-5) {
+      throw std::runtime_error(
+          std::format("Precision error! Delta = {}", delta));
     }
   }
 
@@ -110,7 +113,8 @@ class ShadowFloat {
     return result;
   }
 
-  friend std::partial_ordering operator<=>(const ShadowFloat& left, const ShadowFloat& right) {
+  friend std::partial_ordering operator<=>(const ShadowFloat& left,
+                                           const ShadowFloat& right) {
     auto value_result = left.get_value() <=> right.get_value();
     auto shadow_result = left.get_shadow() <=> right.get_shadow();
 

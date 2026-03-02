@@ -8,8 +8,10 @@
 #include <unordered_map>
 #include <variant>
 
+#include "CyclingDetector.h"
 #include "Settings.h"
 #include "linear/matrix/Matrix.h"
+#include "linear/matrix/NPY.h"
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
 #include "linear/sparse/LU.h"
@@ -45,6 +47,8 @@ class BoundedSimplexMethod {
   Settings<Field> settings_;
 
   mutable std::mt19937 random_engine_;
+
+  CyclingDetector<Field> cycling_;
 
   Matrix<Field> get_point(Matrix<Field> point, std::vector<size_t> basic_vars,
                           const std::vector<Field>& lower_bounds,
@@ -88,8 +92,7 @@ class BoundedSimplexMethod {
   std::optional<std::pair<size_t, VariableState>>
   get_dual_leaving_variable_dantzig(
       const Matrix<Field>& point, const std::vector<size_t>& basic_vars,
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds) const {
+      const Bounds<Field>& bounds) const {
     auto [n, d] = A_.shape();
 
     std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
@@ -117,18 +120,17 @@ class BoundedSimplexMethod {
   // boundaries violation, this approach leads to cycling. To avoid cycling
   // Bland's rule is adopted.
   std::optional<std::pair<size_t, VariableState>>
-  get_dual_leaving_variable_bland(
-      const Matrix<Field>& point, const std::vector<size_t>& basic_vars,
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds) const {
+  get_dual_leaving_variable_bland(const Matrix<Field>& point,
+                                  const std::vector<size_t>& basic_vars,
+                                  const Bounds<Field>& bounds) const {
     auto [n, d] = A_.shape();
 
     std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
     size_t smallest_violating_index = 2 * d;
 
     for (size_t i = 0; i < n; ++i) {
-      Field lower_violation = lower_bounds[basic_vars[i]] - point[i, 0];
-      Field upper_violation = point[i, 0] - upper_bounds[basic_vars[i]];
+      Field lower_violation = bounds[basic_vars[i]].lower - point[i, 0];
+      Field upper_violation = point[i, 0] - bounds[basic_vars[i]].upper;
 
       if (FieldTraits<Field>::is_strictly_positive(lower_violation)) {
         if (basic_vars[i] < smallest_violating_index) {
@@ -149,17 +151,18 @@ class BoundedSimplexMethod {
   // Select a random boundary violating variable. This strategy is used when
   // potential cycling is detected.
   std::optional<std::pair<size_t, VariableState>>
-  get_dual_leaving_variable_randomly(
-      const Matrix<Field>& point, const std::vector<size_t>& basic_vars,
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds) const {
+  get_dual_leaving_variable_randomly(const Matrix<Field>& point,
+                                     const std::vector<size_t>& basic_vars,
+                                     const Bounds<Field>& bounds) const {
     auto [n, d] = A_.shape();
 
     std::vector<std::pair<size_t, VariableState>> result;
 
     for (size_t i = 0; i < n; ++i) {
-      Field lower_violation = lower_bounds[basic_vars[i]] - point[i, 0];
-      Field upper_violation = point[i, 0] - upper_bounds[basic_vars[i]];
+      Field lower_violation =
+          bounds.variables_bounds[basic_vars[i]].lower - point[i, 0];
+      Field upper_violation =
+          point[i, 0] - bounds.variables_bounds[basic_vars[i]].upper;
 
       if (FieldTraits<Field>::is_strictly_positive(lower_violation)) {
         result.emplace_back(i, VariableState::AT_LOWER);
@@ -185,7 +188,7 @@ class BoundedSimplexMethod {
     for (size_t i = 0; i < n; ++i) {
       cb[i, 0] = c_[0, basic_vars[i]];
     }
-    cb = lupa_.solve_linear_transposed(cb);
+    cb = lupa_.solve_linear_transposed(std::move(cb));
 
     Matrix<Field> result(d, 1);
     for (size_t i = 0; i < d; ++i) {
@@ -217,7 +220,9 @@ class BoundedSimplexMethod {
 
       Field coef = 0;
       for (const auto& [row, value] : A_.get_column(i)) {
-        coef += inverse_row[row, 0] * value;
+        if (FieldTraits<Field>::is_nonzero(inverse_row[row, 0])) {
+          coef += inverse_row[row, 0] * value;
+        }
       }
 
       if (!FieldTraits<Field>::is_nonzero(coef)) {
@@ -269,17 +274,20 @@ class BoundedSimplexMethod {
       }
 
       min_ratio.record(i, ratio);
+
+      if (*min_ratio.argmin() == i) {
+        std::cout << reduced_costs[i, 0] << "/" << coef << " ";
+      }
     }
+
+    std::cout << std::endl;
+    std::cout << "min ratio: " << *min_ratio.min() << std::endl;
 
     return min_ratio.argmin();
   }
 
-  SimplexResult<Field> dual_implementation(
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds) {
+  SimplexResult<Field> dual_implementation(const Bounds<Field>& bounds) {
     auto [n, d] = A_.shape();
-
-    std::unordered_map<size_t, size_t> visited_bases;
 
     std::vector<size_t> basic_vars;
     for (size_t i = 0; i < variables_.size(); ++i) {
@@ -301,64 +309,74 @@ class BoundedSimplexMethod {
     size_t iterations_since_last_time = 0;
 
     while (true) {
-      const auto hash = hash_basic_variables(basic_vars);
-      const auto [itr, was_emplaced] = visited_bases.emplace(hash, iteration);
-      if (!was_emplaced) {
-        // std::println(
-        //     "Cycling! iteration delta: {}, iteration: {}, last visited on "
-        //     "iteration: {}",
-        //     iteration - itr->second, iteration, itr->second);
-        anticycling_iterations = 5;
+      std::cout << iteration << std::endl;
+
+      {
+        // Matrix<Field> B(n, n);
+        // for (size_t i = 0; i < n; ++i) {
+        //   for (auto [row, value] : A_.get_column(basic_vars[i])) {
+        //     B[row, i] = value;
+        //   }
+        // }
+        //
+        // logging::log_npy(B, std::format("iterations/{}.npy", iteration));
+        // logging::log_npy(lupa_.get_inverse(),
+        //                  std::format("iterations/{}_inv.npy", iteration));
       }
 
+      Field objective = 0;
       Matrix<Field> b(b_);
       for (size_t col = 0; col < d; ++col) {
         if (variables_[col] == VariableState::AT_LOWER) {
           for (const auto& [row, value] : A_.get_column(col)) {
             b[row, 0] -= value * lower_bounds[col];
           }
+
+          objective += lower_bounds[col] * c_[0, col];
         } else if (variables_[col] == VariableState::AT_UPPER) {
           for (const auto& [row, value] : A_.get_column(col)) {
             b[row, 0] -= value * upper_bounds[col];
           }
+
+          objective += upper_bounds[col] * c_[0, col];
         }
       }
 
       auto point = lupa_.solve_linear(b);
 
+      for (size_t i = 0; i < n; ++i) {
+        objective += point[i, 0] * c_[0, basic_vars[i]];
+      }
+
+      if (cycling_.record(iteration, basic_vars, objective) ==
+          CyclingState::HAS_CYCLING) {
+        anticycling_iterations = 5;
+      }
+
       ++iterations_since_last_time;
       auto curr_time = std::chrono::high_resolution_clock::now();
       if (curr_time - last_time > std::chrono::seconds{1}) {
-        auto full_point =
-            get_point(point, basic_vars, lower_bounds, upper_bounds);
-        Field value = (c_ * full_point)[0, 0];
-
         double speed =
             static_cast<double>(iterations_since_last_time) /
             std::chrono::duration<double>(curr_time - last_time).count();
 
-        std::println("{:.1f} itr/s, objective: {}, size: {}, elapsed: {}", speed,
-                     value, lupa_.size(), curr_time - last_time);
+        std::println("{:.1f} itr/s, objective: {}, size: {}, elapsed: {}",
+                     speed, objective, lupa_.size(), curr_time - last_time);
 
         last_time = curr_time;
         iterations_since_last_time = 0;
       }
 
       if (settings_.max_iterations && iteration >= settings_.max_iterations) {
-        auto full_point =
-            get_point(point, basic_vars, lower_bounds, upper_bounds);
-        Field value = (c_ * full_point)[0, 0];
-
         return SimplexResult<Field>{
             .iterations_count = iteration,
-            .solution = ReachedIterationsLimit{value},
+            .solution = ReachedIterationsLimit{objective},
         };
       }
 
       std::optional<std::pair<size_t, VariableState>> leaving;
       if (anticycling_iterations > 0) {
-        leaving = get_dual_leaving_variable_randomly(
-            point, basic_vars, lower_bounds, upper_bounds);
+        leaving = get_dual_leaving_variable_randomly(point, basic_vars, bounds);
 
         --anticycling_iterations;
       } else {
@@ -385,6 +403,8 @@ class BoundedSimplexMethod {
       // pivot
       lupa_.change_column(leaving->first, *entering);
 
+      std::println("{} -> {}", basic_vars[leaving->first], *entering);
+
       variables_[*entering] = VariableState::BASIC;
       variables_[basic_vars[leaving->first]] = leaving->second;
       basic_vars[leaving->first] = *entering;
@@ -393,8 +413,7 @@ class BoundedSimplexMethod {
     }
   }
 
-  void dump_state(const std::vector<Field>& lower,
-                  const std::vector<Field>& upper,
+  void dump_state(const Bounds<Field>& bounds,
                   const std::vector<VariableState>& initial_variables) {
     size_t dump_id = std::chrono::system_clock::now().time_since_epoch() /
                      std::chrono::milliseconds(1);
@@ -408,17 +427,17 @@ class BoundedSimplexMethod {
     os << "Matrix<Field> b = {" << b_ << "};\n";
     os << "Matrix<Field> c = {" << c_ << "};\n";
 
-    os << "std::vector<Field> upper = {";
-    for (auto value : upper) {
-      os << value << ", ";
-    }
-    os << "};\n";
-
-    os << "std::vector<Field> lower = {";
-    for (auto value : lower) {
-      os << value << ", ";
-    }
-    os << "};\n";
+    // os << "std::vector<Field> upper = {";
+    // for (auto value : upper) {
+    //   os << value << ", ";
+    // }
+    // os << "};\n";
+    //
+    // os << "std::vector<Field> lower = {";
+    // for (auto value : lower) {
+    //   os << value << ", ";
+    // }
+    // os << "};\n";
 
     os << "std::vector<VariableState> last_states = {";
     for (auto state : variables_) {
@@ -442,31 +461,18 @@ class BoundedSimplexMethod {
         os << "VariableState::AT_UPPER, ";
       }
     }
-    os << "};\n";
+    os << "};";
 
     os << "}\n";
 
     os << std::flush;
 
     std::println("Registered failed simplex run into {}.", dump_name);
-  }
 
-  static size_t hash_basic_variables(
-      const std::vector<size_t>& basic_variables) {
-    // simple implementation of order-independent hashing
-    // https://github.com/scala/scala/blob/2.11.x/src/library/scala/util/hashing/MurmurHash3.scala
-
-    size_t values_sum = 0;
-    size_t values_xor = 0;
-    size_t values_mul = 0;
-
-    for (size_t i : basic_variables) {
-      values_sum += i;
-      values_xor ^= i;
-      values_mul *= i + 1;
+    if constexpr (std::same_as<Field, double>) {
+      std::ofstream inv_os("b_inverse.npy");
+      linalg::to_npy(inv_os, lupa_.get_inverse());
     }
-
-    return tuple_hasher_fn(values_sum, values_xor, values_mul);
   }
 
  public:
@@ -504,7 +510,8 @@ class BoundedSimplexMethod {
     auto [n, d] = A_.shape();
 
     if (basic_variables.size() != n) {
-      throw std::invalid_argument("Wrong basic variables count.");
+      throw std::invalid_argument(std::format(
+          "Wrong basic variables count: {} != {}", basic_variables.size(), n));
     }
 
     std::vector<VariableState> states(d);
@@ -536,43 +543,40 @@ class BoundedSimplexMethod {
   }
 
   SimplexResult<Field> dual(
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds,
+      const Bounds<Field>& bounds,
       const std::vector<VariableState>& initial_variables) {
     variables_ = initial_variables;
 
     try {
-      return dual_implementation(lower_bounds, upper_bounds);
+      return dual_implementation(bounds);
     } catch (...) {
-      dump_state(lower_bounds, upper_bounds, initial_variables);
+      dump_state(bounds, initial_variables);
       throw;
     }
   }
 
   SimplexResult<Field> dual(
-      const std::vector<Field>& lower_bounds,
-      const std::vector<Field>& upper_bounds,
+      const Bounds<Field>& bounds,
       const std::vector<size_t>& initial_basic_variables) {
     auto initial_variables = get_initial_states(initial_basic_variables);
     variables_ = initial_variables;
 
     try {
-      return dual_implementation(lower_bounds, upper_bounds);
+      return dual_implementation(bounds);
     } catch (...) {
-      dump_state(lower_bounds, upper_bounds, initial_variables);
+      dump_state(bounds, initial_variables);
       throw;
     }
   }
 
-  SimplexResult<Field> dual(const std::vector<Field>& lower_bounds,
-                            const std::vector<Field>& upper_bounds) {
+  SimplexResult<Field> dual(const Bounds<Field>& bounds) {
     auto initial_variables = get_initial_states();
     variables_ = initial_variables;
 
     try {
-      return dual_implementation(lower_bounds, upper_bounds);
+      return dual_implementation(bounds);
     } catch (...) {
-      dump_state(lower_bounds, upper_bounds, initial_variables);
+      dump_state(bounds, initial_variables);
       throw;
     }
   }

@@ -57,9 +57,7 @@ class Minimum {
  public:
   Minimum() : minimum_(std::nullopt) {}
 
-  void reset() {
-    minimum_ = std::nullopt;
-  }
+  void reset() { minimum_ = std::nullopt; }
 
   void record(Field value) {
     if (!minimum_ ||
@@ -84,9 +82,7 @@ class Maximum {
  public:
   Maximum() : maximum_(std::nullopt) {}
 
-  void reset() {
-    maximum_ = std::nullopt;
-  }
+  void reset() { maximum_ = std::nullopt; }
 
   void record(Field value) {
     if (!maximum_ ||
@@ -141,6 +137,31 @@ class ArgMinimum {
   std::optional<size_t> argmin() const {
     return minimum_.transform(
         [](std::pair<size_t, Field> value) { return value.first; });
+  }
+};
+
+// Calculates minimum i, s.t. a_i = max_j a_j
+template <typename Field>
+class ArgMaximum {
+  ArgMinimum<Field> minimum_;
+
+ public:
+  ArgMaximum() = default;
+
+  void record(size_t index, Field value) { minimum_.record(index, -value); }
+
+  void record(size_t index, std::optional<Field> value) {
+    if (value) {
+      record(index, *value);
+    }
+  }
+
+  std::optional<Field> max() const {
+    return minimum_.min().transform([](Field value) { return -value; });
+  }
+
+  std::optional<size_t> argmax() const {
+    return minimum_.argmin();
   }
 };
 

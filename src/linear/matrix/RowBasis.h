@@ -7,6 +7,7 @@
 #include "Elimination.h"
 #include "Matrix.h"
 #include "linear/FieldTraits.h"
+#include "utils/Accumulators.h"
 
 namespace linalg {
 
@@ -24,22 +25,21 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
 
   for (size_t col = 0; col < d; ++col) {
     // choose maximum element in the column for gaussian elimination
-    size_t maximizing_row = current_row;
+    ArgMaximum<Field> max_row;
 
     for (size_t row = current_row + 1; row < n; ++row) {
-      if (FieldTraits<Field>::abs(matrix[row, col]) >
-          FieldTraits<Field>::abs(matrix[maximizing_row, col])) {
-        maximizing_row = row;
-      }
+      max_row.record(row, FieldTraits<Field>::abs(matrix[row, col]));
     }
 
-    if (!FieldTraits<Field>::is_nonzero(matrix[maximizing_row, col])) {
+    size_t max_row_index = *max_row.argmax();
+
+    if (!FieldTraits<Field>::is_nonzero(matrix[max_row_index, col])) {
       continue;
     }
 
-    if (maximizing_row != current_row) {
-      std::swap(matrix[maximizing_row, {0, d}], matrix[current_row, {0, d}]);
-      std::swap(rows_map[maximizing_row], rows_map[current_row]);
+    if (max_row_index != current_row) {
+      std::swap(matrix[max_row_index, {0, d}], matrix[current_row, {0, d}]);
+      std::swap(rows_map[max_row_index], rows_map[current_row]);
     }
 
     linalg::gaussian_elimination(matrix[{current_row, n}, {0, d}], 0, col);

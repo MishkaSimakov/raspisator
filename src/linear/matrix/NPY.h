@@ -21,7 +21,7 @@ struct NumpyFieldCode<double> : std::integral_constant<char, 'd'> {};
 
 void write_header(std::ostream& os, MatrixLike auto&& matrix) {
   NPYFilePrefix prefix{};
-  os.write(reinterpret_cast<char*>(&prefix), sizeof(prefix));
+  os.write(reinterpret_cast<const char*>(&prefix), sizeof(prefix));
 
   auto field_code = NumpyFieldCode<matrix_field_t<decltype(matrix)>>::value;
   auto [n, d] = matrix.shape();
@@ -41,7 +41,7 @@ void write_header(std::ostream& os, MatrixLike auto&& matrix) {
     header += std::string(padding, ' ');
   }
 
-  os.write(reinterpret_cast<char*>(&header_size), sizeof(header_size));
+  os.write(reinterpret_cast<const char*>(&header_size), sizeof(header_size));
   os.write(header.c_str(), header_size);
 }
 
@@ -52,7 +52,7 @@ void write_matrix(std::ostream& os, MatrixLike auto&& matrix)
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < d; ++j) {
-      os.write(reinterpret_cast<char*>(&matrix[i, j]),
+      os.write(reinterpret_cast<const char*>(&matrix[i, j]),
                sizeof(matrix_field_t<decltype(matrix)>));
     }
   }
