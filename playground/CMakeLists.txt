@@ -7,3 +7,7 @@ set_target_properties(play_setcover PROPERTIES CMAKE_CXX_FLAGS " -fsanitize=addr
 # test problems
 add_executable(play_test_problems test_problems.cpp)
 target_link_libraries(play_test_problems raspisator)
+
+# MPS to NPY
+add_executable(play_mps_to_npy mps_to_numpy.cpp)
+target_link_libraries(play_mps_to_npy raspisator)

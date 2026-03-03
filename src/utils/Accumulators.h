@@ -51,8 +51,18 @@ class GeometricAverage {
 };
 
 template <typename Field>
+struct FieldTraitsComparator {
+  bool operator()(Field left, Field right) const {
+    return FieldTraits<Field>::is_strictly_negative(left - right);
+  }
+};
+
+template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
 class Minimum {
   std::optional<Field> minimum_;
+
+  [[no_unique_address]]
+  Comparator comparator_;
 
  public:
   Minimum() : minimum_(std::nullopt) {}
@@ -60,8 +70,7 @@ class Minimum {
   void reset() { minimum_ = std::nullopt; }
 
   void record(Field value) {
-    if (!minimum_ ||
-        FieldTraits<Field>::is_strictly_positive(*minimum_ - value)) {
+    if (!minimum_ || comparator_(value, *minimum_)) {
       minimum_ = value;
     }
   }
@@ -75,9 +84,12 @@ class Minimum {
   std::optional<Field> min() const { return minimum_; }
 };
 
-template <typename Field>
+template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
 class Maximum {
   std::optional<Field> maximum_;
+
+  [[no_unique_address]]
+  Comparator comparator_;
 
  public:
   Maximum() : maximum_(std::nullopt) {}
@@ -85,8 +97,7 @@ class Maximum {
   void reset() { maximum_ = std::nullopt; }
 
   void record(Field value) {
-    if (!maximum_ ||
-        FieldTraits<Field>::is_strictly_positive(value - *maximum_)) {
+    if (!maximum_ || comparator_(*maximum_, value)) {
       maximum_ = value;
     }
   }
@@ -101,9 +112,12 @@ class Maximum {
 };
 
 // Calculates minimum i, s.t. a_i = min_j a_j
-template <typename Field>
+template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
 class ArgMinimum {
   std::optional<std::pair<size_t, Field>> minimum_;
+
+  [[no_unique_address]]
+  Comparator comparator_;
 
  public:
   ArgMinimum() : minimum_(std::nullopt) {}
@@ -114,10 +128,9 @@ class ArgMinimum {
       return;
     }
 
-    Field diff = minimum_->second - value;
-    if (FieldTraits<Field>::is_strictly_positive(diff)) {
+    if (comparator_(value, minimum_->second)) {
       minimum_ = {index, value};
-    } else if (!FieldTraits<Field>::is_nonzero(diff) &&
+    } else if (!comparator_(minimum_->second, value) &&
                index < minimum_->first) {
       minimum_ = {index, value};
     }
@@ -141,14 +154,29 @@ class ArgMinimum {
 };
 
 // Calculates minimum i, s.t. a_i = max_j a_j
-template <typename Field>
+template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
 class ArgMaximum {
-  ArgMinimum<Field> minimum_;
+  std::optional<std::pair<size_t, Field>> maximum_;
+
+  [[no_unique_address]]
+  Comparator comparator_;
 
  public:
-  ArgMaximum() = default;
+  ArgMaximum() : maximum_(std::nullopt) {}
 
-  void record(size_t index, Field value) { minimum_.record(index, -value); }
+  void record(size_t index, Field value) {
+    if (!maximum_) {
+      maximum_ = {index, value};
+      return;
+    }
+
+    if (comparator_(maximum_->second, value)) {
+      maximum_ = {index, value};
+    } else if (!comparator_(value, maximum_->second) &&
+               index < maximum_->first) {
+      maximum_ = {index, value};
+    }
+  }
 
   void record(size_t index, std::optional<Field> value) {
     if (value) {
@@ -157,10 +185,14 @@ class ArgMaximum {
   }
 
   std::optional<Field> max() const {
-    return minimum_.min().transform([](Field value) { return -value; });
+    return maximum_.transform(
+        [](std::pair<size_t, Field> value) { return value.second; });
   }
 
-  std::optional<size_t> argmax() const { return minimum_.argmin(); }
+  std::optional<size_t> argmax() const {
+    return maximum_.transform(
+        [](std::pair<size_t, Field> value) { return value.first; });
+  }
 };
 
 template <typename Field>
@@ -179,4 +211,3 @@ class KahanSum {
 
   Field sum() const { return sum_; }
 };
-

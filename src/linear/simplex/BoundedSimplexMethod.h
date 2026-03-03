@@ -29,7 +29,7 @@ namespace simplex {
 
 // Solves cx -> max, Ax = b, l <= x <= u
 // A is (n, d) matrix, b is (n, 1) matrix, c is (1, d) matrix
-// l, u are (d, 1) matrices
+// l and u are (d, 1) matrices (possibly with infinite values)
 // it is assumed that n < d
 
 // This version is specifically tuned for sparse A matrix
@@ -94,32 +94,27 @@ class BoundedSimplexMethod {
                                     const Bounds<Field>& bounds) const {
     auto [n, d] = A_.shape();
 
-    std::optional<std::pair<size_t, VariableState>> result = std::nullopt;
-    Field largest_violation = 0;
+    ArgMaximum<BoundViolation<Field>, std::less<BoundViolation<Field>>>
+        max_violation;
 
     for (size_t i = 0; i < n; ++i) {
-      if (bounds[basic_vars[i]].lower) {
-        Field lower_violation = *bounds[basic_vars[i]].lower - point[i, 0];
-
-        if (FieldTraits<Field>::is_strictly_positive(lower_violation -
-                                                     largest_violation)) {
-          result = {i, VariableState::AT_LOWER};
-          largest_violation = lower_violation;
-        }
-      }
-
-      if (bounds[basic_vars[i]].upper) {
-        Field upper_violation = point[i, 0] - *bounds[basic_vars[i]].upper;
-
-        if (FieldTraits<Field>::is_strictly_positive(upper_violation -
-                                                     largest_violation)) {
-          result = {i, VariableState::AT_UPPER};
-          largest_violation = upper_violation;
-        }
-      }
+      max_violation.record(i, bounds[basic_vars[i]].get_violation(point[i, 0]));
     }
 
-    return result;
+    if (!max_violation.max()) {
+      return std::nullopt;
+    }
+
+    switch (max_violation.max()->type) {
+      case BoundViolationType::NONE:
+        return std::nullopt;
+      case BoundViolationType::VIOLATE_LOWER_BOUND:
+        return std::pair{*max_violation.argmax(), VariableState::AT_LOWER};
+      case BoundViolationType::VIOLATE_UPPER_BOUND:
+        return std::pair{*max_violation.argmax(), VariableState::AT_UPPER};
+      default:
+        std::unreachable();
+    }
   }
 
   // Select a random boundary violating variable. This strategy is used when
@@ -133,12 +128,11 @@ class BoundedSimplexMethod {
     std::vector<std::pair<size_t, VariableState>> result;
 
     for (size_t i = 0; i < n; ++i) {
-      Field lower_violation = *bounds[basic_vars[i]].lower - point[i, 0];
-      Field upper_violation = point[i, 0] - *bounds[basic_vars[i]].upper;
+      auto violation = bounds[basic_vars[i]].get_violation(point[i, 0]);
 
-      if (FieldTraits<Field>::is_strictly_positive(lower_violation)) {
+      if (violation.type == BoundViolationType::VIOLATE_LOWER_BOUND) {
         result.emplace_back(i, VariableState::AT_LOWER);
-      } else if (FieldTraits<Field>::is_strictly_positive(upper_violation)) {
+      } else if (violation.type == BoundViolationType::VIOLATE_UPPER_BOUND) {
         result.emplace_back(i, VariableState::AT_UPPER);
       }
     }
@@ -205,18 +199,6 @@ class BoundedSimplexMethod {
         reduced_costs[i, 0] = 0;
       }
 
-      // if (!((variables_[i] == VariableState::AT_LOWER &&
-      //        !FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0]))
-      //        ||
-      //       (variables_[i] == VariableState::AT_UPPER &&
-      //        !FieldTraits<Field>::is_strictly_negative(reduced_costs[i,
-      //        0])))) {
-      //   throw std::runtime_error(
-      //       std::format("Current point is not dual feasible! Reduced cost for
-      //       "
-      //                   "variable #{} has value {}.",
-      //                   i, reduced_costs[i, 0]));
-      // }
       if (!((variables_[i] == VariableState::AT_LOWER &&
              reduced_costs[i, 0] < Field(1) / Field(1e5)) ||
             (variables_[i] == VariableState::AT_UPPER &&
@@ -265,6 +247,12 @@ class BoundedSimplexMethod {
     for (size_t i = 0; i < variables_.size(); ++i) {
       if (variables_[i] == VariableState::BASIC) {
         basic_vars.push_back(i);
+      } else if (variables_[i] == VariableState::AT_LOWER && !bounds[i].lower ||
+                 variables_[i] == VariableState::AT_UPPER && !bounds[i].upper) {
+        return SimplexResult<Field>{
+            .iterations_count = 0,
+            .solution = Unbounded{},
+        };
       }
     }
 
@@ -491,6 +479,7 @@ class BoundedSimplexMethod {
 
     auto reduced_costs = get_reduced_costs(basic_variables);
 
+    std::cout << reduced_costs << std::endl;
     for (size_t i = 0; i < d; ++i) {
       if (reduced_costs[i, 0] <= Field(0)) {
         states[i] = VariableState::AT_LOWER;

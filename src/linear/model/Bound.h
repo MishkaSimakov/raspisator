@@ -4,6 +4,22 @@
 
 #include "linear/FieldTraits.h"
 
+enum class BoundViolationType {
+  VIOLATE_UPPER_BOUND,
+  VIOLATE_LOWER_BOUND,
+  NONE
+};
+
+template <typename Field>
+struct BoundViolation {
+  BoundViolationType type;
+  Field value;
+
+  auto operator<=>(const BoundViolation& other) const {
+    return value <=> other.value;
+  }
+};
+
 template <typename Field>
 struct Bound {
   std::optional<Field> lower = std::nullopt;
@@ -13,7 +29,6 @@ struct Bound {
 
   Bound(std::optional<Field> lower, std::optional<Field> upper)
       : lower(lower), upper(upper) {}
-
 
   Bound& operator+=(const Bound& other) {
     lower = lower && other.lower ? std::optional(*lower + *other.lower)
@@ -118,6 +133,35 @@ struct Bound {
     }
 
     return true;
+  }
+
+  BoundViolation<Field> get_violation(Field value) const {
+    if (lower) {
+      Field lower_violation = *lower - value;
+
+      if (FieldTraits<Field>::is_strictly_positive(lower_violation)) {
+        return {
+            .type = BoundViolationType::VIOLATE_LOWER_BOUND,
+            .value = lower_violation,
+        };
+      }
+    }
+
+    if (upper) {
+      Field upper_violation = value - *upper;
+
+      if (FieldTraits<Field>::is_strictly_positive(upper_violation)) {
+        return {
+            .type = BoundViolationType::VIOLATE_UPPER_BOUND,
+            .value = upper_violation,
+        };
+      }
+    }
+
+    return {
+        .type = BoundViolationType::NONE,
+        .value = 0,
+    };
   }
 };
 
