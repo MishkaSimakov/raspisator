@@ -5,7 +5,7 @@
 #include "linear/problem/optimization/FullOptimizer.h"
 #include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
 #include "linear/problem/optimization/TransformToEqualities.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 #include "utils/Paths.h"
 #include "utils/ShadowFloat.h"
 #include "utils/Variant.h"
@@ -27,17 +27,25 @@ int main() {
     reader.read(entry);
 
     auto problem = reader.get_canonical_representation();
-    auto optimized = FullOptimizer<Field>(true).apply(problem);
-    auto matrices = to_matrices(optimized);
 
-    std::cout << optimized << std::endl;
+    auto optimized = TransformToEqualities<Field>().apply(problem);
+    optimized = RemoveLinearlyDependentConstraints<Field>().apply(optimized);
+    auto matrices = to_matrices(optimized);
 
     std::println("{}: {} x {}", entry.path().filename().string(),
                  matrices.A.get_height(), matrices.A.get_width());
 
-    auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A),
-                                                matrices.b, matrices.c);
-    auto solution = solver.dual(matrices.bounds);
+    auto solver =
+        simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
+
+    auto states = solver.try_get_primal_feasible(matrices.bounds);
+
+    if (!states) {
+      std::println("  Failed to find primal feasible basis.");
+      continue;
+    }
+
+    auto solution = solver.primal(matrices.bounds, *states);
 
     std::visit(Overload{
                    [](const FiniteLPSolution<Field>& solution) {

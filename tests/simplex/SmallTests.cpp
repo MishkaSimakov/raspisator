@@ -261,18 +261,16 @@ TEST(SimplexMethodTests, NonTrivialBounds2) {
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 4);
 }
 
-using Field = double;
-
 const auto kPrimalTestProblem = [] {
-  CSCMatrix<Field> A = {
+  CSCMatrix<Rational> A = {
       {2, -1, 2, 1, 0, 0},
       {2, -3, 1, 0, 1, 0},
       {-1, 1, -2, 0, 0, 1},
   };
-  Matrix<Field> b = {{4}, {-5}, {-1}};
-  Matrix<Field> c = {{1, -1, 1, 0, 0, 0}};
+  Matrix<Rational> b = {{4}, {-5}, {-1}};
+  Matrix<Rational> c = {{1, -1, 1, 0, 0, 0}};
 
-  Bounds<Field> bounds(6);
+  Bounds<Rational> bounds(6);
   for (size_t i = 0; i < 6; ++i) {
     bounds[i] = {0, std::nullopt};
   }
@@ -293,11 +291,11 @@ TEST(SimplexMethodTests, PrimalTest) {
   auto run_result = simplex.primal(bounds, states);
 
   ASSERT_TRUE(
-      std::holds_alternative<FiniteLPSolution<Field>>(run_result.solution));
+      std::holds_alternative<FiniteLPSolution<Rational>>(run_result.solution));
 
-  auto point = std::get<FiniteLPSolution<Field>>(run_result.solution).point;
-  auto expected =
-      Matrix<Field>{{0}, {Field{14} / 5}, {Field{17} / 5}, {0}, {0}, {3}};
+  auto point = std::get<FiniteLPSolution<Rational>>(run_result.solution).point;
+  auto expected = Matrix<Rational>{
+      {0}, {Rational{14} / 5}, {Rational{17} / 5}, {0}, {0}, {3}};
 
   ASSERT_EQ(point, expected);
 }
@@ -333,4 +331,28 @@ TEST(SimplexMethodTests, PrimalFeasibleFindingInfeasibleProblem) {
   auto feasible = simplex.try_get_primal_feasible(bounds);
 
   ASSERT_TRUE(!feasible.has_value());
+}
+
+TEST(SimplexMethodTests, PrimalFeasibleFinding2) {
+  CSCMatrix<Rational> A = {
+      {-5, 6, -8, -2, -8},
+      {6, -8, -8, -2, 7},
+      {4, 0, 2, 4, 4},
+  };
+  Matrix<Rational> b = {{61}, {113}, {-36}};
+  Matrix<Rational> c = {{-7, -10, -7, 9, 9}};
+
+  Bounds<Rational> bounds(6);
+  bounds[0] = {-6, 8};
+  bounds[1] = {-7, 2};
+  bounds[2] = {-10, 0};
+  bounds[3] = {-4, 5};
+  bounds[4] = {-2, 5};
+
+  simplex::Simplex simplex(A, b, c);
+
+  auto feasible = simplex.try_get_primal_feasible(bounds);
+
+  ASSERT_TRUE(feasible.has_value());
+  ASSERT_TRUE(simplex.is_primal_feasible(bounds, *feasible));
 }

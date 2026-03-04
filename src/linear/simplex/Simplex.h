@@ -272,6 +272,8 @@ class Simplex {
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
+    assert(is_dual_feasible(bounds, states));
+
     // initialize simplex state
     initialize_state(bounds, states);
 
@@ -380,19 +382,27 @@ class Simplex {
       }
     }
 
+    // it may be possible that the strongest constraint on the exiting
+    // variable is its bound. In this case no actual pivoting occur. Variable
+    // changes it's bound without becoming basic.
     auto leaving_variable = strongest_constraint.argmin();
-    if (!leaving_variable) {
-      // it may be possible that the strongest constraint on the exiting
-      // variable is its bound. In this case no actual pivoting occur. Variable
-      // changes it's bound without becoming basic.
 
-      auto current_state = state.variables_states[entering];
-      auto bound = (*state.bounds)[entering];
+    auto current_state = state.variables_states[entering];
+    auto entering_bound = (*state.bounds)[entering];
 
-      if (current_state == VariableState::AT_LOWER && bound.upper) {
+    bool moves_outside = false;
+    if (leaving_variable) {
+      moves_outside = !entering_bound.is_inside(
+          current_state == VariableState::AT_LOWER
+              ? *entering_bound.lower + *strongest_constraint.min()
+              : *entering_bound.upper - *strongest_constraint.min());
+    }
+
+    if (!leaving_variable || moves_outside) {
+      if (current_state == VariableState::AT_LOWER && entering_bound.upper) {
         return ToggleBound{VariableState::AT_UPPER};
       }
-      if (current_state == VariableState::AT_UPPER && bound.lower) {
+      if (current_state == VariableState::AT_UPPER && entering_bound.lower) {
         return ToggleBound{VariableState::AT_LOWER};
       }
 
@@ -424,6 +434,13 @@ class Simplex {
       state_.basic_point = state_.lupa.solve_linear(rhs);
       state_.objective = get_objective(state_);
 
+      for (size_t i = 0; i < n; ++i) {
+        if (!bounds[state_.basic_variables[i]].is_inside(
+                state_.basic_point[i, 0])) {
+          assert(false);
+        }
+      }
+
       if (state_.cycling.record(state_.iteration_index, state_.basic_variables,
                                 state_.objective) ==
           CyclingState::HAS_CYCLING) {
@@ -447,17 +464,17 @@ class Simplex {
       }
 
       if (std::holds_alternative<ToggleBound>(leaving_state)) {
-        std::println("toggle bound: {}, objective = {}", *entering,
-                     state_.objective);
+        // std::println("toggle bound: {}, objective = {}", *entering,
+                     // state_.objective);
 
         state_.variables_states[*entering] =
             std::get<ToggleBound>(leaving_state).new_state;
       } else {
         auto leaving = std::get<LeavingVariable>(leaving_state);
 
-        std::println("pivot: {} -> {}, objective = {}",
-                     state_.basic_variables[leaving.index], *entering,
-                     state_.objective);
+        // std::println("pivot: {} -> {}, objective = {}",
+                     // state_.basic_variables[leaving.index], *entering,
+                     // state_.objective);
 
         state_.lupa.change_column(leaving.index, *entering);
 
@@ -567,24 +584,21 @@ class Simplex {
     auto row_basis =
         linalg::get_row_basis(linalg::transposed(linalg::to_dense(A_)));
 
-    // add additional variable t
-    A_.add_column();
-    for (size_t i = 0; i < n; ++i) {
-      if (FieldTraits<Field>::is_nonzero(b_[i, 0])) {
-        A_.push_to_last_column(i, b_[i, 0]);
-      }
-    }
-
-    // modify RHS vector
-    auto old_b = b_;
-
+    // add additional variable t ( + t (b - Al))
+    std::vector<Field> l(n, 0);
     for (size_t i = 0; i < d; ++i) {
       Field coef = bounds[i].lower ? *bounds[i].lower : *bounds[i].upper;
 
       for (auto [row, value] : A_.get_column(i)) {
-        b_[row, 0] += coef * value;
+        l[row] += value * coef;
       }
     }
+
+    for (size_t i = 0; i < n; ++i) {
+      l[i] = b_[i, 0] - l[i];
+    }
+
+    A_.add_column(l);
 
     // modify cost vector
     auto old_c = std::move(c_);
@@ -621,7 +635,6 @@ class Simplex {
     // return everything as it was
     A_.pop_back_column();
     c_ = std::move(old_c);
-    b_ = std::move(old_b);
 
     if (std::holds_alternative<FiniteLPSolution<Field>>(result.solution)) {
       auto solution = std::get<FiniteLPSolution<Field>>(result.solution);
@@ -640,7 +653,7 @@ class Simplex {
   // This function does not check whether matrix formed by basic columns is
   // invertible.
   bool is_dual_feasible(const Bounds<Field>& bounds,
-                        const std::vector<VariableState>& states) const {
+                        const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
     std::vector<size_t> basic_variables;
