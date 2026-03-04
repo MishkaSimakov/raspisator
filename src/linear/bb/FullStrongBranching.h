@@ -7,7 +7,7 @@
 #include "linear/bb/NodeRelativeLocation.h"
 #include "linear/model/MILP.h"
 #include "linear/problem/VariableType.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 #include "utils/Accumulators.h"
 #include "utils/Variant.h"
 
@@ -34,7 +34,7 @@ class FullStrongBranchingBranchAndBound {
     Field fractional;
   };
 
-  simplex::BoundedSimplexMethod<Field> lp_solver_;
+  simplex::Simplex<Field> lp_solver_;
 
   std::vector<Node> waiting_;
   std::optional<Node> lifo_slot_;
@@ -322,7 +322,6 @@ class FullStrongBranchingBranchAndBound {
     Node root = {
         .id = ++total_nodes_count_,
         .bounds = std::move(bounds),
-        .variables_states = lp_solver_.get_initial_states(),
     };
 
     accountant_.set_root(root.id);
@@ -336,7 +335,8 @@ class FullStrongBranchingBranchAndBound {
     std::optional<Node> root = pop_node();
     assert(root.has_value());
 
-    auto run_result = lp_solver_.dual(root->bounds);
+    // TODO: calculate states for root
+    auto run_result = lp_solver_.dual(root->bounds, {});
     try_push_to_waiting(std::move(*root), run_result);
 
     // main branch and bound cycle

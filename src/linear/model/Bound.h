@@ -39,11 +39,25 @@ struct Bound {
     return *this;
   }
 
+  Bound& operator+=(Field value) {
+    lower = lower ? std::optional(*lower + value) : std::nullopt;
+    upper = upper ? std::optional(*upper + value) : std::nullopt;
+
+    return *this;
+  }
+
   Bound& operator-=(const Bound& other) {
     lower = lower && other.lower ? std::optional(*lower - *other.upper)
                                  : std::nullopt;
     upper = upper && other.upper ? std::optional(*upper - *other.lower)
                                  : std::nullopt;
+
+    return *this;
+  }
+
+  Bound& operator-=(Field value) {
+    lower = lower ? std::optional(*lower - value) : std::nullopt;
+    upper = upper ? std::optional(*upper - value) : std::nullopt;
 
     return *this;
   }
@@ -173,7 +187,21 @@ Bound<Field> operator+(const Bound<Field>& left, const Bound<Field>& right) {
 }
 
 template <typename Field>
+Bound<Field> operator+(const Bound<Field>& left, Field right) {
+  auto copy = left;
+  copy += right;
+  return copy;
+}
+
+template <typename Field>
 Bound<Field> operator-(const Bound<Field>& left, const Bound<Field>& right) {
+  auto copy = left;
+  copy -= right;
+  return copy;
+}
+
+template <typename Field>
+Bound<Field> operator-(const Bound<Field>& left, Field right) {
   auto copy = left;
   copy -= right;
   return copy;

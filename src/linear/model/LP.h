@@ -15,6 +15,10 @@ class Bounds {
  public:
   explicit Bounds(size_t size) : variables_bounds_(size) {}
 
+  Bounds(std::initializer_list<Bound<Field>> il) : Bounds(il.size()) {
+    std::copy(il.begin(), il.end(), variables_bounds_);
+  }
+
   Bounds(const std::vector<Field>& lower, const std::vector<Field>& upper)
       : Bounds(lower.size()) {
     assert(lower.size() == upper.size());
@@ -30,6 +34,8 @@ class Bounds {
   const Bound<Field>& operator[](size_t index) const {
     return variables_bounds_[index];
   }
+
+  size_t size() const { return variables_bounds_.size(); }
 };
 
 template <typename Field>

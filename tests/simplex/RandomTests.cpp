@@ -6,7 +6,7 @@
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/Random.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 
 TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
   constexpr size_t kIterations = 1'000;
@@ -57,12 +57,16 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrix) {
     auto A = linalg::hstack(A_basic, A_nonbasic);
     auto b = A * point;
 
-    std::vector<size_t> basic_variables(n);
-    std::iota(basic_variables.begin(), basic_variables.end(), 0);
-
     // calculate solution
-    auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
-    auto run_result = solver.dual(bounds, basic_variables);
+    auto solver = simplex::Simplex(CSCMatrix(A), b, c);
+
+    // all variables have all bounds -> this method is guaranteed to find dual
+    // feasible point
+    auto states = solver.try_get_dual_feasible(bounds);
+
+    ASSERT_TRUE(states.has_value());
+
+    auto run_result = solver.dual(bounds, *states);
 
     // check solution
     auto finite_solution =

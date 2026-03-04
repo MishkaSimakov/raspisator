@@ -49,6 +49,9 @@ class CSCMatrix {
     }
   }
 
+  CSCMatrix(const std::initializer_list<std::initializer_list<Field>>& values)
+      : CSCMatrix(Matrix<Field>(values)) {}
+
   static CSCMatrix from_columns(const Matrix<Field>& dense,
                                 const std::vector<size_t>& columns) {
     auto [n, d] = dense.shape();
@@ -148,6 +151,13 @@ class CSCMatrix {
     index_pointers_.clear();
 
     index_pointers_.push_back(0);
+  }
+
+  void pop_back_column() {
+    index_pointers_.pop_back();
+
+    indices_.resize(index_pointers_.back());
+    data_.resize(index_pointers_.back());
   }
 };
 

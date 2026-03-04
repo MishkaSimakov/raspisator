@@ -41,7 +41,7 @@ std::string join(std::ranges::range auto&& range, std::string_view delimiter) {
 
   while (itr != end) {
     result += delimiter;
-    result += itr;
+    result += *itr;
 
     ++itr;
   }

@@ -4,15 +4,21 @@
 
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 
 template <typename Field>
 auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
                  const Matrix<Field>& c, const std::vector<Field>& lower,
                  const std::vector<Field>& upper,
-                 const std::vector<size_t>& basic_variables) {
-  simplex::BoundedSimplexMethod solver(CSCMatrix(A), b, c);
-  return solver.dual(Bounds(lower, upper), basic_variables).solution;
+                 const std::vector<size_t>& basic_vars) {
+  simplex::Simplex solver(CSCMatrix(A), b, c);
+
+  auto bounds = Bounds(lower, upper);
+  auto states = solver.try_get_dual_feasible(bounds, basic_vars);
+
+  assert(states.has_value());
+
+  return solver.dual(bounds, *states).solution;
 }
 
 TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {
@@ -253,4 +259,78 @@ TEST(SimplexMethodTests, NonTrivialBounds2) {
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 4);
+}
+
+using Field = double;
+
+const auto kPrimalTestProblem = [] {
+  CSCMatrix<Field> A = {
+      {2, -1, 2, 1, 0, 0},
+      {2, -3, 1, 0, 1, 0},
+      {-1, 1, -2, 0, 0, 1},
+  };
+  Matrix<Field> b = {{4}, {-5}, {-1}};
+  Matrix<Field> c = {{1, -1, 1, 0, 0, 0}};
+
+  Bounds<Field> bounds(6);
+  for (size_t i = 0; i < 6; ++i) {
+    bounds[i] = {0, std::nullopt};
+  }
+
+  return std::make_tuple(A, b, c, bounds);
+}();
+
+TEST(SimplexMethodTests, PrimalTest) {
+  auto [A, b, c, bounds] = kPrimalTestProblem;
+
+  simplex::Simplex simplex(A, b, c);
+
+  std::vector states = {
+      VariableState::AT_LOWER, VariableState::BASIC,    VariableState::BASIC,
+      VariableState::BASIC,    VariableState::AT_LOWER, VariableState::AT_LOWER,
+  };
+
+  auto run_result = simplex.primal(bounds, states);
+
+  ASSERT_TRUE(
+      std::holds_alternative<FiniteLPSolution<Field>>(run_result.solution));
+
+  auto point = std::get<FiniteLPSolution<Field>>(run_result.solution).point;
+  auto expected =
+      Matrix<Field>{{0}, {Field{14} / 5}, {Field{17} / 5}, {0}, {0}, {3}};
+
+  ASSERT_EQ(point, expected);
+}
+
+TEST(SimplexMethodTests, PrimalFeasibleFinding) {
+  auto [A, b, c, bounds] = kPrimalTestProblem;
+
+  simplex::Simplex simplex(A, b, c);
+
+  auto feasible = simplex.try_get_primal_feasible(bounds);
+
+  ASSERT_TRUE(feasible.has_value());
+
+  ASSERT_TRUE(simplex.is_primal_feasible(bounds, *feasible));
+}
+
+TEST(SimplexMethodTests, PrimalFeasibleFindingInfeasibleProblem) {
+  CSCMatrix<Rational> A = {
+      {2, -1, -2, 1, 0, 0},
+      {2, -3, -1, 0, 1, 0},
+      {-1, 1, 1, 0, 0, 1},
+  };
+  Matrix<Rational> b = {{4}, {-5}, {-1}};
+  Matrix<Rational> c = {{1, -1, 1, 0, 0, 0}};
+
+  Bounds<Rational> bounds(6);
+  for (size_t i = 0; i < 6; ++i) {
+    bounds[i] = {0, std::nullopt};
+  }
+
+  simplex::Simplex simplex(A, b, c);
+
+  auto feasible = simplex.try_get_primal_feasible(bounds);
+
+  ASSERT_TRUE(!feasible.has_value());
 }

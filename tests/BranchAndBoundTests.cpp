@@ -5,7 +5,7 @@
 #include "linear/matrix/Matrix.h"
 #include "linear/model/MILP.h"
 #include "linear/problem/VariableType.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 
 TEST(BranchAndBoundTests, SimpleProblems) {
   // problems are from:

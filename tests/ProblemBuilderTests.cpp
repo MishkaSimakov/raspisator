@@ -11,7 +11,7 @@
 #include "linear/problem/optimization/Scaling.h"
 #include "linear/problem/optimization/Substitution.h"
 #include "linear/problem/optimization/TransformToEqualities.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 
 TEST(ProblemBuilderTests, RemoveConstantConstraints) {
   MILPProblem<Rational> problem;
@@ -75,10 +75,14 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   auto matrices = to_matrices(optimized_problem);
   auto basic_vars = linalg::get_row_basis(linalg::transposed(matrices.A));
 
-  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
-                                              matrices.c);
+  auto solver = simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
+
+  auto states = solver.try_get_dual_feasible(matrices.bounds);
+
+  ASSERT_TRUE(states.has_value());
+
   auto solution = std::get<FiniteLPSolution<Rational>>(
-      solver.dual(matrices.bounds, basic_vars).solution);
+      solver.dual(matrices.bounds, *states).solution);
   auto point = optimizer.inverse(solution.point);
 
   // check solution
@@ -107,12 +111,14 @@ TEST(ProblemBuilderTests, ScalingTest) {
   auto optimized_problem = optimizer2.apply(optimizer1.apply(builder));
 
   auto matrices = to_matrices(optimized_problem);
-  auto basic_vars = linalg::get_row_basis(linalg::transposed(matrices.A));
 
-  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(matrices.A), matrices.b,
-                                              matrices.c);
+  auto solver = simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
+  auto states = solver.try_get_dual_feasible(matrices.bounds);
+
+  ASSERT_TRUE(states.has_value());
+
   auto solution = std::get<FiniteLPSolution<double>>(
-      solver.dual(matrices.bounds, basic_vars).solution);
+      solver.dual(matrices.bounds, *states).solution);
   auto point = optimizer1.inverse(optimizer2.inverse(solution.point));
 
   // check solution

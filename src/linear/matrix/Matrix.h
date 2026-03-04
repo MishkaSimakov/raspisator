@@ -219,10 +219,9 @@ class Matrix {
       : data_(rows * cols), rows_count_(rows), cols_count_(cols) {}
 
   Matrix(size_t rows, size_t cols, const Field& value)
-      : data_(rows * cols, value), rows_count_(rows), cols_count_(cols) {
-  }
+      : data_(rows * cols, value), rows_count_(rows), cols_count_(cols) {}
 
-  Matrix(const std::initializer_list<std::initializer_list<Field>>& values)
+  Matrix(std::initializer_list<std::initializer_list<Field>> values)
       : Matrix(values.size(), values.begin()->size()) {
     size_t row = 0;
     size_t col = 0;

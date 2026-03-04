@@ -3,7 +3,7 @@
 #include "Assertions.h"
 #include "linear/BigInteger.h"
 #include "linear/model/LP.h"
-#include "linear/simplex/BoundedSimplexMethod.h"
+#include "linear/simplex/Simplex.h"
 
 using Field = double;
 
@@ -13,7 +13,7 @@ using Field = double;
 TEST(BigTests, PotentiallyCyclingProblem2) {
   using namespace SimplexDump_1;
 
-  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
+  auto solver = simplex::Simplex(CSCMatrix(A), b, c);
 
   Bounds bounds(lower, upper);
   auto solution = solver.dual(bounds, states).solution;
@@ -27,7 +27,7 @@ TEST(BigTests, PotentiallyCyclingProblem2) {
 TEST(BigTests, PotentiallyCyclingProblem3) {
   using namespace SimplexDump_2;
 
-  auto solver = simplex::BoundedSimplexMethod(CSCMatrix(A), b, c);
+  auto solver = simplex::Simplex(CSCMatrix(A), b, c);
 
   Bounds bounds(lower, upper);
   auto solution = solver.dual(bounds, states).solution;
