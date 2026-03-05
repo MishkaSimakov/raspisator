@@ -1,5 +1,6 @@
 #include <iostream>
 #include <print>
+#include <unordered_set>
 
 #include "linear/problem/MPS.h"
 #include "linear/problem/optimization/FullOptimizer.h"
@@ -13,30 +14,40 @@
 using Field = double;
 
 int main() {
+  std::unordered_set<std::string> problems = {"AFIRO", "ADLITTLE", "BANDM"};
+
   auto problems_path = paths::resource("lp_problems");
   for (auto entry : std::filesystem::directory_iterator{problems_path}) {
     if (entry.path().extension() != ".SIF") {
       continue;
     }
 
-    // if (entry.path().filename().string() != "BORE3D.SIF") {
-    // continue;
-    // }
+    auto path = entry.path();
+    path.replace_extension("");
+
+    auto problem_name = path.filename().string();
+
+    if (!problems.contains(problem_name)) {
+      continue;
+    }
 
     auto reader = MPSReader<Field>(MPSFieldsMode::FIXED_WIDTH);
     reader.read(entry);
 
     auto problem = reader.get_canonical_representation();
 
-    auto optimized = TransformToEqualities<Field>().apply(problem);
-    optimized = RemoveLinearlyDependentConstraints<Field>().apply(optimized);
-    auto matrices = to_matrices(optimized);
+    problem = Scaling<Field>().apply(problem);
+    problem = TransformToEqualities<Field>().apply(problem);
+    problem = RemoveLinearlyDependentConstraints<Field>().apply(problem);
 
-    std::println("{}: {} x {}", entry.path().filename().string(),
-                 matrices.A.get_height(), matrices.A.get_width());
+    auto matrices = to_matrices(problem);
 
-    auto solver =
-        simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
+    std::println("{}: {} x {}", problem_name, matrices.A.get_height(),
+                 matrices.A.get_width());
+
+    simplex::Settings<double> settings{.is_strict = true};
+    auto solver = simplex::Simplex(CSCMatrix(matrices.A), matrices.b,
+                                   matrices.c, settings);
 
     auto states = solver.try_get_primal_feasible(matrices.bounds);
 

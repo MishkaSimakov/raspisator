@@ -6,6 +6,7 @@
 
 #include "linear/FieldTraits.h"
 #include "utils/Hashers.h"
+#include "linear/model/LP.h"
 
 namespace simplex {
 
@@ -19,12 +20,11 @@ template <typename Field>
 class CyclingDetector {
   std::unordered_map<size_t, std::pair<size_t, Field>> visited_bases;
 
-  static size_t hash_basic_variables(
-      const std::vector<size_t>& basic_variables) {
-    StreamUnorderedHasher hasher;
+  static size_t hash_states(const std::vector<VariableState>& states) {
+    StreamHasher hasher;
 
-    for (size_t var : basic_variables) {
-      hasher << var;
+    for (auto state : states) {
+      hasher << static_cast<size_t>(state);
     }
 
     return hasher.get_hash();
@@ -32,9 +32,9 @@ class CyclingDetector {
 
  public:
   CyclingState record(size_t iteration,
-                      const std::vector<size_t>& basic_variables,
+                      const std::vector<VariableState>& states,
                       Field objective) {
-    const auto hash = hash_basic_variables(basic_variables);
+    const auto hash = hash_states(states);
     const auto [itr, was_emplaced] =
         visited_bases.emplace(hash, std::pair{iteration, objective});
 

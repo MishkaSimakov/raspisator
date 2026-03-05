@@ -214,7 +214,7 @@ class Simplex {
     return std::move(rhs);
   }
 
-  Field get_objective(IterationState<Field> state) const {
+  Field get_objective(const IterationState<Field>& state) const {
     auto [n, d] = A_.shape();
     KahanSum<Field> objective;
 
@@ -233,7 +233,7 @@ class Simplex {
     return objective.sum();
   }
 
-  bool should_stop(IterationState<Field> state) const {
+  bool should_stop(const IterationState<Field>& state) const {
     return settings_.max_iterations &&
            state.iteration_index >= settings_.max_iterations;
   }
@@ -272,7 +272,12 @@ class Simplex {
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
-    assert(is_dual_feasible(bounds, states));
+    if (settings_.is_strict) {
+      if (!is_dual_feasible(bounds, states)) {
+        throw std::invalid_argument(
+            "Given initial state is not dual feasible.");
+      }
+    }
 
     // initialize simplex state
     initialize_state(bounds, states);
@@ -285,7 +290,7 @@ class Simplex {
 
       state_.objective = get_objective(state_);
 
-      if (state_.cycling.record(state_.iteration_index, state_.basic_variables,
+      if (state_.cycling.record(state_.iteration_index, state_.variables_states,
                                 state_.objective) ==
           CyclingState::HAS_CYCLING) {
         state_.last_cycling_iteration = state_.iteration_index;
@@ -378,7 +383,12 @@ class Simplex {
                            coef;
 
       if (bound.upper) {
-        strongest_constraint.record(i, bound.upper);
+        Field value = *bound.upper;
+        if (!FieldTraits<Field>::is_nonzero(value)) {
+          value = 0;
+        }
+
+        strongest_constraint.record(i, value);
       }
     }
 
@@ -387,22 +397,28 @@ class Simplex {
     // changes it's bound without becoming basic.
     auto leaving_variable = strongest_constraint.argmin();
 
-    auto current_state = state.variables_states[entering];
+    auto entering_state = state.variables_states[entering];
     auto entering_bound = (*state.bounds)[entering];
 
     bool moves_outside = false;
     if (leaving_variable) {
+      size_t i = *leaving_variable;
+      // std::println("min = {}, bounds = {}, value = {}, coef = {}",
+      //              *strongest_constraint.min(),
+      //              (*state.bounds)[state.basic_variables[i]],
+      //              state.basic_point[i, 0], column[i, 0]);
+
       moves_outside = !entering_bound.is_inside(
-          current_state == VariableState::AT_LOWER
+          entering_state == VariableState::AT_LOWER
               ? *entering_bound.lower + *strongest_constraint.min()
               : *entering_bound.upper - *strongest_constraint.min());
     }
 
     if (!leaving_variable || moves_outside) {
-      if (current_state == VariableState::AT_LOWER && entering_bound.upper) {
+      if (entering_state == VariableState::AT_LOWER && entering_bound.upper) {
         return ToggleBound{VariableState::AT_UPPER};
       }
-      if (current_state == VariableState::AT_UPPER && entering_bound.lower) {
+      if (entering_state == VariableState::AT_UPPER && entering_bound.lower) {
         return ToggleBound{VariableState::AT_LOWER};
       }
 
@@ -424,7 +440,12 @@ class Simplex {
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
-    assert(is_primal_feasible(bounds, states));
+    if (settings_.is_strict) {
+      if (!is_primal_feasible(bounds, states)) {
+        throw std::invalid_argument(
+            "Given initial state is not primal feasible.");
+      }
+    }
 
     // initialize simplex state
     initialize_state(bounds, states);
@@ -434,14 +455,19 @@ class Simplex {
       state_.basic_point = state_.lupa.solve_linear(rhs);
       state_.objective = get_objective(state_);
 
-      for (size_t i = 0; i < n; ++i) {
-        if (!bounds[state_.basic_variables[i]].is_inside(
-                state_.basic_point[i, 0])) {
-          assert(false);
+      if (settings_.is_strict) {
+        for (size_t i = 0; i < n; ++i) {
+          if (!bounds[state_.basic_variables[i]].is_inside(
+                  state_.basic_point[i, 0])) {
+            std::cout << bounds[state_.basic_variables[i]] << " "
+                      << state_.basic_point[i, 0] << std::endl;
+            throw std::runtime_error(
+                "During simplex run point became primal infeasible.");
+          }
         }
       }
 
-      if (state_.cycling.record(state_.iteration_index, state_.basic_variables,
+      if (state_.cycling.record(state_.iteration_index, state_.variables_states,
                                 state_.objective) ==
           CyclingState::HAS_CYCLING) {
         state_.last_cycling_iteration = state_.iteration_index;
@@ -587,6 +613,12 @@ class Simplex {
     // add additional variable t ( + t (b - Al))
     std::vector<Field> l(n, 0);
     for (size_t i = 0; i < d; ++i) {
+      if (!bounds[i].lower && !bounds[i].upper) {
+        throw std::runtime_error(
+            "There is a variable without both lower and upper bound. Current "
+            "method does not work with it.");
+      }
+
       Field coef = bounds[i].lower ? *bounds[i].lower : *bounds[i].upper;
 
       for (auto [row, value] : A_.get_column(i)) {
@@ -604,6 +636,7 @@ class Simplex {
     auto old_c = std::move(c_);
     c_ = Matrix<Field>(1, d + 1);
     c_[0, d] = -1;
+    // c_ = old_c.get_extended(1, d + 1, -1);
 
     // add bound for t variable
     Bounds<Field> extended_bounds(d + 1);

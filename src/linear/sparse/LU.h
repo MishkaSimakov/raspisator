@@ -123,6 +123,9 @@ class LUPA {
   Permutation P_;
   Permutation Q_;
 
+  // current det(B^-1) value
+  Field det_;
+
   // Forrest-Tomlin update helpers
   size_t changes_since_refactorization_{0};
   size_t changes_since_purge_{0};
@@ -268,6 +271,7 @@ class LUPA {
     // calculate eta files
     us_.clear();
     ls_.clear();
+    det_ = 1;
 
     Maximum<Field> max;
 
@@ -290,6 +294,7 @@ class LUPA {
         max.record(FieldTraits<Field>::abs(value));
       }
 
+      det_ /= diagonal;
       us_.push_back(i, column);
 
       // lower
@@ -339,6 +344,13 @@ class LUPA {
     auto itr = us_.begin();
     for (; itr != us_.end(); ++itr) {
       if ((*itr).index == current_column) {
+        for (auto [row, value] : (*itr).values) {
+          if (row == current_column) {
+            det_ /= value;
+            break;
+          }
+        }
+
         itr = us_.erase(itr);
         break;
       }
@@ -373,7 +385,8 @@ class LUPA {
       r_max.record(r[i, 0]);
     }
 
-    if (*r_max.max() > 20) {
+    if (*r_max.max() > 10) {
+      std::println("refactorization: {}", *r_max.max());
       force_refactorization_ = true;
     }
 
@@ -386,19 +399,28 @@ class LUPA {
     assert(FieldTraits<Field>::is_nonzero(column[current_column, 0]));
 
     Field diagonal = column[current_column, 0];
-
-    Maximum<Field> max;
+    det_ /= diagonal;
 
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =
           i != current_column ? -column[i, 0] / diagonal : Field(1) / diagonal;
-
-      max.record(FieldTraits<Field>::abs(column[i, 0]));
     }
 
-    // logging::log_value(*max.max(), "max_additional_us_value.txt");
-
     us_.push_back(current_column, column, EtaType::COLUMN);
+  }
+
+  static Matrix<Field> purge_zeros(Matrix<Field> matrix) {
+    auto [n, d] = matrix.shape();
+
+    for (size_t col = 0; col < d; ++col) {
+      for (size_t row = 0; row < n; ++row) {
+        if (!FieldTraits<Field>::is_nonzero(matrix[row, col])) {
+          matrix[row, col] = 0;
+        }
+      }
+    }
+
+    return matrix;
   }
 
  public:
@@ -445,6 +467,7 @@ class LUPA {
     for (auto entry : ls_) {
       result = ls_.apply(std::move(result), entry);
     }
+
     for (auto entry : us_ | std::views::reverse) {
       result = us_.apply(std::move(result), entry);
     }
@@ -456,6 +479,7 @@ class LUPA {
     for (auto entry : us_) {
       b = us_.apply_transposed(std::move(b), entry);
     }
+
     for (auto entry : ls_ | std::views::reverse) {
       b = ls_.apply_transposed(std::move(b), entry);
     }
@@ -492,6 +516,8 @@ class LUPA {
   }
 
   size_t size() const { return ls_.size() + us_.size(); }
+
+  Field get_det() const { return det_; }
 };
 
 template <typename Field>
