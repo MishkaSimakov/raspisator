@@ -2,6 +2,7 @@
 
 #include "TestMatrices.h"
 #include "linear/BigInteger.h"
+#include "linear/matrix/Elimination.h"
 #include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/sparse/CSCMatrix.h"
@@ -54,26 +55,32 @@ TEST_P(CommonLUTests, DenseDecomposeThenCompose) {
 
 TEST_P(CommonLUTests, SparseDecomposeThenCompose) {
   auto [_, matrix] = GetParam();
+
+  auto [n, d] = matrix.shape();
   auto sparse = CSCMatrix<Rational>(matrix);
 
   std::vector<size_t> columns(matrix.get_width());
   std::iota(columns.begin(), columns.end(), 0);
 
-  auto [L, U, P] = linalg::sparse_lup(sparse, columns);
-  auto dense_L = linalg::to_dense(L);
-  auto dense_U = linalg::to_dense(U);
+  auto [P, Q, ls, us] =
+      linalg::FullPivotingLU<Rational>(n).get(sparse, columns);
 
-  // add ones on the diagonal
-  for (size_t i = 0; i < matrix.get_height(); ++i) {
-    dense_L[i, i] = 1;
+  auto L = Matrix<Rational>::unity(n);
+  for (auto entry : ls) {
+    L = ls.apply(std::move(L), entry);
   }
 
-  ASSERT_NO_FATAL_FAILURE(check_L(dense_L));
-  ASSERT_NO_FATAL_FAILURE(check_U(dense_U));
+  auto U = Matrix<Rational>::unity(n);
+  for (auto entry : us | std::views::reverse) {
+    U = us.apply(std::move(U), entry);
+  }
 
-  auto expected = linalg::to_dense(P.apply(sparse));
+  ASSERT_NO_FATAL_FAILURE(check_L(L));
+  ASSERT_NO_FATAL_FAILURE(check_U(U));
 
-  ASSERT_EQ(dense_L * dense_U, expected);
+  auto expected = linalg::to_dense(sparse);
+
+  ASSERT_EQ(Q * U * L * P * expected, Matrix<Rational>::unity(n));
 }
 
 INSTANTIATE_TEST_SUITE_P(

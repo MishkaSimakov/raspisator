@@ -38,6 +38,7 @@ class EtaFile {
         : values(values), index(index), type(type) {}
 
     EntryView(EntryView<false> other)
+      requires(is_const)
         : values(other.values), index(other.index), type(other.type) {}
   };
 

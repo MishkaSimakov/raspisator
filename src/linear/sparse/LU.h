@@ -12,126 +12,59 @@
 
 namespace linalg {
 
-// solves Ax = b, where PA = LU
-// L must be without ones on the main diagonal
+// solves Ax = b, where PAQ = LU
+// ls is eta-file containing L1^-1 ... Ln^-1, where L = L1 ... Ln
+// us is eta-file containing U1^-1 ... Un^-1, where U = Un ... U1
 template <typename Field>
-Matrix<Field> solve_linear(const CSCMatrix<Field>& L, const CSCMatrix<Field>& U,
-                           const Permutation& P, const Matrix<Field>& b) {
-  auto [n, _] = L.shape();
+Matrix<Field> solve_linear(Matrix<Field> b, const Permutation& P,
+                           const Permutation& Q, const EtaFile<Field>& ls,
+                           const EtaFile<Field> us) {
+  Matrix<Field> result = P.apply(std::move(b));
 
-  Matrix<Field> result = P.apply(b);
-
-  // solve Ly = Pb
-  for (size_t col = 0; col < n; ++col) {
-    for (const auto& [row, value] : L.get_column(col)) {
-      result[row, 0] -= result[col, 0] * value;
-    }
+  for (auto entry : ls) {
+    result = ls.apply(std::move(result), entry);
   }
 
-  // solve Ux = y
-  for (size_t i = 0; i < n; ++i) {
-    size_t col = n - i - 1;
-
-    for (const auto& [row, value] : U.get_column(col)) {
-      if (row == col) {
-        result[col, 0] /= value;
-        break;
-      }
-    }
-
-    for (const auto& [row, value] : U.get_column(col)) {
-      if (row != col) {
-        result[row, 0] -= result[col, 0] * value;
-      }
-    }
+  for (auto entry : us | std::views::reverse) {
+    result = us.apply(std::move(result), entry);
   }
 
-  return result;
+  return Q.apply(std::move(result));
 }
 
-// solves A^T x = b, where PA = LU
-// uses memory of b as output
-// L must be without ones on the main diagonal
-// returns a point y, such that x[i] = y[P[i]]
+// solves A^T x = b, where PAQ = LU
+// ls is eta-file containing L1^-1 ... Ln^-1, where L = L1 ... Ln
+// us is eta-file containing U1^-1 ... Un^-1, where U = Un ... U1
 template <typename Field>
-void solve_transposed_linear_inplace(const CSCMatrix<Field>& L,
-                                     const CSCMatrix<Field>& U,
-                                     const Permutation& P, Matrix<Field>& b) {
-  auto [n, _] = L.shape();
+Matrix<Field> solve_linear_transposed(Matrix<Field> b, const Permutation& P,
+                                      const Permutation& Q,
+                                      const EtaFile<Field>& ls,
+                                      const EtaFile<Field>& us) {
+  b = Q.apply_transposed(std::move(b));
 
-  // solve U^T y = b
-  for (size_t col = 0; col < n; ++col) {
-    Field diagonal;
-
-    // std::cout << b[col, 0] << " -= ";
-
-    for (const auto& [row, value] : U.get_column(col)) {
-      if (row != col) {
-        b[col, 0] -= value * b[row, 0];
-
-        // std::cout << value << "*" << b[row, 0] << " + ";
-      } else {
-        diagonal = value;
-      }
-    }
-
-    // std::cout << " | " << b[col, 0] << " " << diagonal << "\n";
-    b[col, 0] /= diagonal;
-
-    if (!FieldTraits<Field>::is_nonzero(b[col, 0])) {
-      b[col, 0] = 0;
-    }
+  for (auto entry : us) {
+    b = us.apply_transposed(std::move(b), entry);
   }
 
-  // solve L^T x = y
-  for (size_t i = 0; i < n; ++i) {
-    size_t col = n - i - 1;
-
-    for (const auto& [row, value] : L.get_column(col)) {
-      b[col, 0] -= b[row, 0] * value;
-    }
-
-    if (!FieldTraits<Field>::is_nonzero(b[col, 0])) {
-      b[col, 0] = 0;
-    }
+  for (auto entry : ls | std::views::reverse) {
+    b = ls.apply_transposed(std::move(b), entry);
   }
+
+  return P.apply_transposed(std::move(b));
 }
 
-// same as solve_transposed_linear_inplace, but returns solution in a newly
-// allocated memory
+// This class performs LU decomposition with full pivoting for a sparse matrix.
+// Suppose it received a matrix A. It returns P, Q, ls and us such that:
+// 1. P is row permutation of A
+// 2. Q is column permutation of A
+// 3. us is eta-file containing L1^-1 ... Ln^-1
+// 4. ls is eta-file containing U1^-1 ... Un^-1, where Li^-1 and Ui^-1 are
+// column eta-matrices with pivot column i and L = L1 ... Ln, U = Un ... U1
+// 5. PAQ = LU
 template <typename Field>
-Matrix<Field> solve_transposed_linear(const CSCMatrix<Field>& L,
-                                      const CSCMatrix<Field>& U,
-                                      const Permutation& P,
-                                      const Matrix<Field>& b) {
-  auto copy = b;
-  solve_transposed_linear_inplace(L, U, P, copy);
-  return copy;
-}
+class FullPivotingLU {
+  size_t size_;
 
-// LUP-Accelerated (LUPA)
-// For a given matrix this class answers queries of form:
-// get LUP-decomposition of submatrix of A formed by given columns
-template <typename Field>
-class LUPA {
-  const CSCMatrix<Field>& A_;
-  std::vector<size_t> columns_;
-
-  // decomposition
-  EtaFile<Field> us_;  // stores U1^-1 ... U(n+t)^-1
-  EtaFile<Field> ls_;  // stores L1^-1 ... Ln^-1 R1^-1 ... Rt^-1
-  Permutation P_;
-  Permutation Q_;
-
-  // current det(B^-1) value
-  Field det_;
-
-  // Forrest-Tomlin update helpers
-  size_t changes_since_refactorization_{0};
-  size_t changes_since_purge_{0};
-  bool force_refactorization_{false};
-
-  // LU-decomposition implementation buffers
   std::vector<Field> dense_;
   std::vector<size_t> nonzero_indices_;
 
@@ -188,42 +121,81 @@ class LUPA {
     }
   }
 
-  // LUP decomposition for given submatrix of A.
-  // First it selects only given columns from A.
-  // Returns L and U as sparse matrices and permutation P such that:
-  // - P[i] = j means that i-th row in A is j-th row in PA
-  // - LU = PA
-  // - L and U does not store zeros
-  // - L does not store ones on the main diagonal
-  // Note: It is not checked whether A is non-singular, but A must be
-  // non-singular for algorithm to work.
-  void get_lup(const std::vector<size_t>& columns) {
-    size_t n = A_.shape().first;
+ public:
+  explicit FullPivotingLU(size_t size)
+      : size_(size),
+        dense_(size, 0),
+        L_(size),
+        U_(size),
+        P_impl_(size),
+        Q_impl_(size),
+        visited_(size, false),
+        parent_(size, 0),
+        child_(size, 0) {
+    nonzero_indices_.reserve(size);
+  }
 
+  std::tuple<Permutation, Permutation, EtaFile<Field>, EtaFile<Field>> get(
+      const CSCMatrix<Field>& A, const std::vector<size_t>& columns) {
+    auto P = Permutation::id(size_);
+    auto Q = Permutation::id(size_);
+
+    EtaFile<Field> ls;
+    EtaFile<Field> us;
+
+    get(A, columns, P, Q, ls, us);
+    return {std::move(P), std::move(Q), std::move(ls), std::move(us)};
+  }
+
+  void get(const CSCMatrix<Field>& A, const std::vector<size_t>& columns,
+           Permutation& P, Permutation& Q, EtaFile<Field>& ls,
+           EtaFile<Field>& us) {
+    size_t n = size_;
+
+    assert(A.shape().first == n && columns.size() == n);
     assert(L_.shape().first == n);
     assert(U_.shape().first == n);
     assert(P_impl_.size() >= n);
+    assert(Q_impl_.size() >= n);
     assert(columns.size() == n);
+
+    {
+      size_t basic_nonzeros = 0;
+      for (size_t i = 0; i < n; ++i) {
+        for (auto [row, value] : A.get_column(columns[i])) {
+          ++basic_nonzeros;
+        }
+      }
+      // logging::log_value(basic_nonzeros, "basic_nonzeros_count.txt");
+    }
 
     L_.clear();
     U_.clear();
     std::ranges::fill_n(P_impl_.begin(), n, n);
+    std::ranges::fill_n(Q_impl_.begin(), n, n);
 
     for (size_t j = 0; j < n; ++j) {
-      for (const auto& [index, value] : A_.get_column(columns[j])) {
+      // choose pivot column with the least amount of elements
+      ArgMinimum<size_t, std::less<>> nz_count;
+
+      for (size_t i = 0; i < n; ++i) {
+        if (Q_impl_[i] == n) {
+          nz_count.record(i, A.get_column(columns[i]).size());
+        }
+      }
+
+      size_t pivot_column = *nz_count.argmin();
+
+      for (const auto& [index, value] : A.get_column(columns[pivot_column])) {
         dense_[index] = value;
         dfs(L_, index, P_impl_);
       }
 
-      Field largest_value = 0;
-      size_t largest_value_row = n;
+      ArgMaximum<Field> max_value;
 
       for (size_t row : std::views::reverse(nonzero_indices_)) {
         if (P_impl_[row] == n) {
-          if (largest_value < FieldTraits<Field>::abs(dense_[row])) {
-            largest_value = FieldTraits<Field>::abs(dense_[row]);
-            largest_value_row = row;
-          }
+          max_value.record(row, FieldTraits<Field>::abs(dense_[row]));
         } else {
           for (const auto& [index, value] : L_.get_column(P_impl_[row])) {
             dense_[index] -= dense_[row] * value;
@@ -232,9 +204,12 @@ class LUPA {
       }
 
       // logging::log_value(largest_value, "lu_pivoting_value.txt");
-      assert(largest_value_row != n);
+      assert(max_value.argmax().has_value());
 
-      P_impl_[largest_value_row] = j;
+      size_t pivot_row = *max_value.argmax();
+
+      P_impl_[pivot_row] = j;
+      Q_impl_[pivot_column] = j;
 
       Field diagonal_element;
       // copy dense into appropriate sparse columns of U and L
@@ -257,23 +232,29 @@ class LUPA {
         visited_[row] = false;
       }
 
-      for (Field& value : L_.get_column(j) | std::views::values) {
+      for (auto& [_, value] : L_.get_column(j)) {
         value /= diagonal_element;
       }
 
       nonzero_indices_.clear();
     }
 
-    P_ = Permutation::from_vector(P_impl_);
-    L_ = P_.apply(std::move(L_));
-    U_ = P_.apply(std::move(U_));
+    P = Permutation::from_vector(P_impl_);
+
+    std::vector<size_t> Q_transposed(n);
+    for (size_t i = 0; i < n; ++i) {
+      Q_transposed[Q_impl_[i]] = i;
+    }
+    Q = Permutation::from_vector(std::move(Q_transposed));
+    L_ = P.apply(std::move(L_));
+    U_ = P.apply(std::move(U_));
 
     // calculate eta files
-    us_.clear();
-    ls_.clear();
-    det_ = 1;
+    us.clear();
+    ls.clear();
 
     Maximum<Field> max;
+    size_t nonzeros = 0;
 
     for (size_t i = 0; i < n; ++i) {
       // upper
@@ -291,11 +272,12 @@ class LUPA {
 
       for (auto& [row, value] : column) {
         value /= diagonal;
+
         max.record(FieldTraits<Field>::abs(value));
+        ++nonzeros;
       }
 
-      det_ /= diagonal;
-      us_.push_back(i, column);
+      us.push_back(i, column);
 
       // lower
       column.clear();
@@ -303,20 +285,44 @@ class LUPA {
       column.emplace_back(i, 1);
       for (auto [row, value] : L_.get_column(i)) {
         column.emplace_back(row, -value);
+
+        max.record(FieldTraits<Field>::abs(value));
+        ++nonzeros;
       }
 
-      ls_.push_back(i, column);
+      ls.push_back(i, column);
     }
 
-    // logging::log_value(*max.max(), "max_us_value.txt");
+    // logging::log_value(*max.max(), "max_lu_value.txt");
+    // logging::log_value(nonzeros, "lu_nonzeros_count.txt");
   }
+};
+
+// LUP-Accelerated (LUPA)
+// For a given matrix this class answers queries of form:
+// get LUP-decomposition of submatrix of A formed by given columns
+template <typename Field>
+class LUPA {
+  const CSCMatrix<Field>& A_;
+  std::vector<size_t> columns_;
+
+  FullPivotingLU<Field> factorizer_;
+
+  // decomposition
+  EtaFile<Field> us_;  // stores U1^-1 ... U(n+t)^-1
+  EtaFile<Field> ls_;  // stores L1^-1 ... Ln^-1 R1^-1 ... Rt^-1
+  Permutation P_;
+  Permutation Q_;
+
+  // Forrest-Tomlin update helpers
+  size_t changes_since_refactorization_{0};
+  size_t changes_since_purge_{0};
 
   void refactorize() {
-    get_lup(columns_);
+    factorizer_.get(A_, columns_, P_, Q_, ls_, us_);
 
     changes_since_refactorization_ = 0;
     changes_since_purge_ = 0;
-    force_refactorization_ = false;
   }
 
   void purge() {
@@ -326,7 +332,9 @@ class LUPA {
     changes_since_purge_ = 0;
   }
 
-  void forrest_tomlin_update(size_t current_column, size_t new_column) {
+  enum class UpdateResult { SUCCESS, NEED_REFACTORIZATION };
+
+  UpdateResult forrest_tomlin_update(size_t current_column, size_t new_column) {
     auto [n, d] = A_.shape();
 
     Matrix<Field> column(n, 1, 0);
@@ -339,6 +347,10 @@ class LUPA {
       column = ls_.apply(std::move(column), entry);
     }
 
+    // Permutation Q_ changes columns order. Here we find a column that becomes
+    // current_column after applying Q_
+    current_column = Q_.post_apply(current_column);
+
     Matrix<Field> r(n, 1, 0);
 
     auto itr = us_.begin();
@@ -346,7 +358,6 @@ class LUPA {
       if ((*itr).index == current_column) {
         for (auto [row, value] : (*itr).values) {
           if (row == current_column) {
-            det_ /= value;
             break;
           }
         }
@@ -386,8 +397,8 @@ class LUPA {
     }
 
     if (*r_max.max() > 10) {
-      std::println("refactorization: {}", *r_max.max());
-      force_refactorization_ = true;
+      // std::println("refactorization: {}", *r_max.max());
+      return UpdateResult::NEED_REFACTORIZATION;
     }
 
     // logging::log_value(*r_max.max(), "r_max.txt");
@@ -399,7 +410,6 @@ class LUPA {
     assert(FieldTraits<Field>::is_nonzero(column[current_column, 0]));
 
     Field diagonal = column[current_column, 0];
-    det_ /= diagonal;
 
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =
@@ -407,6 +417,8 @@ class LUPA {
     }
 
     us_.push_back(current_column, column, EtaType::COLUMN);
+
+    return UpdateResult::SUCCESS;
   }
 
   static Matrix<Field> purge_zeros(Matrix<Field> matrix) {
@@ -426,22 +438,13 @@ class LUPA {
  public:
   explicit LUPA(const CSCMatrix<Field>& A)
       : A_(A),
+        factorizer_(A.shape().first),
         P_(Permutation::id(A.shape().first)),
-        Q_(Permutation::id(A.shape().first)),
-        dense_(A.shape().first, 0),
-        L_(A_.shape().first),
-        U_(A_.shape().first),
-        P_impl_(A.shape().first),
-        Q_impl_(A.shape().first),
-        visited_(A.shape().first, false),
-        parent_(A.shape().first, 0),
-        child_(A.shape().first, 0) {
-    nonzero_indices_.reserve(A.shape().first);
-  }
+        Q_(Permutation::id(A.shape().first)) {}
 
   void set_columns(const std::vector<size_t>& columns) {
     columns_ = columns;
-    get_lup(columns_);
+    refactorize();
   }
 
   void change_column(size_t current_column, size_t new_column) {
@@ -449,42 +452,30 @@ class LUPA {
     ++changes_since_refactorization_;
     ++changes_since_purge_;
 
-    if (changes_since_refactorization_ > 500 || force_refactorization_) {
+    if (changes_since_refactorization_ > 500) {
       refactorize();
-    } else {
-      forrest_tomlin_update(current_column, new_column);
+      return;
+    }
 
-      if (changes_since_purge_ > 100) {
-        purge();
-      }
+    auto update_result = forrest_tomlin_update(current_column, new_column);
+
+    if (update_result == UpdateResult::NEED_REFACTORIZATION) {
+      refactorize();
+      return;
+    }
+
+    if (changes_since_purge_ > 100) {
+      purge();
     }
   }
 
   // solves Ax = b
   Matrix<Field> solve_linear(Matrix<Field> b) const {
-    Matrix<Field> result = P_.apply(std::move(b));
-
-    for (auto entry : ls_) {
-      result = ls_.apply(std::move(result), entry);
-    }
-
-    for (auto entry : us_ | std::views::reverse) {
-      result = us_.apply(std::move(result), entry);
-    }
-
-    return result;
+    return linalg::solve_linear(std::move(b), P_, Q_, ls_, us_);
   }
 
   Matrix<Field> solve_linear_transposed(Matrix<Field> b) const {
-    for (auto entry : us_) {
-      b = us_.apply_transposed(std::move(b), entry);
-    }
-
-    for (auto entry : ls_ | std::views::reverse) {
-      b = ls_.apply_transposed(std::move(b), entry);
-    }
-
-    return P_.apply_transposed(std::move(b));
+    return linalg::solve_linear_transposed(std::move(b), P_, Q_, ls_, us_);
   }
 
   Matrix<Field> get_row(size_t row_index) const {
@@ -495,8 +486,6 @@ class LUPA {
 
     return solve_linear_transposed(e);
   }
-
-  auto get_lup() const { return std::tie(L_, U_, P_); }
 
   // This method is for testing, it is not optimized in any way
   Matrix<Field> get_inverse() const {
@@ -512,21 +501,12 @@ class LUPA {
       result = us_.apply(std::move(result), entry);
     }
 
+    result = Q_.apply(std::move(result));
+
     return result;
   }
 
   size_t size() const { return ls_.size() + us_.size(); }
-
-  Field get_det() const { return det_; }
 };
-
-template <typename Field>
-std::tuple<CSCMatrix<Field>, CSCMatrix<Field>, Permutation> sparse_lup(
-    const CSCMatrix<Field>& A, const std::vector<size_t>& columns) {
-  auto lupa = LUPA<Field>(A);
-  lupa.set_columns(columns);
-
-  return lupa.get_lup();
-}
 
 }  // namespace linalg

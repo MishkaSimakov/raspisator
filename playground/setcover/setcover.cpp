@@ -36,8 +36,12 @@ MILPProblem<double> to_milp(const setcover::Problem& problem) {
   return result;
 }
 
+// Задача sc_330_0 вызывает значительные вычислительные трудности у текущей
+// версии. Скорее всего это происходит из-за ошибок округления в LU или
+// симплексе. Интересно, что в конце определитель матрицы улетает в
+// бесконечность.
 int main() {
-  auto problem = setcover::read_problem(paths::resource("setcover/sc_10000_0"));
+  auto problem = setcover::read_problem(paths::resource("setcover/sc_10000_2"));
 
   auto milp_problem = to_milp(problem);
 

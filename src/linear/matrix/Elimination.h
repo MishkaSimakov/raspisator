@@ -50,6 +50,7 @@ void gaussian_elimination(MatrixLike auto&& matrix, size_t row_index,
   }
 }
 
+// TODO: inverse modifies matrix. This is super strange and should be fixed.
 template <MatrixLike T>
 Matrix<matrix_field_t<T>> inverse(T&& matrix) {
   using Field = matrix_field_t<T>;

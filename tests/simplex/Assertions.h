@@ -46,13 +46,15 @@ void validate_simplex_solution(const Matrix<Field>& A, const Matrix<Field>& b,
   // check optimality
   auto sparse_A = CSCMatrix(A);
   auto basic_vars = solution.get_basic_variables();
-  auto [L, U, P] = linalg::sparse_lup(sparse_A, basic_vars);
+
+  auto [P, Q, ls, us] =
+      linalg::FullPivotingLU<Field>(n).get(sparse_A, basic_vars);
 
   Matrix<Field> cb(n, 1);
   for (size_t i = 0; i < n; ++i) {
     cb[i, 0] = c[0, basic_vars[i]];
   }
-  linalg::solve_transposed_linear_inplace(L, U, P, cb);
+  cb = linalg::solve_linear_transposed(cb, P, Q, ls, us);
 
   for (size_t i = 0; i < d; ++i) {
     if (solution.variables[i] == VariableState::BASIC) {
@@ -62,7 +64,7 @@ void validate_simplex_solution(const Matrix<Field>& A, const Matrix<Field>& b,
     Field reduced_cost = c[0, i];
 
     for (const auto& [row, value] : sparse_A.get_column(i)) {
-      reduced_cost -= value * cb[P[row], 0];
+      reduced_cost -= value * cb[row, 0];
     }
 
     ASSERT_TRUE((solution.variables[i] == VariableState::AT_LOWER &&

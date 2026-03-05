@@ -17,8 +17,7 @@
 
 template <typename Field>
 class CSCMatrix {
-  std::vector<Field> data_;
-  std::vector<size_t> indices_;
+  std::vector<std::pair<size_t, Field>> entries_;
   std::vector<size_t> index_pointers_;
 
   size_t rows_cnt_;
@@ -39,8 +38,7 @@ class CSCMatrix {
     for (size_t col = 0; col < d; ++col) {
       for (size_t row = 0; row < n; ++row) {
         if (FieldTraits<Field>::is_nonzero(matrix[row, col])) {
-          data_.push_back(matrix[row, col]);
-          indices_.push_back(row);
+          entries_.emplace_back(row, matrix[row, col]);
           ++nonzero_cnt;
         }
       }
@@ -74,25 +72,14 @@ class CSCMatrix {
     return {rows_cnt_, index_pointers_.size() - 1};
   }
 
-  auto get_column(size_t col) const {
-    ssize_t begin = index_pointers_[col];
-    ssize_t end = index_pointers_[col + 1];
-
-    std::span<const size_t> indices(indices_.begin() + begin,
-                                    indices_.begin() + end);
-    std::span<const Field> values(data_.begin() + begin, data_.begin() + end);
-
-    return std::views::zip(indices, values);
+  std::span<const std::pair<size_t, Field>> get_column(size_t col) const {
+    return std::span(entries_.begin() + index_pointers_[col],
+                     entries_.begin() + index_pointers_[col + 1]);
   }
 
-  auto get_column(size_t col) {
-    ssize_t begin = index_pointers_[col];
-    ssize_t end = index_pointers_[col + 1];
-
-    std::span<size_t> indices(indices_.begin() + begin, indices_.begin() + end);
-    std::span<Field> values(data_.begin() + begin, data_.begin() + end);
-
-    return std::views::zip(indices, values);
+  std::span<std::pair<size_t, Field>> get_column(size_t col) {
+    return std::span(entries_.begin() + index_pointers_[col],
+                     entries_.begin() + index_pointers_[col + 1]);
   }
 
   void add_column(std::span<const Field> dense, size_t shift = 0) {
@@ -105,8 +92,7 @@ class CSCMatrix {
     size_t nonzero_cnt = index_pointers_.back();
     for (size_t i = 0; i < dense.size(); ++i) {
       if (FieldTraits<Field>::is_nonzero(dense[i])) {
-        data_.push_back(dense[i]);
-        indices_.push_back(i + shift);
+        entries_.emplace_back(i + shift, dense[i]);
 
         ++nonzero_cnt;
       }
@@ -116,12 +102,8 @@ class CSCMatrix {
   }
 
   void add_column(std::span<const std::pair<size_t, Field>> sparse) {
-    for (auto [row, value] : sparse) {
-      data_.push_back(value);
-      indices_.push_back(row);
-    }
-
-    index_pointers_.push_back(indices_.size());
+    entries_.append_range(sparse);
+    index_pointers_.push_back(entries_.size());
   }
 
   // adds zero column
@@ -134,11 +116,10 @@ class CSCMatrix {
 
     ++index_pointers_.back();
 
-    indices_.push_back(row);
-    data_.push_back(value);
+    entries_.emplace_back(row, value);
   }
 
-  size_t nonzero_count() const { return data_.size(); }
+  size_t nonzero_count() const { return entries_.size(); }
 
   double density() const {
     auto [n, d] = shape();
@@ -146,8 +127,7 @@ class CSCMatrix {
   }
 
   void clear() {
-    data_.clear();
-    indices_.clear();
+    entries_.clear();
     index_pointers_.clear();
 
     index_pointers_.push_back(0);
@@ -155,9 +135,7 @@ class CSCMatrix {
 
   void pop_back_column() {
     index_pointers_.pop_back();
-
-    indices_.resize(index_pointers_.back());
-    data_.resize(index_pointers_.back());
+    entries_.resize(index_pointers_.back());
   }
 };
 

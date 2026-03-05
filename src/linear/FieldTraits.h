@@ -41,7 +41,7 @@ struct FieldTraits<double> {
   static double exp2(int exponent) { return std::exp2(exponent); }
 };
 
-template <std::integral T>
+template <std::signed_integral T>
 struct FieldTraits<T> {
   static T abs(T value) { return std::abs(value); }
 

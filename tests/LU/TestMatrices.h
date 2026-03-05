@@ -63,7 +63,9 @@ inline std::vector<std::pair<std::string, Matrix<Rational>>> test_matrices() {
   result.emplace_back("small_matrix2", small_matrix2());
   result.emplace_back("big_dense_matrix", big_dense_matrix(50));
   result.emplace_back("diagonal_matrix", diagonal_matrix(50));
-  result.emplace_back("sparse_matrix", sparse_matrix(50, 3));
+  result.emplace_back("small_sparse_matrix", sparse_matrix(5, 2));
+  result.emplace_back("medium_sparse_matrix", sparse_matrix(7, 2));
+  result.emplace_back("big_sparse_matrix", sparse_matrix(50, 3));
 
   return result;
 }

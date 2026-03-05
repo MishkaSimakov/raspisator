@@ -70,7 +70,7 @@ class Permutation {
     assert(n == size());
 
     for (size_t col = 0; col < d; ++col) {
-      for (size_t& row : A.get_column(col) | std::views::keys) {
+      for (auto& [row, _] : A.get_column(col)) {
         row = permutation_[row];
       }
     }
@@ -111,13 +111,45 @@ class Permutation {
     return result;
   }
 
+  // Returns AP - column permutation of A
+  // Allocates new matrix of the same shape as A.
+  template <typename Field>
+  Matrix<Field> post_apply(const Matrix<Field>& A) const {
+    auto [n, d] = A.shape();
+
+    assert(d == size());
+
+    auto result = Matrix<Field>(n, d);
+
+    for (size_t row = 0; row < n; ++row) {
+      for (size_t col = 0; col < d; ++col) {
+        result[row, col] = A[row, permutation_[col]];
+      }
+    }
+
+    return result;
+  }
+
   size_t size() const { return permutation_.size(); }
 
   // Returns the row index in PA where row `row` of A is mapped by P
-  size_t operator[](size_t row) const {
+  size_t apply(size_t row) const {
     assert(row < size() && "row index out of bounds");
 
     return permutation_[row];
+  }
+
+  // Returns the column index in AP where column `col` of A is mapped by P
+  size_t post_apply(size_t col) const {
+    assert(col < size() && "col index out of bounds");
+
+    for (size_t i = 0; i < size(); ++i) {
+      if (permutation_[i] == col) {
+        return i;
+      }
+    }
+
+    std::unreachable();
   }
 
   template <typename Field>
@@ -166,3 +198,13 @@ class Permutation {
 };
 
 }  // namespace linalg
+
+template <typename Field>
+Matrix<Field> operator*(const linalg::Permutation& P, const Matrix<Field>& A) {
+  return P.apply(A);
+}
+
+template <typename Field>
+Matrix<Field> operator*(const Matrix<Field>& A, const linalg::Permutation& P) {
+  return P.post_apply(A);
+}
