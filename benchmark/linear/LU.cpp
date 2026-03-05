@@ -32,10 +32,13 @@ static void SparseMatrix(benchmark::State& state) {
   std::iota(columns.begin(), columns.end(), 0);
 
   for (auto _ : state) {
-    auto [L, U, P] = linalg::sparse_lup(matrix, columns);
+    auto [P, Q, ls, us] =
+        linalg::FullPivotingLU<double>(N).get(matrix, columns);
 
-    benchmark::DoNotOptimize(L);
-    benchmark::DoNotOptimize(U);
+    benchmark::DoNotOptimize(P);
+    benchmark::DoNotOptimize(Q);
+    benchmark::DoNotOptimize(ls);
+    benchmark::DoNotOptimize(us);
   }
 }
 

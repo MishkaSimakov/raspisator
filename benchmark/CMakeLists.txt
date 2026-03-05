@@ -1,5 +1,5 @@
-add_executable(BenchmarkLU linear/LU.cpp)
-add_executable(BenchmarkCSCMatrixConstructor linear/CSCMatrixConstructor.cpp)
+add_executable(benchmark_lu linear/LU.cpp)
+add_executable(benchmark_csc_constructor linear/CSCMatrixConstructor.cpp)
 
-target_link_libraries(BenchmarkLU benchmark::benchmark raspisator)
-target_link_libraries(BenchmarkCSCMatrixConstructor benchmark::benchmark raspisator)
+target_link_libraries(benchmark_lu benchmark::benchmark raspisator)
+target_link_libraries(benchmark_csc_constructor benchmark::benchmark raspisator)
