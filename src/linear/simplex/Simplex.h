@@ -344,7 +344,8 @@ class Simplex {
       }
 
       if (FieldTraits<Field>::is_strictly_positive(cost)) {
-        if (state.last_cycling_iteration + 10 > state.iteration_index) {
+        if (state.last_cycling_iteration &&
+            *state.last_cycling_iteration + 10 > state.iteration_index) {
           return i;
         }
 
