@@ -1,3 +1,5 @@
+#include "Evaluator.h"
+#include "Greedy.h"
 #include "Reader.h"
 #include "Types.h"
 #include "linear/problem/MILPProblem.h"
@@ -6,34 +8,42 @@
 #include "linear/simplex/Simplex.h"
 #include "utils/Paths.h"
 
-MILPProblem<double> to_milp(const setcover::Problem& problem) {
-  MILPProblem<double> result;
+auto to_milp(const setcover::Problem& problem) {
+  size_t n = problem.elements_count;
+  size_t d = problem.sets.size();
 
-  std::vector<Variable<double>> variables;
-  for (size_t i = 0; i < problem.sets.size(); ++i) {
-    variables.push_back(result.new_variable(std::format("x_{}", i),
-                                            VariableType::INTEGER, 0, 1));
-  }
+  Matrix<double> A(n, d + n, 0);
+  Matrix<double> b(n, 1, 0);
+  Matrix<double> c(1, d + n, 0);
 
-  for (size_t j = 0; j < problem.elements_count; ++j) {
-    Expression<double> constraint;
-
-    for (size_t i = 0; i < problem.sets.size(); ++i) {
+  for (size_t j = 0; j < n; ++j) {
+    for (size_t i = 0; i < d; ++i) {
       if (problem.sets[i].elements.contains(j)) {
-        constraint += variables[i];
+        A[j, i] = 1;
       }
     }
 
-    result.add_constraint(constraint >= Expression<double>{1});
+    A[j, d + j] = -1;
   }
 
-  Expression<double> objective;
-  for (size_t i = 0; i < problem.sets.size(); ++i) {
-    objective += static_cast<double>(problem.sets[i].cost) * variables[i];
+  for (size_t i = 0; i < n; ++i) {
+    b[i, 0] = 1;
   }
-  result.set_objective(-objective);
 
-  return result;
+  for (size_t i = 0; i < d; ++i) {
+    c[0, i] = -static_cast<double>(problem.sets[i].cost);
+  }
+
+  Bounds<double> bounds(d + n);
+  for (size_t i = 0; i < d; ++i) {
+    bounds[i] = {0, 1};
+  }
+
+  for (size_t i = d; i < d + n; ++i) {
+    bounds[i] = {0, std::nullopt};
+  }
+
+  return std::make_tuple(A, b, c, bounds);
 }
 
 // Задача sc_330_0 вызывает значительные вычислительные трудности у текущей
@@ -43,32 +53,33 @@ MILPProblem<double> to_milp(const setcover::Problem& problem) {
 int main() {
   auto problem = setcover::read_problem(paths::resource("setcover/sc_10000_2"));
 
-  auto milp_problem = to_milp(problem);
+  auto greedy_solution = setcover::Greedy().solve(problem);
+  auto greedy_result = setcover::evaluate(problem, greedy_solution);
 
-  auto optimizer = TransformToEqualities<double>();
-  auto optimized = optimizer.apply(milp_problem);
-  auto matrices = to_matrices(optimized);
+  std::cout << greedy_result.score << std::endl;
 
-  auto [n, d] = matrices.A.shape();
+  auto [A, b, c, bounds] = to_milp(problem);
+
+  auto [n, d] = A.shape();
   std::println("{} x {}", n, d);
 
   // slightly perturb bounds
   std::default_random_engine engine;
   std::uniform_int_distribution distr(0, 5);
   for (size_t i = 0; i < d; ++i) {
-    if (matrices.bounds[i].lower) {
-      *matrices.bounds[i].lower -= static_cast<double>(distr(engine)) * 1e-5;
+    if (bounds[i].lower) {
+      *bounds[i].lower -= static_cast<double>(distr(engine)) * 1e-6;
     }
 
-    if (matrices.bounds[i].upper) {
-      *matrices.bounds[i].upper += static_cast<double>(distr(engine)) * 1e-5;
+    if (bounds[i].upper) {
+      *bounds[i].upper += static_cast<double>(distr(engine)) * 1e-6;
     }
   }
 
   // run simplex algorithm
   simplex::Settings<double> settings{.is_strict = true};
   auto simplex = simplex::Simplex<double, simplex::LoggingAccountant<double>>(
-      CSCMatrix(matrices.A), matrices.b, matrices.c, settings);
+      CSCMatrix(A), b, c, settings);
 
   // construct feasible point
   std::vector states(d, VariableState::AT_UPPER);
@@ -76,7 +87,7 @@ int main() {
     states[d - i - 1] = VariableState::BASIC;
   }
 
-  auto result = simplex.primal(matrices.bounds, states);
+  auto result = simplex.primal(bounds, states);
 
   std::cout << std::get<FiniteLPSolution<double>>(result.solution).value
             << std::endl;

@@ -384,8 +384,10 @@ class Simplex {
 
       if (bound.upper) {
         Field value = *bound.upper;
+
         if (!FieldTraits<Field>::is_nonzero(value)) {
-          value = 0;
+          strongest_constraint.record(i, 0);
+          break;
         }
 
         strongest_constraint.record(i, value);
@@ -403,10 +405,10 @@ class Simplex {
     bool moves_outside = false;
     if (leaving_variable) {
       size_t i = *leaving_variable;
-      // std::println("min = {}, bounds = {}, value = {}, coef = {}",
-      //              *strongest_constraint.min(),
-      //              (*state.bounds)[state.basic_variables[i]],
-      //              state.basic_point[i, 0], column[i, 0]);
+
+      // logging::log_value(*strongest_constraint.min(), "min.txt");
+      // logging::log_value(state.basic_point[i, 0], "value.txt");
+      // logging::log_value(column[i, 0], "coef.txt");
 
       moves_outside = !entering_bound.is_inside(
           entering_state == VariableState::AT_LOWER
@@ -459,8 +461,6 @@ class Simplex {
         for (size_t i = 0; i < n; ++i) {
           if (!bounds[state_.basic_variables[i]].is_inside(
                   state_.basic_point[i, 0])) {
-            std::cout << bounds[state_.basic_variables[i]] << " "
-                      << state_.basic_point[i, 0] << std::endl;
             throw std::runtime_error(
                 "During simplex run point became primal infeasible.");
           }
@@ -491,7 +491,7 @@ class Simplex {
 
       if (std::holds_alternative<ToggleBound>(leaving_state)) {
         // std::println("toggle bound: {}, objective = {}", *entering,
-                     // state_.objective);
+        // state_.objective);
 
         state_.variables_states[*entering] =
             std::get<ToggleBound>(leaving_state).new_state;
@@ -499,8 +499,8 @@ class Simplex {
         auto leaving = std::get<LeavingVariable>(leaving_state);
 
         // std::println("pivot: {} -> {}, objective = {}",
-                     // state_.basic_variables[leaving.index], *entering,
-                     // state_.objective);
+        // state_.basic_variables[leaving.index], *entering,
+        // state_.objective);
 
         state_.lupa.change_column(leaving.index, *entering);
 

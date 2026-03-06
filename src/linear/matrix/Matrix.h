@@ -176,6 +176,20 @@ class MatrixSlice {
     return *this;
   }
 
+  MatrixSlice& operator/=(const Field& value)
+  requires(!std::is_const_v<Field>)
+  {
+    auto [n, d] = shape();
+
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < d; ++j) {
+        (*this)[i, j] /= value;
+      }
+    }
+
+    return *this;
+  }
+
   operator MatrixSlice<const Field>() const {
     return MatrixSlice<const Field>(data_, rows_, cols_, rows_range_,
                                     cols_range_);
@@ -379,6 +393,16 @@ class Matrix {
   MatrixSlice<const Field> operator[](std::pair<size_t, size_t> rows,
                                       std::pair<size_t, size_t> cols) const {
     return MatrixSlice<const Field>(*this)[rows, cols];
+  }
+
+  Matrix& operator*=(Field scalar) {
+    MatrixSlice<Field>{* this} *= scalar;
+    return *this;
+  }
+
+  Matrix& operator/=(Field scalar) {
+    MatrixSlice<Field>{* this} /= scalar;
+    return *this;
   }
 
   bool operator==(const Matrix& other) const {

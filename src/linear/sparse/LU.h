@@ -1,16 +1,53 @@
 #pragma once
 
+#include <cmath>
 #include <ranges>
+#include <unordered_set>
 #include <vector>
 
 #include "CSCMatrix.h"
 #include "EtaFile.h"
 #include "Permutation.h"
+#include "SCC.h"
 #include "linear/matrix/LU.h"
 #include "utils/Accumulators.h"
 #include "utils/Logging.h"
 
 namespace linalg {
+
+template <typename Field>
+Field scale_factor(const Matrix<Field>& b) {
+  return 1;
+}
+
+template <>
+double scale_factor(const Matrix<double>& b) {
+  auto [n, d] = b.shape();
+
+  Maximum<double> max;
+  Minimum<double> min;
+
+  for (size_t i = 0; i < d; ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      max.record(FieldTraits<double>::abs(b[j, i]));
+
+      if (FieldTraits<double>::is_nonzero(b[j, i])) {
+        min.record(FieldTraits<double>::abs(b[j, i]));
+      }
+    }
+  }
+
+  if (!min.min() || !max.max()) {
+    return 1;
+  }
+
+  double scale_factor = std::sqrt(*max.max() * *min.min());
+
+  // round to power of 2
+  int power = std::round(std::log2(scale_factor));
+
+  return std::exp2(-power);
+}
 
 // solves Ax = b, where PAQ = LU
 // ls is eta-file containing L1^-1 ... Ln^-1, where L = L1 ... Ln
@@ -21,6 +58,9 @@ Matrix<Field> solve_linear(Matrix<Field> b, const Permutation& P,
                            const EtaFile<Field> us) {
   Matrix<Field> result = P.apply(std::move(b));
 
+  auto sf = scale_factor(result);
+  result /= sf;
+
   for (auto entry : ls) {
     result = ls.apply(std::move(result), entry);
   }
@@ -29,7 +69,10 @@ Matrix<Field> solve_linear(Matrix<Field> b, const Permutation& P,
     result = us.apply(std::move(result), entry);
   }
 
-  return Q.apply(std::move(result));
+  result = Q.apply(std::move(result));
+  result *= sf;
+
+  return result;
 }
 
 // solves A^T x = b, where PAQ = LU
@@ -42,6 +85,9 @@ Matrix<Field> solve_linear_transposed(Matrix<Field> b, const Permutation& P,
                                       const EtaFile<Field>& us) {
   b = Q.apply_transposed(std::move(b));
 
+  auto sf = scale_factor(b);
+  b /= sf;
+
   for (auto entry : us) {
     b = us.apply_transposed(std::move(b), entry);
   }
@@ -50,7 +96,10 @@ Matrix<Field> solve_linear_transposed(Matrix<Field> b, const Permutation& P,
     b = ls.apply_transposed(std::move(b), entry);
   }
 
-  return P.apply_transposed(std::move(b));
+  b = P.apply_transposed(std::move(b));
+  b *= sf;
+
+  return b;
 }
 
 // This class performs LU decomposition with full pivoting for a sparse matrix.
@@ -159,14 +208,21 @@ class FullPivotingLU {
     assert(Q_impl_.size() >= n);
     assert(columns.size() == n);
 
-    {
-      size_t basic_nonzeros = 0;
-      for (size_t i = 0; i < n; ++i) {
-        for (auto [row, value] : A.get_column(columns[i])) {
-          ++basic_nonzeros;
-        }
+    // {
+    //   size_t basic_nonzeros = 0;
+    //   for (size_t i = 0; i < n; ++i) {
+    //     for (auto [row, value] : A.get_column(columns[i])) {
+    //       ++basic_nonzeros;
+    //     }
+    //   }
+    //   logging::log_value(basic_nonzeros, "basic_nonzeros_count.txt");
+    // }
+
+    std::vector<size_t> rows_nonzeros(n, 0);
+    for (size_t i = 0; i < n; ++i) {
+      for (auto [row, value] : A.get_column(columns[i])) {
+        ++rows_nonzeros[row];
       }
-      // logging::log_value(basic_nonzeros, "basic_nonzeros_count.txt");
     }
 
     L_.clear();
@@ -203,10 +259,20 @@ class FullPivotingLU {
         }
       }
 
-      // logging::log_value(largest_value, "lu_pivoting_value.txt");
-      assert(max_value.argmax().has_value());
+      // logging::log_value(*max_value.max(), "lu_pivoting_value.txt");
 
-      size_t pivot_row = *max_value.argmax();
+      // choose pivoting row
+      Field threshold = 0.75;
+      ArgMinimum<size_t, std::less<>> row_nz_count;
+
+      for (size_t row : std::views::reverse(nonzero_indices_)) {
+        if (P_impl_[row] == n && FieldTraits<Field>::abs(dense_[row]) >
+                                     threshold * *max_value.max()) {
+          row_nz_count.record(row, rows_nonzeros[row]);
+        }
+      }
+
+      size_t pivot_row = *row_nz_count.argmin();
 
       P_impl_[pivot_row] = j;
       Q_impl_[pivot_column] = j;
@@ -307,6 +373,7 @@ class LUPA {
   std::vector<size_t> columns_;
 
   FullPivotingLU<Field> factorizer_;
+  TarjanSCC<Field> scc_;
 
   // decomposition
   EtaFile<Field> us_;  // stores U1^-1 ... U(n+t)^-1
@@ -439,6 +506,7 @@ class LUPA {
   explicit LUPA(const CSCMatrix<Field>& A)
       : A_(A),
         factorizer_(A.shape().first),
+        scc_(A.shape().first),
         P_(Permutation::id(A.shape().first)),
         Q_(Permutation::id(A.shape().first)) {}
 
