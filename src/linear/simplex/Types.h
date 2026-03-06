@@ -29,6 +29,8 @@ struct IterationState {
   // basic_point[i, 0] is the value of basic_variables[i]
   Matrix<Field> basic_point;
 
+  Matrix<Field> reduced_cost;
+
   // During simplex iterations it is guaranteed that this pointer is valid.
   const Bounds<Field>* bounds;
 

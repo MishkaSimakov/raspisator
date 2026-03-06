@@ -43,10 +43,10 @@ class CyclingDetector {
         // cache collision
         visited_bases.erase(itr);
       } else {
-        std::println(
-            "Cycling! iteration delta: {}, iteration: {}, last visited on "
-            "iteration: {}",
-            iteration - itr->second.first, iteration, itr->second.first);
+        // std::println(
+        //     "Cycling! iteration delta: {}, iteration: {}, last visited on "
+        //     "iteration: {}",
+        //     iteration - itr->second.first, iteration, itr->second.first);
 
         itr->second = std::pair{iteration, objective};
 

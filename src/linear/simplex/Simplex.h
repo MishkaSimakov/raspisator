@@ -11,6 +11,7 @@
 #include "Accountant.h"
 #include "CyclingDetector.h"
 #include "Dual.h"
+#include "Primal.h"
 #include "Settings.h"
 #include "SimplexCoreDump.h"
 #include "linear/matrix/Matrix.h"
@@ -324,38 +325,6 @@ class Simplex {
     }
   }
 
-  std::optional<size_t> get_primal_entering_variable(
-      const IterationState<Field>& state) {
-    auto [n, d] = state.problem_shape();
-
-    auto reduced_costs =
-        get_reduced_costs(get_basic_costs(state.basic_variables));
-
-    ArgMaximum<Field> max_cost;
-
-    for (size_t i = 0; i < d; ++i) {
-      if (state.variables_states[i] == VariableState::BASIC) {
-        continue;
-      }
-
-      Field cost = reduced_costs[i, 0];
-      if (state.variables_states[i] == VariableState::AT_UPPER) {
-        cost *= -1;
-      }
-
-      if (FieldTraits<Field>::is_strictly_positive(cost)) {
-        if (state.last_cycling_iteration &&
-            *state.last_cycling_iteration + 10 > state.iteration_index) {
-          return i;
-        }
-
-        max_cost.record(i, cost);
-      }
-    }
-
-    return max_cost.argmax();
-  }
-
   struct NoLeaving {};
   struct ToggleBound {
     VariableState new_state;
@@ -454,6 +423,8 @@ class Simplex {
       }
     }
 
+    PrimalEnteringVariable<Field> primal_finder;
+
     // initialize simplex state
     initialize_state(bounds, states);
 
@@ -464,8 +435,10 @@ class Simplex {
 
       if (settings_.is_strict) {
         for (size_t i = 0; i < n; ++i) {
-          if (!bounds[state_.basic_variables[i]].is_inside(
-                  state_.basic_point[i, 0])) {
+          auto violation = bounds[state_.basic_variables[i]].get_violation(
+              state_.basic_point[i, 0]);
+
+          if (violation.value > 1e-8) {
             throw std::runtime_error(
                 "During simplex run point became primal infeasible.");
           }
@@ -484,7 +457,9 @@ class Simplex {
         return construct_result<ReachedIterationsLimit<Field>>(state_);
       }
 
-      auto entering = get_primal_entering_variable(state_);
+      state_.reduced_cost =
+          get_reduced_costs(get_basic_costs(state_.basic_variables));
+      auto entering = primal_finder.get(state_);
       if (!entering) {
         return construct_result<FiniteLPSolution<Field>>(state_);
       }
