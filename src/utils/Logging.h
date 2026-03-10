@@ -48,4 +48,9 @@ void log_npy(const Matrix<Field>& matrix, std::string_view filename) {
   linalg::to_npy(os, matrix);
 }
 
+void log(std::string_view text, std::string_view filename) {
+  auto os = get_log_fstream(filename);
+  os << text;
+}
+
 }  // namespace logging

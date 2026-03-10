@@ -22,6 +22,18 @@
 
 namespace simplex {
 
+template <typename Field>
+struct Tolerances {
+  Field feasibility{0};
+  Field pivot{0};
+};
+
+template <>
+struct Tolerances<double> {
+  double feasibility{1e-7};
+  double pivot{1e-7};
+};
+
 // Double, double toil and trouble;
 // Fire burn and caldron bubble.
 // - from Macbeth
@@ -45,6 +57,8 @@ class Simplex {
 
   Settings<Field> settings_;
   Accountant accountant_;
+
+  Tolerances<Field> tolerances_;
 
   static Matrix<Field> get_point(const IterationState<Field>& state) {
     auto [n, d] = state.problem_shape();
@@ -353,6 +367,8 @@ class Simplex {
       }
     }
 
+    // logging::log_value(*max_cost.max(), "max_cost.txt");
+
     return max_cost.argmax();
   }
 
@@ -372,56 +388,89 @@ class Simplex {
 
     column = state.lupa.solve_linear(std::move(column));
 
-    ArgMinimum<Field> strongest_constraint;
-    for (size_t i = 0; i < n; ++i) {
-      if (!FieldTraits<Field>::is_nonzero(column[i, 0])) {
-        continue;
+    // theta is maximum basic variable change so that the point would not become
+    // primal infeasible
+    auto get_variable_theta = [&](size_t index,
+                                  Field epsilon = 0) -> std::optional<Field> {
+      if (!FieldTraits<Field>::is_nonzero(column[index, 0])) {
+        return std::nullopt;
       }
 
-      Field coef = -column[i, 0];
+      Field beta = -column[index, 0];
       if (state.variables_states[entering] == VariableState::AT_UPPER) {
-        coef *= -1;
+        beta *= -1;
       }
 
-      Bound<Field> bound = ((*state.bounds)[state.basic_variables[i]] -
-                            state.basic_point[i, 0]) /
-                           coef;
+      Field alpha = state.basic_point[index, 0];
 
-      if (bound.upper) {
-        Field value = *bound.upper;
+      auto bound = (*state.bounds)[state.basic_variables[index]];
+      Field current_theta;
 
-        if (!FieldTraits<Field>::is_nonzero(value)) {
-          strongest_constraint.record(i, 0);
-          break;
+      if (beta > 0 && bound.upper) {
+        if (alpha > *bound.upper) {
+          return epsilon / beta;
         }
 
-        strongest_constraint.record(i, value);
+        return (*bound.upper - alpha + epsilon) / beta;
       }
+      if (beta < 0 && bound.lower) {
+        if (alpha < *bound.lower) {
+          return -epsilon / beta;
+        }
+
+        return (*bound.lower - alpha - epsilon) / beta;
+      }
+
+      return std::nullopt;
+    };
+
+    // Harris’ ratio test
+    // There are 2 steps:
+    // 1. Determine theta_max
+    // 2. Filter variables using theta_max and determine theta_chosen
+    Minimum<Field, std::less<>> theta_max;
+
+    for (size_t i = 0; i < n; ++i) {
+      theta_max.record(get_variable_theta(i, 1e-10));
     }
 
-    // it may be possible that the strongest constraint on the exiting
-    // variable is its bound. In this case no actual pivoting occur. Variable
-    // changes it's bound without becoming basic.
-    auto leaving_variable = strongest_constraint.argmin();
+    std::optional<size_t> leaving_id = std::nullopt;
 
     auto entering_state = state.variables_states[entering];
     auto entering_bound = (*state.bounds)[entering];
 
-    bool moves_outside = false;
-    if (leaving_variable) {
-      size_t i = *leaving_variable;
+    if (theta_max.min()) {
+      // logging::log_value(*theta_max.min(), "theta_max.txt");
 
-      // logging::log_value(*strongest_constraint.min(), "min.txt");
-      // logging::log_value(state.basic_point[i, 0], "value.txt");
-      // logging::log_value(column[i, 0], "coef.txt");
+      ArgMaximum<Field, std::less<>> max_pivot;
 
-      moves_outside = !entering_bound.is_inside(
-          entering_state == VariableState::AT_LOWER
-              ? *entering_bound.lower + *strongest_constraint.min()
-              : *entering_bound.upper - *strongest_constraint.min());
+      for (size_t i = 0; i < n; ++i) {
+        auto current_theta = get_variable_theta(i);
+
+        if (current_theta && *current_theta <= *theta_max.min()) {
+          max_pivot.record(i, FieldTraits<Field>::abs(column[i, 0]));
+        }
+      }
+
+      assert(max_pivot.argmax().has_value());
+      // logging::log_value(*max_pivot.max(), "max_pivot.txt");
+
+      Field leaving_theta = *get_variable_theta(*max_pivot.argmax());
+
+      // logging::log_value(leaving_theta, "leaving_theta.txt");
+      // logging::log_value(state.basic_point[*max_pivot.argmax(), 0],
+                         // "leaving_value.txt");
+
+      Field new_entering_value = entering_state == VariableState::AT_LOWER
+                                     ? *entering_bound.lower + leaving_theta
+                                     : *entering_bound.upper - leaving_theta;
+
+      if (entering_bound.is_inside(new_entering_value)) {
+        leaving_id = *max_pivot.argmax();
+      }
     }
 
-    if (!leaving_variable || moves_outside) {
+    if (!leaving_id) {
       if (entering_state == VariableState::AT_LOWER && entering_bound.upper) {
         return ToggleBound{VariableState::AT_UPPER};
       }
@@ -432,7 +481,7 @@ class Simplex {
       return NoLeaving{};
     }
 
-    Field coef = -column[*leaving_variable, 0];
+    Field coef = -column[*leaving_id, 0];
     if (state.variables_states[entering] == VariableState::AT_UPPER) {
       coef *= -1;
     }
@@ -440,21 +489,13 @@ class Simplex {
     auto leaving_state =
         coef > 0 ? VariableState::AT_UPPER : VariableState::AT_LOWER;
 
-    return LeavingVariable{*leaving_variable, leaving_state};
+    return LeavingVariable{*leaving_id, leaving_state};
   }
 
   SimplexResult<Field> primal_implementation(
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
-    if (settings_.is_strict) {
-      if (!is_primal_feasible(bounds, states)) {
-        throw std::invalid_argument(
-            "Given initial state is not primal feasible.");
-      }
-    }
-
-    // initialize simplex state
     initialize_state(bounds, states);
 
     while (true) {
@@ -462,13 +503,15 @@ class Simplex {
       state_.basic_point = state_.lupa.solve_linear(rhs);
       state_.objective = get_objective(state_);
 
-      if (settings_.is_strict) {
-        for (size_t i = 0; i < n; ++i) {
-          if (!bounds[state_.basic_variables[i]].is_inside(
-                  state_.basic_point[i, 0])) {
-            throw std::runtime_error(
-                "During simplex run point became primal infeasible.");
-          }
+      for (size_t i = 0; i < n; ++i) {
+        auto value = state_.basic_point[i, 0];
+        auto bound = bounds[state_.basic_variables[i]];
+
+        if (!bound.is_inside(value, tolerances_.feasibility)) {
+          throw std::runtime_error(
+              std::format("During simplex run point became primal infeasible. "
+                          "Value: {}, bounds: {}",
+                          value, bound));
         }
       }
 
@@ -495,17 +538,19 @@ class Simplex {
       }
 
       if (std::holds_alternative<ToggleBound>(leaving_state)) {
-        // std::println("toggle bound: {}, objective = {}", *entering,
-        // state_.objective);
+        // logging::log(std::format("toggle bound: {}, objective = {}\n",
+                                 // *entering, state_.objective),
+                     // "simplex_log.txt");
 
         state_.variables_states[*entering] =
             std::get<ToggleBound>(leaving_state).new_state;
       } else {
         auto leaving = std::get<LeavingVariable>(leaving_state);
 
-        // std::println("pivot: {} -> {}, objective = {}",
-        // state_.basic_variables[leaving.index], *entering,
-        // state_.objective);
+        // logging::log(std::format("pivot: {} -> {}, objective = {}\n",
+                                 // state_.basic_variables[leaving.index],
+                                 // *entering, state_.objective),
+                     // "simplex_log.txt");
 
         state_.lupa.change_column(leaving.index, *entering);
 

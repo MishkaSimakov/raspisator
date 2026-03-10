@@ -16,12 +16,12 @@
 namespace linalg {
 
 template <typename Field>
-Field scale_factor(const Matrix<Field>& b) {
+Field scale_factor(const Matrix<Field>&) {
   return 1;
 }
 
 template <>
-double scale_factor(const Matrix<double>& b) {
+inline double scale_factor(const Matrix<double>& b) {
   auto [n, d] = b.shape();
 
   Maximum<double> max;

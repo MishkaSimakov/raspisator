@@ -137,12 +137,13 @@ struct Bound {
     return 0;
   }
 
-  bool is_inside(Field value) const {
-    if (lower && FieldTraits<Field>::is_strictly_negative(value - *lower)) {
+  bool is_inside(Field value,
+                 Field tolerance = FieldTraits<Field>::kEpsilon) const {
+    if (lower && value + tolerance < *lower) {
       return false;
     }
 
-    if (upper && FieldTraits<Field>::is_strictly_negative(*upper - value)) {
+    if (upper && *upper + tolerance < value) {
       return false;
     }
 

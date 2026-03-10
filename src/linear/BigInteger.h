@@ -1027,6 +1027,9 @@ inline std::istream& operator>>(std::istream& is, Rational& rational) {
 
 template <>
 struct FieldTraits<Rational> {
+  // TODO: remove kEpsilon from FieldTraits
+  static const Rational kEpsilon;
+
   static Rational floor(const Rational& value) { return value.floor(); }
 
   static Rational fractional(const Rational& value) {
@@ -1060,6 +1063,8 @@ struct FieldTraits<Rational> {
     }
   }
 };
+
+inline const Rational FieldTraits<Rational>::kEpsilon = 0;
 
 template <>
 struct std::formatter<Rational, char> : std::formatter<std::string> {
