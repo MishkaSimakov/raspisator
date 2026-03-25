@@ -102,7 +102,7 @@ class CSCMatrix {
   }
 
   void add_column(std::span<const std::pair<size_t, Field>> sparse) {
-    entries_.append_range(sparse);
+    entries_.insert(entries_.end(), sparse.cbegin(), sparse.cend());
     index_pointers_.push_back(entries_.size());
   }
 

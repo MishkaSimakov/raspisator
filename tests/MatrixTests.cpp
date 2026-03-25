@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <utility>
+
 #include "linear/BigInteger.h"
 #include "linear/matrix/Elimination.h"
 #include "linear/matrix/Matrix.h"

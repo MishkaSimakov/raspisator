@@ -3,6 +3,7 @@
 #include <format>
 #include <functional>
 #include <ranges>
+#include <utility>
 
 #include "linear/bb/FullStrongBranching.h"
 #include "linear/bb/Settings.h"

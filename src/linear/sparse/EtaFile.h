@@ -160,7 +160,7 @@ class EtaFile {
         .is_removed = false,
     });
 
-    values_.append_range(values);
+    values_.insert(values_.end(), values.cbegin(), values.cend());
   }
 
   void push_back(size_t pivot_index, const Matrix<Field>& vector,

@@ -4,6 +4,7 @@
 #include <numeric>
 #include <set>
 #include <vector>
+#include <utility>
 
 #include "linear/matrix/Matrix.h"
 #include "linear/sparse/CSCMatrix.h"
