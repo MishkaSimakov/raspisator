@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <print>
 #include <ranges>
 
 #include "STN.h"
