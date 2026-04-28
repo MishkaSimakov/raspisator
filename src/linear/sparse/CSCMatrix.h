@@ -72,6 +72,12 @@ class CSCMatrix {
     return {rows_cnt_, index_pointers_.size() - 1};
   }
 
+  std::span<const std::pair<size_t, Field>> get_entries() const {
+    return entries_;
+  }
+
+  std::span<std::pair<size_t, Field>> get_entries() { return entries_; }
+
   std::span<const std::pair<size_t, Field>> get_column(size_t col) const {
     return std::span(entries_.begin() + index_pointers_[col],
                      entries_.begin() + index_pointers_[col + 1]);

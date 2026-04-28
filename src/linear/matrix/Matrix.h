@@ -177,7 +177,7 @@ class MatrixSlice {
   }
 
   MatrixSlice& operator/=(const Field& value)
-  requires(!std::is_const_v<Field>)
+    requires(!std::is_const_v<Field>)
   {
     auto [n, d] = shape();
 
@@ -441,6 +441,24 @@ class Matrix {
 
     return static_cast<double>(nonzero_count()) / static_cast<double>(n * d);
   }
+
+  Matrix get_columns(const std::vector<size_t>& columns) const {
+    const auto [n, d] = shape();
+
+    Matrix result(n, columns.size());
+
+    for (size_t i = 0; i < columns.size(); ++i) {
+      const size_t col = columns[i];
+
+      if (col >= d) {
+        throw std::runtime_error("Column index is outside of bounds");
+      }
+
+      result[{0, n}, i] = (*this)[{0, n}, columns[i]];
+    }
+
+    return result;
+  }
 };
 
 template <class F>
@@ -622,20 +640,4 @@ common_field_t<L, R> dot(L&& left, R&& right) {
   return result;
 }
 
-template <MatrixLike T>
-double norm(T&& matrix)
-  requires(std::same_as<matrix_field_t<T>, double>)
-{
-  auto [n, d] = matrix.shape();
-
-  double result = 0;
-
-  for (size_t i = 0; i < n; ++i) {
-    for (size_t j = 0; j < d; ++j) {
-      result += matrix[i, j] * matrix[i, j];
-    }
-  }
-
-  return std::sqrt(result);
-}
 }  // namespace linalg

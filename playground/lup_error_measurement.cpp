@@ -1,78 +1,53 @@
 #include <iostream>
-#include <print>
-#include <random>
 
-#include "linear/BigInteger.h"
-#include "linear/MPS.h"
-#include "linear/SimplexMethod.h"
-#include "linear/bb/BranchAndBound.h"
-#include "linear/bb/Drawer.h"
-#include "linear/builder/ProblemBuilder.h"
+#include "linear/problem/MPS.h"
+#include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
+#include "linear/problem/optimization/Scaling.h"
+#include "linear/problem/optimization/TransformToEqualities.h"
+#include "linear/simplex/Simplex.h"
 #include "linear/sparse/CSCMatrix.h"
 #include "linear/sparse/LU.h"
-#include "problems/Dwarf.h"
-#include "utils/Drawing.h"
-#include "utils/Hashers.h"
+#include "linear/sparse/Norms.h"
 
-using Field = double;
+MILPProblem<double> get_problem(const std::filesystem::path& path) {
+  auto reader = MPSReader<double>(MPSFieldsMode::FIXED_WIDTH);
+  reader.read(path);
 
-template <typename Field>
-CSCMatrix<Field> sparse_matrix_1(size_t N, size_t density_multiplier,
-                                 size_t seed = 0) {
-  auto A = Matrix<Field>::unity(N);
+  auto problem = reader.get_canonical_representation();
 
-  std::mt19937 engine(seed);
-  std::uniform_int_distribution<size_t> uniform_dist(0, N - 1);
+  problem = Scaling<double>().apply(problem);
+  problem = TransformToEqualities<double>().apply(problem);
+  problem = RemoveLinearlyDependentConstraints<double>().apply(problem);
 
-  // add O(N) non-zeros in "random" places
-  for (size_t i = 0; i < density_multiplier * N; ++i) {
-    size_t row = uniform_dist(engine);
-    size_t col = uniform_dist(engine);
-
-    A[row, col] = i + 1;
-  }
-
-  return CSCMatrix(A);
-}
-
-double max_difference(const CSCMatrix<double>& left,
-                      const CSCMatrix<Rational>& right) {
-  auto dense_left = linalg::to_dense(left);
-  auto dense_right = linalg::to_dense(right);
-
-  auto [n, d] = dense_right.shape();
-  double max_difference = 0;
-
-  for (size_t i = 0; i < n; ++i) {
-    for (size_t j = 0; j < d; ++j) {
-      double difference =
-          std::abs(static_cast<double>(dense_right[i, j]) - dense_left[i, j]);
-
-      max_difference = std::max(difference, max_difference);
-    }
-  }
-
-  return max_difference;
+  return problem;
 }
 
 int main() {
-  size_t density_multiplier = 3;
+  const auto problem =
+      to_matrices(get_problem(paths::resource("lp_problems/AFIRO.SIF")));
+  const auto dense = problem.A;
+  const auto sparse = CSCMatrix(dense);
 
-  std::println("size,error");
+  const auto [n, d] = sparse.shape();
 
-  for (size_t N = 10; N < 75; ++N) {
-    for (size_t i = 0; i < 10; ++i) {
-      auto A_rational = sparse_matrix_1<Rational>(N, density_multiplier, i);
-      auto A_double = sparse_matrix_1<double>(N, density_multiplier, i);
+  std::println("{} x {}", n, d);
 
-      auto [rational_L, rational_U, rational_P] =
-          linalg::sparse_lup(A_rational);
-      auto [double_L, double_U, double_P] = linalg::sparse_lup(A_double);
+  std::println("norm = {}", linalg::norm(sparse));
 
-      double error = std::max(max_difference(double_L, rational_L),
-                              max_difference(double_U, rational_U));
+  auto lupa = linalg::LUPA<double>(sparse);
 
-      std::println("{},{}", N, error);
-    }
-  }
+  std::vector<size_t> columns =
+      linalg::get_row_basis(linalg::transposed(dense));
+  lupa.set_columns(columns);
+
+  const auto dense_submatrix = dense.get_columns(columns);
+
+  Matrix<double> x(n, 1, 1);
+  const auto Ax = dense_submatrix * x;
+
+  const auto x_lupa = lupa.solve_linear(Ax);
+
+  const auto residue = x - x_lupa;
+
+  std::println("delta = {}", linalg::norm(residue));
 }

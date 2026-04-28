@@ -21,6 +21,7 @@ target_sources(tests PUBLIC
         LU/CommonTests.cpp
         LU/SparseLUTests.cpp
         LU/DenseLUTests.cpp
+        LU/EtaFileTests.cpp
 
         accumulators/ArgMinTests.cpp
 

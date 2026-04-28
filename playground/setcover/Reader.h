@@ -13,6 +13,10 @@ namespace setcover {
 Problem read_problem(const std::filesystem::path& path) {
   std::ifstream is(path);
 
+  if (!is) {
+    throw std::runtime_error("Failed to open file.");
+  }
+
   size_t elements_count;
   size_t sets_count;
   is >> elements_count >> sets_count;

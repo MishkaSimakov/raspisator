@@ -15,10 +15,12 @@
 #include "SimplexCoreDump.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/NPY.h"
+#include "linear/matrix/Norms.h"
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
 #include "linear/sparse/LU.h"
 #include "utils/Accumulators.h"
+#include "utils/Variant.h"
 
 namespace simplex {
 
@@ -33,6 +35,26 @@ struct Tolerances<double> {
   double feasibility{1e-7};
   double pivot{1e-7};
 };
+
+struct NoLeaving {};
+struct NoEntering {};
+
+struct ToggleBound {
+  size_t variable_index;
+  VariableState new_state;  // should be either AT_UPPER or AT_LOWER
+};
+
+struct ChangeBasicVariable {
+  size_t leaving_index;      // index of leaving variable in basic_variables
+  size_t leaving_variable;   // index of leaving variable
+  size_t entering_variable;  // index of entering variable
+
+  VariableState entering_old_state;  // should be either AT_UPPER or AT_LOWER
+  VariableState leaving_new_state;   // should be either AT_UPPER or AT_LOWER
+};
+
+using IterationAction =
+    std::variant<NoLeaving, NoEntering, ToggleBound, ChangeBasicVariable>;
 
 // Double, double toil and trouble;
 // Fire burn and caldron bubble.
@@ -345,6 +367,40 @@ class Simplex {
     auto reduced_costs =
         get_reduced_costs(get_basic_costs(state.basic_variables));
 
+    if (state.last_cycling_iteration &&
+        *state.last_cycling_iteration + 10 > state.iteration_index) {
+      // choose random among top k by reduced cost
+      std::vector<std::pair<double, size_t>> costs;
+
+      for (size_t i = 0; i < d; ++i) {
+        if (state.variables_states[i] == VariableState::BASIC) {
+          continue;
+        }
+
+        Field cost = reduced_costs[i, 0];
+        if (state.variables_states[i] == VariableState::AT_UPPER) {
+          cost *= -1;
+        }
+
+        if (cost > tolerances_.feasibility) {
+          costs.emplace_back(cost, i);
+        }
+      }
+
+      if (costs.empty()) {
+        return std::nullopt;
+      }
+
+      std::ranges::sort(costs, {}, [](auto p) { return -p.first; });
+
+      const size_t count = std::min(5uz, costs.size());
+      const size_t index = rand() % count;
+
+      std::println("  entering reduced cost (random) = {}", costs[index].first);
+
+      return costs[index].second;
+    }
+
     ArgMaximum<Field> max_cost;
 
     for (size_t i = 0; i < d; ++i) {
@@ -357,28 +413,20 @@ class Simplex {
         cost *= -1;
       }
 
-      if (FieldTraits<Field>::is_strictly_positive(cost)) {
-        if (state.last_cycling_iteration &&
-            *state.last_cycling_iteration + 10 > state.iteration_index) {
-          return i;
-        }
-
+      if (cost > tolerances_.feasibility) {
         max_cost.record(i, cost);
       }
     }
+
+    std::println("  entering reduced cost = {}", *max_cost.max());
 
     // logging::log_value(*max_cost.max(), "max_cost.txt");
 
     return max_cost.argmax();
   }
 
-  struct NoLeaving {};
-  struct ToggleBound {
-    VariableState new_state;
-  };
-  std::variant<LeavingVariable, NoLeaving, ToggleBound>
-  get_primal_leaving_variable(size_t entering,
-                              const IterationState<Field>& state) {
+  IterationAction get_primal_leaving_variable(
+      size_t entering, const IterationState<Field>& state) {
     auto [n, d] = A_.shape();
 
     Matrix<Field> column(n, 1, 0);
@@ -447,7 +495,9 @@ class Simplex {
       for (size_t i = 0; i < n; ++i) {
         auto current_theta = get_variable_theta(i);
 
-        if (current_theta && *current_theta <= *theta_max.min()) {
+        if (current_theta && *current_theta <= *theta_max.min() &&
+            (!state_.tabu_variable ||
+             state_.tabu_variable != state_.basic_variables[i])) {
           max_pivot.record(i, FieldTraits<Field>::abs(column[i, 0]));
         }
       }
@@ -459,7 +509,7 @@ class Simplex {
 
       // logging::log_value(leaving_theta, "leaving_theta.txt");
       // logging::log_value(state.basic_point[*max_pivot.argmax(), 0],
-                         // "leaving_value.txt");
+      // "leaving_value.txt");
 
       Field new_entering_value = entering_state == VariableState::AT_LOWER
                                      ? *entering_bound.lower + leaving_theta
@@ -472,10 +522,10 @@ class Simplex {
 
     if (!leaving_id) {
       if (entering_state == VariableState::AT_LOWER && entering_bound.upper) {
-        return ToggleBound{VariableState::AT_UPPER};
+        return ToggleBound{entering, VariableState::AT_UPPER};
       }
       if (entering_state == VariableState::AT_UPPER && entering_bound.lower) {
-        return ToggleBound{VariableState::AT_LOWER};
+        return ToggleBound{entering, VariableState::AT_LOWER};
       }
 
       return NoLeaving{};
@@ -489,31 +539,145 @@ class Simplex {
     auto leaving_state =
         coef > 0 ? VariableState::AT_UPPER : VariableState::AT_LOWER;
 
-    return LeavingVariable{*leaving_id, leaving_state};
+    return ChangeBasicVariable{
+        .leaving_index = *leaving_id,
+        .leaving_variable = state_.basic_variables[*leaving_id],
+        .entering_variable = entering,
+        .entering_old_state = state.variables_states[entering],
+        .leaving_new_state = leaving_state,
+    };
+  }
+
+  bool lost_primal_feasibility(const Bounds<Field>& bounds) const {
+    auto [n, d] = A_.shape();
+
+    for (size_t i = 0; i < n; ++i) {
+      auto value = state_.basic_point[i, 0];
+      auto bound = bounds[state_.basic_variables[i]];
+
+      if (!bound.is_inside(value, tolerances_.feasibility)) {
+        std::println("infeasible: variable {} with value {} not in {}",
+                     state_.basic_variables[i], value, bound);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  IterationAction get_rollback(IterationAction action) {
+    return std::visit(
+        Overload{
+            [](ToggleBound action) -> IterationAction {
+              return ToggleBound{
+                  .variable_index = action.variable_index,
+                  .new_state = action.new_state == VariableState::AT_LOWER
+                                   ? VariableState::AT_UPPER
+                                   : VariableState::AT_LOWER,
+              };
+            },
+            [](ChangeBasicVariable action) -> IterationAction {
+              return ChangeBasicVariable{
+                  .leaving_index = action.leaving_index,
+                  .entering_variable = action.leaving_variable,
+                  .leaving_variable = action.entering_variable,
+                  .leaving_new_state = action.entering_old_state,
+                  .entering_old_state = action.leaving_new_state,
+              };
+            },
+            [](auto /* action */) -> IterationAction { std::unreachable(); }},
+        action);
+  }
+
+  void apply_action(IterationAction action) {
+    return std::visit(
+        Overload{[this](ToggleBound action) {
+                   state_.variables_states[action.variable_index] =
+                       action.new_state;
+
+                   std::println("  toggle bound: {} (new value = {})",
+                                action.variable_index,
+                                static_cast<int>(action.new_state));
+                 },
+                 [this](ChangeBasicVariable action) {
+                   state_.lupa.change_column(action.leaving_index,
+                                             action.entering_variable);
+
+                   state_.variables_states[action.entering_variable] =
+                       VariableState::BASIC;
+                   state_.variables_states
+                       [state_.basic_variables[action.leaving_index]] =
+                       action.leaving_new_state;
+                   state_.basic_variables[action.leaving_index] =
+                       action.entering_variable;
+
+                   std::println(" changed basic: {} -> {} (old index: {})",
+                                action.leaving_variable,
+                                action.entering_variable, action.leaving_index);
+                 },
+                 [](auto /* action */) { std::unreachable(); }},
+        action);
   }
 
   SimplexResult<Field> primal_implementation(
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
+    std::vector<IterationAction> history;
+
     initialize_state(bounds, states);
+
+    if constexpr (std::same_as<Field, double>) {
+      std::cout << linalg::norm(
+                       state_.lupa.get_matrix() -
+                       linalg::to_dense(A_).get_columns(state_.basic_variables))
+                << std::endl;
+    }
+
+    return construct_result<ReachedIterationsLimit<Field>>(state_);
 
     while (true) {
       auto rhs = get_rhs(bounds, state_.variables_states);
       state_.basic_point = state_.lupa.solve_linear(rhs);
-      state_.objective = get_objective(state_);
 
-      for (size_t i = 0; i < n; ++i) {
-        auto value = state_.basic_point[i, 0];
-        auto bound = bounds[state_.basic_variables[i]];
+      if constexpr (std::same_as<Field, double>) {
+        const auto dense_submatrix =
+            linalg::to_dense(A_).get_columns(state_.basic_variables);
 
-        if (!bound.is_inside(value, tolerances_.feasibility)) {
-          throw std::runtime_error(
-              std::format("During simplex run point became primal infeasible. "
-                          "Value: {}, bounds: {}",
-                          value, bound));
-        }
+        Matrix<double> x(n, 1, 1);
+        const auto Ax = dense_submatrix * x;
+
+        const auto x_lupa = state_.lupa.solve_linear(Ax);
+
+        const auto residue = x - x_lupa;
+
+        std::println("|| residue || = {}", linalg::inf_norm(residue));
+        logging::log_value(linalg::inf_norm(residue), "residue_norm.csv");
       }
+
+      if (lost_primal_feasibility(bounds)) {
+        assert(!history.empty());
+
+        std::println("rollback due to infeasibility");
+
+        state_.lupa.refactorize();
+
+        if (std::holds_alternative<ChangeBasicVariable>(history.back())) {
+          auto last_change = std::get<ChangeBasicVariable>(history.back());
+
+          state_.tabu_variable = last_change.leaving_variable;
+        }
+
+        const auto rollback = get_rollback(history.back());
+
+        history.pop_back();
+        apply_action(rollback);
+
+        continue;
+      }
+
+      state_.objective = get_objective(state_);
+      std::println("  objective = {}", state_.objective);
 
       if (state_.cycling.record(state_.iteration_index, state_.variables_states,
                                 state_.objective) ==
@@ -532,35 +696,16 @@ class Simplex {
         return construct_result<FiniteLPSolution<Field>>(state_);
       }
 
-      auto leaving_state = get_primal_leaving_variable(*entering, state_);
-      if (std::holds_alternative<NoLeaving>(leaving_state)) {
+      auto action = get_primal_leaving_variable(*entering, state_);
+      if (std::holds_alternative<NoLeaving>(action)) {
         return construct_result<Unbounded>(state_);
       }
 
-      if (std::holds_alternative<ToggleBound>(leaving_state)) {
-        // logging::log(std::format("toggle bound: {}, objective = {}\n",
-                                 // *entering, state_.objective),
-                     // "simplex_log.txt");
-
-        state_.variables_states[*entering] =
-            std::get<ToggleBound>(leaving_state).new_state;
-      } else {
-        auto leaving = std::get<LeavingVariable>(leaving_state);
-
-        // logging::log(std::format("pivot: {} -> {}, objective = {}\n",
-                                 // state_.basic_variables[leaving.index],
-                                 // *entering, state_.objective),
-                     // "simplex_log.txt");
-
-        state_.lupa.change_column(leaving.index, *entering);
-
-        state_.variables_states[*entering] = VariableState::BASIC;
-        state_.variables_states[state_.basic_variables[leaving.index]] =
-            leaving.new_state;
-        state_.basic_variables[leaving.index] = *entering;
-      }
+      history.push_back(action);
+      apply_action(action);
 
       ++state_.iteration_index;
+      state_.tabu_variable = std::nullopt;
     }
   }
 

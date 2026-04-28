@@ -14,8 +14,12 @@
 using Field = double;
 
 int main() {
-  std::unordered_set<std::string> problems = {"AFIRO", "ADLITTLE", "BANDM",
-                                              "BLEND", "PILOT"};
+  std::unordered_set<std::string> problems = {
+      // "AFIRO",
+      // "ADLITTLE",
+      // "BANDM", "BLEND",
+      "PILOT"
+  };
 
   auto problems_path = paths::resource("lp_problems");
   for (auto entry : std::filesystem::directory_iterator{problems_path}) {
@@ -46,8 +50,8 @@ int main() {
     std::println("{}: {} x {}", problem_name, matrices.A.get_height(),
                  matrices.A.get_width());
 
-    simplex::Settings<double> settings{.is_strict = true};
-    auto solver = simplex::Simplex<double, simplex::LoggingAccountant<double>>(
+    simplex::Settings<Field> settings{.is_strict = true};
+    auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
         CSCMatrix(matrices.A), matrices.b, matrices.c, settings);
 
     auto states = solver.try_get_primal_feasible(matrices.bounds);

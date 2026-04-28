@@ -10,10 +10,16 @@
 #include "Permutation.h"
 #include "SCC.h"
 #include "linear/matrix/LU.h"
+#include "linear/matrix/Norms.h"
 #include "utils/Accumulators.h"
 #include "utils/Logging.h"
 
 namespace linalg {
+
+struct SingularityError final : std::runtime_error {
+  SingularityError()
+      : std::runtime_error("Matrix is possibly singular in LU decomposition") {}
+};
 
 template <typename Field>
 Field scale_factor(const Matrix<Field>&) {
@@ -259,7 +265,10 @@ class FullPivotingLU {
         }
       }
 
-      // logging::log_value(*max_value.max(), "lu_pivoting_value.txt");
+      if (!max_value.max().has_value() ||
+          !FieldTraits<Field>::is_nonzero(*max_value.max())) {
+        throw SingularityError();
+      }
 
       // choose pivoting row
       Field threshold = 0.75;
@@ -270,6 +279,10 @@ class FullPivotingLU {
                                      threshold * *max_value.max()) {
           row_nz_count.record(row, rows_nonzeros[row]);
         }
+      }
+
+      if (!row_nz_count.argmin().has_value()) {
+        throw SingularityError();
       }
 
       size_t pivot_row = *row_nz_count.argmin();
@@ -319,7 +332,8 @@ class FullPivotingLU {
     us.clear();
     ls.clear();
 
-    Maximum<Field> max;
+    Maximum<Field> max_u;
+    Maximum<Field> max_l;
     size_t nonzeros = 0;
 
     for (size_t i = 0; i < n; ++i) {
@@ -339,7 +353,7 @@ class FullPivotingLU {
       for (auto& [row, value] : column) {
         value /= diagonal;
 
-        max.record(FieldTraits<Field>::abs(value));
+        max_u.record(FieldTraits<Field>::abs(value));
         ++nonzeros;
       }
 
@@ -352,14 +366,15 @@ class FullPivotingLU {
       for (auto [row, value] : L_.get_column(i)) {
         column.emplace_back(row, -value);
 
-        max.record(FieldTraits<Field>::abs(value));
+        max_l.record(FieldTraits<Field>::abs(value));
         ++nonzeros;
       }
 
       ls.push_back(i, column);
     }
 
-    // logging::log_value(*max.max(), "max_lu_value.txt");
+    // logging::log_value(*max_u.max(), "max_u_value.txt");
+    // logging::log_value(*max_l.max(), "max_l_value.txt");
     // logging::log_value(nonzeros, "lu_nonzeros_count.txt");
   }
 };
@@ -373,7 +388,6 @@ class LUPA {
   std::vector<size_t> columns_;
 
   FullPivotingLU<Field> factorizer_;
-  TarjanSCC<Field> scc_;
 
   // decomposition
   EtaFile<Field> us_;  // stores U1^-1 ... U(n+t)^-1
@@ -384,13 +398,6 @@ class LUPA {
   // Forrest-Tomlin update helpers
   size_t changes_since_refactorization_{0};
   size_t changes_since_purge_{0};
-
-  void refactorize() {
-    factorizer_.get(A_, columns_, P_, Q_, ls_, us_);
-
-    changes_since_refactorization_ = 0;
-    changes_since_purge_ = 0;
-  }
 
   void purge() {
     ls_.purge();
@@ -450,7 +457,9 @@ class LUPA {
         }
       }
 
-      assert(FieldTraits<Field>::is_nonzero(diagonal));
+      if (!FieldTraits<Field>::is_nonzero(diagonal)) {
+        throw SingularityError();
+      }
 
       r[(*itr).index, 0] = main_value / diagonal;
       r = us_.apply_transposed(std::move(r), *itr);
@@ -474,9 +483,14 @@ class LUPA {
 
     // add new eta matrix to U1 ... Un
     column = ls_.apply(std::move(column), *(--ls_.cend()));
-    assert(FieldTraits<Field>::is_nonzero(column[current_column, 0]));
+
+    if (!FieldTraits<Field>::is_nonzero(column[current_column, 0])) {
+      throw SingularityError();
+    }
 
     Field diagonal = column[current_column, 0];
+
+    std::cout << diagonal << std::endl;
 
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =
@@ -506,11 +520,12 @@ class LUPA {
   explicit LUPA(const CSCMatrix<Field>& A)
       : A_(A),
         factorizer_(A.shape().first),
-        scc_(A.shape().first),
         P_(Permutation::id(A.shape().first)),
         Q_(Permutation::id(A.shape().first)) {}
 
   void set_columns(const std::vector<size_t>& columns) {
+    assert(columns.size() == A_.shape().first);
+
     columns_ = columns;
     refactorize();
   }
@@ -537,6 +552,13 @@ class LUPA {
     }
   }
 
+  void refactorize() {
+    factorizer_.get(A_, columns_, P_, Q_, ls_, us_);
+
+    changes_since_refactorization_ = 0;
+    changes_since_purge_ = 0;
+  }
+
   // solves Ax = b
   Matrix<Field> solve_linear(Matrix<Field> b) const {
     return linalg::solve_linear(std::move(b), P_, Q_, ls_, us_);
@@ -555,7 +577,8 @@ class LUPA {
     return solve_linear_transposed(e);
   }
 
-  // This method is for testing, it is not optimized in any way
+  // Returns inverse of the current matrix, reconstructed from LU-decomposition.
+  // Note: This method is for testing, it is not optimized in any way.
   Matrix<Field> get_inverse() const {
     auto result = Matrix<Field>::unity(A_.shape().first);
 
@@ -570,6 +593,26 @@ class LUPA {
     }
 
     result = Q_.apply(std::move(result));
+
+    return result;
+  }
+
+  // Returns current matrix, reconstructed from LU-decomposition.
+  // Note: This method is for testing, it is not optimized in any way
+  Matrix<Field> get_matrix() const {
+    auto result = Matrix<Field>::unity(A_.shape().first);
+
+    result = Q_.apply_transposed(std::move(result));
+
+    for (auto entry : us_) {
+      result = us_.apply_inverse(std::move(result), entry);
+    }
+
+    for (auto entry : ls_ | std::views::reverse) {
+      result = ls_.apply_inverse(std::move(result), entry);
+    }
+
+    result = P_.apply_transposed(std::move(result));
 
     return result;
   }

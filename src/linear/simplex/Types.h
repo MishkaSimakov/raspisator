@@ -40,6 +40,9 @@ struct IterationState {
 
   CyclingDetector<Field> cycling;
 
+  // if tabu_variable = i, then i-th variable can not be selected as leaving
+  std::optional<size_t> tabu_variable;
+
   explicit IterationState(const CSCMatrix<Field>& A)
       : basic_variables(A.shape().first),
         variables_states(A.shape().second),

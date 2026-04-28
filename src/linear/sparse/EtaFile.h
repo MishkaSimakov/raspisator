@@ -127,7 +127,7 @@ class EtaFile {
                                   bool transposed) {
     for (size_t col = 0; col < vector.get_width(); ++col) {
       if ((entry.type == EtaType::COLUMN) != transposed) {
-        Field a = vector[entry.index, col];
+        const Field a = vector[entry.index, col];
         vector[entry.index, col] = 0;
 
         for (auto [row, value] : entry.values) {
@@ -141,6 +141,49 @@ class EtaFile {
         }
 
         vector[entry.index, col] = dot.sum();
+      }
+    }
+
+    return vector;
+  }
+
+  static Matrix<Field> apply_inverse_impl(Matrix<Field> vector,
+                                          EntryView<true> entry) {
+    for (size_t col = 0; col < vector.get_width(); ++col) {
+      if (entry.type == EtaType::COLUMN) {
+        const Field a = vector[entry.index, col];
+
+        Field diagonal;
+        for (auto [row, value] : entry.values) {
+          if (row == entry.index) {
+            diagonal = value;
+            break;
+          }
+        }
+
+        for (auto [row, value] : entry.values) {
+          if (row == entry.index) {
+            vector[row, col] = a / diagonal;
+          } else {
+            vector[row, col] -= a * value / diagonal;
+          }
+        }
+      } else {
+        KahanSum<Field> dot;
+
+        Field diagonal;
+
+        for (auto [row, value] : entry.values) {
+          if (row == entry.index) {
+            diagonal = value;
+
+            dot.add(vector[row, col]);
+          } else {
+            dot.add(-value * vector[row, col]);
+          }
+        }
+
+        vector[entry.index, col] = dot.sum() / diagonal;
       }
     }
 
@@ -181,13 +224,21 @@ class EtaFile {
     }
   }
 
-  Matrix<Field> apply(Matrix<Field> vector, EntryView<true> entry) const {
-    return apply_impl(std::move(vector), entry, false);
+  // Returns entry * matrix.
+  Matrix<Field> apply(Matrix<Field> matrix, EntryView<true> entry) const {
+    return apply_impl(std::move(matrix), entry, false);
   }
 
-  Matrix<Field> apply_transposed(Matrix<Field> vector,
+  // Returns entry^T * matrix.
+  Matrix<Field> apply_transposed(Matrix<Field> matrix,
                                  EntryView<true> entry) const {
-    return apply_impl(std::move(vector), entry, true);
+    return apply_impl(std::move(matrix), entry, true);
+  }
+
+  // Returns entry^{-1} * matrix.
+  Matrix<Field> apply_inverse(Matrix<Field> matrix,
+                              EntryView<true> entry) const {
+    return apply_inverse_impl(std::move(matrix), entry);
   }
 
   CSCMatrix<Field> as_matrix(EntryView<true> entry) const {

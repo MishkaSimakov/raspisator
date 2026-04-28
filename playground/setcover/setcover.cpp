@@ -51,7 +51,7 @@ auto to_milp(const setcover::Problem& problem) {
 // симплексе. Интересно, что в конце определитель матрицы улетает в
 // бесконечность.
 int main() {
-  auto problem = setcover::read_problem(paths::resource("setcover/sc_10000_2"));
+  auto problem = setcover::read_problem(paths::resource("setcover/sc_10000_5"));
 
   auto greedy_solution = setcover::Greedy().solve(problem);
   auto greedy_result = setcover::evaluate(problem, greedy_solution);

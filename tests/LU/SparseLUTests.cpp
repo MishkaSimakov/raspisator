@@ -3,6 +3,7 @@
 #include "TestMatrices.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/Elimination.h"
+#include "linear/matrix/Random.h"
 #include "linear/sparse/CSCMatrix.h"
 #include "linear/sparse/LU.h"
 
@@ -129,8 +130,8 @@ TEST(SparseLUTests, ChangeColumnTest) {
 //   ASSERT_EQ(lupa.get_det(), -Rational{1} / 279);
 // }
 
-TEST(SparseLUTests, LUTest) {
-  CSCMatrix<double> A = {
+TEST(SparseLUTests, GetInverseMatrixTest) {
+  CSCMatrix<Rational> A = {
       {1, 0, 0},
       {0, 2, 1},
       {0, 1, 0},
@@ -139,7 +140,49 @@ TEST(SparseLUTests, LUTest) {
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 1, 2});
 
-  auto inv = lupa.get_inverse();
+  const auto inverse = lupa.get_inverse();
+  const Matrix<Rational> expected = {
+      {1, 0, 0},
+      {0, 0, 1},
+      {0, 1, -2},
+  };
 
-  std::cout << inv << std::endl;
+  ASSERT_EQ(inverse, expected);
+}
+
+TEST(SparseLUTests, GetMatrixTest) {
+  CSCMatrix<Rational> A = {
+      {1, 1, 0},
+      {0, 2, 1},
+      {0, 3, 0},
+  };
+
+  auto lupa = linalg::LUPA(A);
+  lupa.set_columns({0, 1, 2});
+
+  const auto matrix = lupa.get_matrix();
+  const auto expected = linalg::to_dense(A);
+
+  ASSERT_EQ(matrix, expected);
+}
+
+TEST(SparseLUTests, GetMatrixRandomTest) {
+  constexpr size_t size = 10;
+
+  std::default_random_engine random;
+
+  for (size_t i = 0; i < 100; ++i) {
+    CSCMatrix<Rational> A(linalg::random_invertible<Rational>(size, random));
+
+    auto lupa = linalg::LUPA(A);
+
+    std::vector<size_t> columns(size);
+    std::iota(columns.begin(), columns.end(), 0);
+    lupa.set_columns(columns);
+
+    const auto matrix = lupa.get_matrix();
+    const auto expected = linalg::to_dense(A);
+
+    ASSERT_EQ(matrix, expected);
+  }
 }

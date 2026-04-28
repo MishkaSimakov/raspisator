@@ -1,6 +1,10 @@
 .idea
-cmake-build-*
-**/.DS_Store
-build
 .vscode
+
+**/.DS_Store
+
+cmake-build-*
+build
+
 log
+resources
