@@ -44,12 +44,12 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: test-results
-          path: build/test-results.xml
+          path: build/tests/test-results.xml
 
       - name: Publish test report
         uses: dorny/test-reporter@v3
         if: ${{ !cancelled() }}
         with:
           name: CTest Results
-          path: build/test-results.xml
+          path: build/tests/test-results.xml
           reporter: java-junit
