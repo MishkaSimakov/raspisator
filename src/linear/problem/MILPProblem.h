@@ -119,15 +119,15 @@ struct MILPProblem {
   }
 
   Field average_boundary_gap() const {
-    ArithmeticMean<Field> gap;
+    ArithmeticMean<Field> result;
 
     for (const auto& variable : variables) {
       if (variable.bound.upper && variable.bound.lower) {
-        gap.record(*variable.bound.upper - *variable.bound.lower);
+        result.record(*variable.bound.upper - *variable.bound.lower);
       }
     }
 
-    return gap.mean();
+    return *result;
   }
 };
 

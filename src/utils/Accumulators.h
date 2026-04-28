@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cassert>
+#include <cmath>
 #include <optional>
-
-#include "linear/FieldTraits.h"
 
 template <typename Field>
 class ArithmeticMean {
@@ -12,202 +12,224 @@ class ArithmeticMean {
  public:
   ArithmeticMean() : sum_(0), count_(0) {}
 
-  size_t count() const { return count_; }
-
-  Field sum() const { return sum_; }
-
-  Field mean() const { return sum_ / static_cast<Field>(count_); }
-
   void record(Field value) {
     sum_ += value;
     ++count_;
   }
+
+  std::optional<Field> get() const {
+    if (count_ == 0) {
+      return std::nullopt;
+    }
+
+    return sum_ / count_;
+  }
+  bool has_value() const { return count_ != 0; }
+
+  Field operator*() const {
+    assert(count_ > 0);
+    return sum_ / count_;
+  }
+
+  size_t count() const { return count_; }
+  Field sum() const { return sum_; }
 };
 
-template <typename Field>
-class GeometricAverage {
-  Field product_;
+template <typename T>
+class GeometricMean {
+  T product_;
   size_t count_;
 
  public:
-  GeometricAverage() : product_(1), count_(0) {}
+  GeometricMean() : product_(1), count_(0) {}
 
-  size_t count() const { return count_; }
+  void record(T value) {
+    product_ *= value;
+    ++count_;
+  }
 
-  Field product() const { return product_; }
-
-  Field average() const {
+  std::optional<T> get() const {
     if (count_ == 0) {
-      return 1;
+      return std::nullopt;
     }
 
     return std::pow(product_, 1. / count_);
   }
+  bool has_value() const { return count_ != 0; }
 
-  void record(Field value) {
-    product_ *= value;
-    ++count_;
+  T operator*() const {
+    assert(count_ > 0);
+    return std::pow(product_, 1. / count_);
   }
+
+  size_t count() const { return count_; }
+  T product() const { return product_; }
 };
 
-template <typename Field>
-struct FieldTraitsComparator {
-  bool operator()(Field left, Field right) const {
-    return FieldTraits<Field>::is_strictly_negative(left - right);
-  }
-};
-
-template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
+template <typename T, typename Comparator = std::less<T>>
 class Minimum {
-  std::optional<Field> minimum_;
+  std::optional<T> result_;
 
   [[no_unique_address]]
   Comparator comparator_;
 
  public:
-  Minimum() : minimum_(std::nullopt) {}
+  Minimum() : result_(std::nullopt) {}
 
-  void reset() { minimum_ = std::nullopt; }
-
-  void record(Field value) {
-    if (!minimum_ || comparator_(value, *minimum_)) {
-      minimum_ = value;
+  void record(T value) {
+    if (!result_ || comparator_(value, *result_)) {
+      result_ = value;
     }
   }
 
-  void record(std::optional<Field> value) {
+  void record(std::optional<T> value) {
     if (value) {
       record(*value);
     }
   }
 
-  std::optional<Field> min() const { return minimum_; }
+  std::optional<T> get() const { return result_; }
+  bool has_value() const { return result_.has_value(); }
+
+  T operator*() const {
+    assert(has_value());
+    return *result_;
+  }
 };
 
-template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
+template <typename T, typename Comparator = std::less<T>>
 class Maximum {
-  std::optional<Field> maximum_;
+  std::optional<T> result_;
 
   [[no_unique_address]]
   Comparator comparator_;
 
  public:
-  Maximum() : maximum_(std::nullopt) {}
+  Maximum() : result_(std::nullopt) {}
 
-  void reset() { maximum_ = std::nullopt; }
-
-  void record(Field value) {
-    if (!maximum_ || comparator_(*maximum_, value)) {
-      maximum_ = value;
+  void record(T value) {
+    if (!result_ || comparator_(*result_, value)) {
+      result_ = value;
     }
   }
 
-  void record(std::optional<Field> value) {
+  void record(std::optional<T> value) {
     if (value) {
       record(*value);
     }
   }
 
-  std::optional<Field> max() const { return maximum_; }
+  std::optional<T> get() const { return result_; }
+  bool has_value() const { return result_.has_value(); }
+
+  T operator*() const {
+    assert(has_value());
+    return *result_;
+  }
 };
 
 // Calculates minimum i, s.t. a_i = min_j a_j
-template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
+template <typename T, typename Comparator = std::less<T>>
 class ArgMinimum {
-  std::optional<std::pair<size_t, Field>> minimum_;
+ public:
+  struct Result {
+    size_t index;
+    T min;
+  };
+
+ private:
+  std::optional<Result> result_;
 
   [[no_unique_address]]
   Comparator comparator_;
 
  public:
-  ArgMinimum() : minimum_(std::nullopt) {}
+  ArgMinimum() : result_(std::nullopt) {}
 
-  void record(size_t index, Field value) {
-    if (!minimum_) {
-      minimum_ = {index, value};
-      return;
-    }
-
-    if (comparator_(value, minimum_->second)) {
-      minimum_ = {index, value};
-    } else if (!comparator_(minimum_->second, value) &&
-               index < minimum_->first) {
-      minimum_ = {index, value};
+  void record(size_t index, T value) {
+    if (!result_ || comparator_(value, result_->min) ||
+        !comparator_(result_->min, value) && index < result_->index) {
+      result_ = Result{index, value};
     }
   }
 
-  void record(size_t index, std::optional<Field> value) {
+  void record(size_t index, std::optional<T> value) {
     if (value) {
       record(index, *value);
     }
   }
 
-  std::optional<Field> min() const {
-    return minimum_.transform(
-        [](std::pair<size_t, Field> value) { return value.second; });
-  }
+  std::optional<Result> get() const { return result_; }
+  bool has_value() const { return result_.has_value(); }
 
-  std::optional<size_t> argmin() const {
-    return minimum_.transform(
-        [](std::pair<size_t, Field> value) { return value.first; });
+  Result operator*() const {
+    assert(has_value());
+    return *result_;
+  }
+  const Result* operator->() const {
+    assert(has_value());
+    return std::addressof(*result_);
   }
 };
 
 // Calculates minimum i, s.t. a_i = max_j a_j
-template <typename Field, typename Comparator = FieldTraitsComparator<Field>>
+template <typename T, typename Comparator = std::less<T>>
 class ArgMaximum {
-  std::optional<std::pair<size_t, Field>> maximum_;
+ public:
+  struct Result {
+    size_t index;
+    T max;
+  };
+
+ private:
+  std::optional<Result> result_;
 
   [[no_unique_address]]
   Comparator comparator_;
 
  public:
-  ArgMaximum() : maximum_(std::nullopt) {}
+  ArgMaximum() : result_(std::nullopt) {}
 
-  void record(size_t index, Field value) {
-    if (!maximum_) {
-      maximum_ = {index, value};
-      return;
-    }
-
-    if (comparator_(maximum_->second, value)) {
-      maximum_ = {index, value};
-    } else if (!comparator_(value, maximum_->second) &&
-               index < maximum_->first) {
-      maximum_ = {index, value};
+  void record(size_t index, T value) {
+    if (!result_ || comparator_(result_->max, value) ||
+        !comparator_(value, result_->max) && index < result_->index) {
+      result_ = Result{index, value};
     }
   }
 
-  void record(size_t index, std::optional<Field> value) {
+  void record(size_t index, std::optional<T> value) {
     if (value) {
       record(index, *value);
     }
   }
 
-  std::optional<Field> max() const {
-    return maximum_.transform(
-        [](std::pair<size_t, Field> value) { return value.second; });
+  std::optional<Result> get() const { return result_; }
+  bool has_value() const { return result_.has_value(); }
+
+  Result operator*() const {
+    assert(has_value());
+    return *result_;
   }
 
-  std::optional<size_t> argmax() const {
-    return maximum_.transform(
-        [](std::pair<size_t, Field> value) { return value.first; });
+  const Result* operator->() const {
+    assert(has_value());
+    return std::addressof(*result_);
   }
 };
 
-template <typename Field>
+template <typename T>
 class KahanSum {
-  Field compensation_ = 0;
-  Field sum_ = 0;
+  T compensation_ = 0;
+  T sum_ = 0;
 
  public:
-  void add(Field value) {
-    Field y = value - compensation_;
-    Field t = sum_ + y;
+  void add(T value) {
+    const T y = value - compensation_;
+    const T x = sum_ + y;
 
-    compensation_ = (t - sum_) - y;
-    sum_ = t;
+    compensation_ = (x - sum_) - y;
+    sum_ = x;
   }
 
-  Field sum() const { return sum_; }
+  T sum() const { return sum_; }
 };

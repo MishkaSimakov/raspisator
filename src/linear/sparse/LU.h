@@ -43,14 +43,14 @@ inline double scale_factor(const Matrix<double>& b) {
     }
   }
 
-  if (!min.min() || !max.max()) {
+  if (!min.has_value() || !max.has_value()) {
     return 1;
   }
 
-  double scale_factor = std::sqrt(*max.max() * *min.min());
+  const double scale_factor = std::sqrt(*max * *min);
 
   // round to power of 2
-  int power = std::round(std::log2(scale_factor));
+  const int power = std::round(std::log2(scale_factor));
 
   return std::exp2(-power);
 }
@@ -228,15 +228,16 @@ class FullPivotingLU {
 
     for (size_t j = 0; j < n; ++j) {
       // choose pivot column with the least amount of elements
-      ArgMinimum<size_t, std::less<>> nz_count;
+      ArgMinimum<size_t, std::less<>> min_nz_column;
 
       for (size_t i = 0; i < n; ++i) {
         if (Q_impl_[i] == n) {
-          nz_count.record(i, A.get_column(columns[i]).size());
+          min_nz_column.record(i, A.get_column(columns[i]).size());
         }
       }
 
-      const size_t pivot_column = *nz_count.argmin();
+      assert(min_nz_column.has_value());
+      const size_t pivot_column = min_nz_column->index;
 
       for (const auto& [index, value] : A.get_column(columns[pivot_column])) {
         dense_[index] = value;
@@ -255,27 +256,27 @@ class FullPivotingLU {
         }
       }
 
-      if (!max_value.max().has_value() ||
-          !FieldTraits<Field>::is_nonzero(*max_value.max())) {
+      if (!max_value.has_value() ||
+          !FieldTraits<Field>::is_nonzero(max_value->max)) {
         throw SingularityError();
       }
 
       // choose pivoting row
       Field threshold = 0.75;
-      ArgMinimum<size_t, std::less<>> row_nz_count;
+      ArgMinimum<size_t, std::less<>> min_nz_row;
 
       for (size_t row : std::views::reverse(nonzero_indices_)) {
-        if (P_impl_[row] == n && FieldTraits<Field>::abs(dense_[row]) >
-                                     threshold * *max_value.max()) {
-          row_nz_count.record(row, rows_nonzeros[row]);
+        if (P_impl_[row] == n &&
+            FieldTraits<Field>::abs(dense_[row]) > threshold * max_value->max) {
+          min_nz_row.record(row, rows_nonzeros[row]);
         }
       }
 
-      if (!row_nz_count.argmin().has_value()) {
+      if (!min_nz_row.has_value()) {
         throw SingularityError();
       }
 
-      size_t pivot_row = *row_nz_count.argmin();
+      const size_t pivot_row = min_nz_row->index;
 
       P_impl_[pivot_row] = j;
       Q_impl_[pivot_column] = j;
@@ -462,7 +463,7 @@ class LUPA {
       r_max.record(r[i, 0]);
     }
 
-    if (*r_max.max() > 10) {
+    if (*r_max > 10) {
       // std::println("refactorization: {}", *r_max.max());
       return UpdateResult::NEED_REFACTORIZATION;
     }

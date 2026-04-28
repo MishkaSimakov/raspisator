@@ -225,7 +225,7 @@ class Simplex {
       min_ratio.record(i, ratio);
     }
 
-    return min_ratio.argmin();
+    return min_ratio->index;
   }
 
   Matrix<Field> get_rhs(const Bounds<Field>& bounds,
@@ -394,12 +394,13 @@ class Simplex {
       const size_t count = std::min(5uz, costs.size());
       const size_t index = rand() % count;
 
-      // std::println("  entering reduced cost (random) = {}", costs[index].first);
+      // std::println("  entering reduced cost (random) = {}",
+      // costs[index].first);
 
       return costs[index].second;
     }
 
-    ArgMaximum<Field> max_cost;
+    ArgMaximum<Field> max_cost_var;
 
     for (size_t i = 0; i < d; ++i) {
       if (state.variables_states[i] == VariableState::BASIC) {
@@ -412,15 +413,15 @@ class Simplex {
       }
 
       if (cost > tolerances_.feasibility) {
-        max_cost.record(i, cost);
+        max_cost_var.record(i, cost);
       }
     }
 
     // std::println("  entering reduced cost = {}", *max_cost.max());
-
     // logging::log_value(*max_cost.max(), "max_cost.txt");
 
-    return max_cost.argmax();
+    return max_cost_var.get().transform(
+        [](const auto var) { return var.index; });
   }
 
   IterationAction get_primal_leaving_variable(
@@ -474,10 +475,10 @@ class Simplex {
     // There are 2 steps:
     // 1. Determine theta_max
     // 2. Filter variables using theta_max and determine theta_chosen
-    Minimum<Field, std::less<>> theta_max;
+    Minimum<Field> min_theta_bound;
 
     for (size_t i = 0; i < n; ++i) {
-      theta_max.record(get_variable_theta(i, 1e-10));
+      min_theta_bound.record(get_variable_theta(i, 1e-10));
     }
 
     std::optional<size_t> leaving_id = std::nullopt;
@@ -485,7 +486,8 @@ class Simplex {
     auto entering_state = state.variables_states[entering];
     auto entering_bound = (*state.bounds)[entering];
 
-    if (theta_max.min()) {
+    if (min_theta_bound.has_value()) {
+      const Field theta_max = *min_theta_bound;
       // logging::log_value(*theta_max.min(), "theta_max.txt");
 
       ArgMaximum<Field, std::less<>> max_pivot;
@@ -493,17 +495,17 @@ class Simplex {
       for (size_t i = 0; i < n; ++i) {
         auto current_theta = get_variable_theta(i);
 
-        if (current_theta && *current_theta <= *theta_max.min() &&
+        if (current_theta && *current_theta <= theta_max &&
             (!state_.tabu_variable ||
              state_.tabu_variable != state_.basic_variables[i])) {
           max_pivot.record(i, FieldTraits<Field>::abs(column[i, 0]));
         }
       }
 
-      assert(max_pivot.argmax().has_value());
+      assert(max_pivot.has_value());
       // logging::log_value(*max_pivot.max(), "max_pivot.txt");
 
-      Field leaving_theta = *get_variable_theta(*max_pivot.argmax());
+      Field leaving_theta = *get_variable_theta(max_pivot->index);
 
       // logging::log_value(leaving_theta, "leaving_theta.txt");
       // logging::log_value(state.basic_point[*max_pivot.argmax(), 0],
@@ -514,7 +516,7 @@ class Simplex {
                                      : *entering_bound.upper - leaving_theta;
 
       if (entering_bound.is_inside(new_entering_value)) {
-        leaving_id = *max_pivot.argmax();
+        leaving_id = max_pivot->index;
       }
     }
 
@@ -610,8 +612,8 @@ class Simplex {
                        action.entering_variable;
 
                    // std::println(" changed basic: {} -> {} (old index: {})",
-                                // action.leaving_variable,
-                                // action.entering_variable, action.leaving_index);
+                   // action.leaving_variable,
+                   // action.entering_variable, action.leaving_index);
                  },
                  [](auto /* action */) { std::unreachable(); }},
         action);

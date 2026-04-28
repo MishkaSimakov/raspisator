@@ -17,18 +17,22 @@ class Scaling final : public BaseOptimizer<Field> {
   }
 
   static Field get_scale_factor(const Constraint<Field>& constraint) {
-    GeometricAverage<Field> scale_factor;
+    GeometricMean<Field> scale_factor;
 
     for (Field coef : constraint.expr.get_variables() | std::views::values) {
       scale_factor.record(FieldTraits<Field>::abs(coef));
     }
 
-    return round_scale_factor(scale_factor.average());
+    if (!scale_factor.has_value()) {
+      return 1;
+    }
+
+    return round_scale_factor(*scale_factor);
   }
 
   static Field get_scale_factor(const MILPProblem<Field>& problem,
                                 const std::string& variable) {
-    GeometricAverage<Field> scale_factor;
+    GeometricMean<Field> scale_factor;
 
     for (const auto& constraint : problem.constraints) {
       auto& variables = constraint.expr.get_variables();
@@ -39,7 +43,11 @@ class Scaling final : public BaseOptimizer<Field> {
       }
     }
 
-    return round_scale_factor(scale_factor.average());
+    if (!scale_factor.has_value()) {
+      return 1;
+    }
+
+    return round_scale_factor(*scale_factor);
   }
 
  public:
@@ -103,7 +111,7 @@ class Scaling final : public BaseOptimizer<Field> {
       }
     }
 
-    return std::log10(static_cast<double>(*max.max() / *min.min()));
+    return std::log10(static_cast<double>(*max / *min));
   }
 
   Matrix<Field> inverse(const Matrix<Field>& point) override {

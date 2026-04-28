@@ -5,8 +5,8 @@
 TEST(ArgMinTests, EmptyArgMin) {
   ArgMinimum<int> min;
 
-  ASSERT_EQ(min.argmin(), std::nullopt);
-  ASSERT_EQ(min.min(), std::nullopt);
+  ASSERT_EQ(min.get(), std::nullopt);
+  ASSERT_EQ(min.has_value(), false);
 }
 
 TEST(ArgMinTests, SimpleTest) {
@@ -16,8 +16,8 @@ TEST(ArgMinTests, SimpleTest) {
   min.record(2, -2);
   min.record(3, 3);
 
-  ASSERT_EQ(min.argmin(), 2);
-  ASSERT_EQ(min.min(), -2);
+  ASSERT_EQ(min->index, 2);
+  ASSERT_EQ(min->min, -2);
 }
 
 TEST(ArgMinTests, SelectsSmallestIndex) {
@@ -29,6 +29,6 @@ TEST(ArgMinTests, SelectsSmallestIndex) {
   min.record(3, -2);
   min.record(5, 10);
 
-  ASSERT_EQ(min.argmin(), 2);
-  ASSERT_EQ(min.min(), -2);
+  ASSERT_EQ(min->index, 2);
+  ASSERT_EQ(min->min, -2);
 }

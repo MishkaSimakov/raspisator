@@ -18,8 +18,7 @@ class DualLeavingVariable {
   // turned out to be prone to cycling when coupled with strong branching
   std::optional<LeavingVariable> get_dual_leaving_variable_dantzig(
       const IterationState<Field>& state) {
-    ArgMaximum<BoundViolation<Field>, std::less<BoundViolation<Field>>>
-        max_violation;
+    ArgMaximum<BoundViolation<Field>> max_violation;
 
     for (size_t i = 0; i < state.basic_variables.size(); ++i) {
       auto violation = (*state.bounds)[state.basic_variables[i]].get_violation(
@@ -28,19 +27,17 @@ class DualLeavingVariable {
       max_violation.record(i, violation);
     }
 
-    if (!max_violation.max()) {
+    if (!max_violation.has_value()) {
       return std::nullopt;
     }
 
-    switch (max_violation.max()->type) {
+    switch (max_violation->max.type) {
       case BoundViolationType::NONE:
         return std::nullopt;
       case BoundViolationType::VIOLATE_LOWER_BOUND:
-        return LeavingVariable{*max_violation.argmax(),
-                               VariableState::AT_LOWER};
+        return LeavingVariable{max_violation->index, VariableState::AT_LOWER};
       case BoundViolationType::VIOLATE_UPPER_BOUND:
-        return LeavingVariable{*max_violation.argmax(),
-                               VariableState::AT_UPPER};
+        return LeavingVariable{max_violation->index, VariableState::AT_UPPER};
       default:
         std::unreachable();
     }

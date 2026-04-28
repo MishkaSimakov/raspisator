@@ -24,6 +24,8 @@ target_sources(tests PUBLIC
         LU/EtaFileTests.cpp
 
         accumulators/ArgMinTests.cpp
+        accumulators/ArgMaxTests.cpp
+        accumulators/ArithmeticMeanTests.cpp
 
         feature/FullProblemSolvingTests.cpp
 )

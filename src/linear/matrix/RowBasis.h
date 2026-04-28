@@ -31,7 +31,7 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
       max_row.record(row, FieldTraits<Field>::abs(matrix[row, col]));
     }
 
-    size_t max_row_index = *max_row.argmax();
+    const size_t max_row_index = max_row->index;
 
     if (!FieldTraits<Field>::is_nonzero(matrix[max_row_index, col])) {
       continue;
