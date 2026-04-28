@@ -1027,8 +1027,7 @@ inline std::istream& operator>>(std::istream& is, Rational& rational) {
 
 template <>
 struct FieldTraits<Rational> {
-  // TODO: remove kEpsilon from FieldTraits
-  static const Rational kEpsilon;
+  static const Rational tolerance;
 
   static Rational floor(const Rational& value) { return value.floor(); }
 
@@ -1044,6 +1043,7 @@ struct FieldTraits<Rational> {
   static bool is_strictly_negative(const Rational& value) { return value < 0; }
 
   static bool is_nonzero(const Rational& value) { return value != 0; }
+  static bool should_drop(const Rational& value) { return value != 0; }
 
   static Rational exp2(int power) {
     if (power > 0) {
@@ -1064,7 +1064,7 @@ struct FieldTraits<Rational> {
   }
 };
 
-inline const Rational FieldTraits<Rational>::kEpsilon = 0;
+inline const Rational FieldTraits<Rational>::tolerance = 0;
 
 template <>
 struct std::formatter<Rational, char> : std::formatter<std::string> {

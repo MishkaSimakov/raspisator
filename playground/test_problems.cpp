@@ -15,9 +15,9 @@ using Field = double;
 
 int main() {
   std::unordered_set<std::string> problems = {
-      // "AFIRO",
-      // "ADLITTLE",
-      // "BANDM", "BLEND",
+      "AFIRO",
+      "ADLITTLE",
+      "BANDM", "BLEND",
       "PILOT"
   };
 

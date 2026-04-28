@@ -170,7 +170,6 @@ class EtaFile {
         }
       } else {
         KahanSum<Field> dot;
-
         Field diagonal;
 
         for (auto [row, value] : entry.values) {
@@ -218,9 +217,11 @@ class EtaFile {
     });
 
     for (size_t i = 0; i < vector.get_height(); ++i) {
-      if (FieldTraits<Field>::is_nonzero(vector[i, 0])) {
-        values_.emplace_back(i, vector[i, 0]);
+      if (FieldTraits<Field>::should_drop(vector[i, 0])) {
+        continue;
       }
+
+      values_.emplace_back(i, vector[i, 0]);
     }
   }
 
@@ -289,12 +290,6 @@ class EtaFile {
           .type = entry.type,
           .is_removed = false,
       });
-
-      for (auto [index, value] : entry.values) {
-        if (FieldTraits<Field>::is_nonzero(value)) {
-          new_values.emplace_back(index, value);
-        }
-      }
     }
 
     values_ = std::move(new_values);

@@ -59,9 +59,11 @@ class CSCMatrix {
       result.add_column();
 
       for (size_t row = 0; row < n; ++row) {
-        if (FieldTraits<Field>::is_nonzero(dense[row, col])) {
-          result.push_to_last_column(row, dense[row, col]);
+        if (FieldTraits<Field>::should_drop(dense[row, col])) {
+          continue;
         }
+
+        result.push_to_last_column(row, dense[row, col]);
       }
     }
 
@@ -97,11 +99,12 @@ class CSCMatrix {
 
     size_t nonzero_cnt = index_pointers_.back();
     for (size_t i = 0; i < dense.size(); ++i) {
-      if (FieldTraits<Field>::is_nonzero(dense[i])) {
-        entries_.emplace_back(i + shift, dense[i]);
-
-        ++nonzero_cnt;
+      if (FieldTraits<Field>::should_drop(dense[i])) {
+        continue;
       }
+
+      entries_.emplace_back(i + shift, dense[i]);
+      ++nonzero_cnt;
     }
 
     index_pointers_.push_back(nonzero_cnt);
@@ -116,9 +119,8 @@ class CSCMatrix {
   void add_column() { index_pointers_.push_back(index_pointers_.back()); }
 
   void push_to_last_column(size_t row, const Field& value) {
-    if (!FieldTraits<Field>::is_nonzero(value)) {
-      return;
-    }
+    // TODO: think about drop tolerance. It should be about 1e-15.
+    // If it is bigger, then LU quality drops considerably.
 
     ++index_pointers_.back();
 

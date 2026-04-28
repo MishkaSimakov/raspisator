@@ -179,9 +179,7 @@ class Simplex {
 
       Field coef = 0;
       for (const auto& [row, value] : A_.get_column(i)) {
-        if (FieldTraits<Field>::is_nonzero(inverse_row[row, 0])) {
-          coef += inverse_row[row, 0] * value;
-        }
+        coef += inverse_row[row, 0] * value;
       }
 
       if (!FieldTraits<Field>::is_nonzero(coef)) {
@@ -396,7 +394,7 @@ class Simplex {
       const size_t count = std::min(5uz, costs.size());
       const size_t index = rand() % count;
 
-      std::println("  entering reduced cost (random) = {}", costs[index].first);
+      // std::println("  entering reduced cost (random) = {}", costs[index].first);
 
       return costs[index].second;
     }
@@ -418,7 +416,7 @@ class Simplex {
       }
     }
 
-    std::println("  entering reduced cost = {}", *max_cost.max());
+    // std::println("  entering reduced cost = {}", *max_cost.max());
 
     // logging::log_value(*max_cost.max(), "max_cost.txt");
 
@@ -611,9 +609,9 @@ class Simplex {
                    state_.basic_variables[action.leaving_index] =
                        action.entering_variable;
 
-                   std::println(" changed basic: {} -> {} (old index: {})",
-                                action.leaving_variable,
-                                action.entering_variable, action.leaving_index);
+                   // std::println(" changed basic: {} -> {} (old index: {})",
+                                // action.leaving_variable,
+                                // action.entering_variable, action.leaving_index);
                  },
                  [](auto /* action */) { std::unreachable(); }},
         action);
@@ -627,33 +625,24 @@ class Simplex {
 
     initialize_state(bounds, states);
 
-    if constexpr (std::same_as<Field, double>) {
-      std::cout << linalg::norm(
-                       state_.lupa.get_matrix() -
-                       linalg::to_dense(A_).get_columns(state_.basic_variables))
-                << std::endl;
-    }
-
-    return construct_result<ReachedIterationsLimit<Field>>(state_);
-
     while (true) {
       auto rhs = get_rhs(bounds, state_.variables_states);
       state_.basic_point = state_.lupa.solve_linear(rhs);
 
-      if constexpr (std::same_as<Field, double>) {
-        const auto dense_submatrix =
-            linalg::to_dense(A_).get_columns(state_.basic_variables);
-
-        Matrix<double> x(n, 1, 1);
-        const auto Ax = dense_submatrix * x;
-
-        const auto x_lupa = state_.lupa.solve_linear(Ax);
-
-        const auto residue = x - x_lupa;
-
-        std::println("|| residue || = {}", linalg::inf_norm(residue));
-        logging::log_value(linalg::inf_norm(residue), "residue_norm.csv");
-      }
+      // if constexpr (std::same_as<Field, double>) {
+      //   const auto dense_submatrix =
+      //       linalg::to_dense(A_).get_columns(state_.basic_variables);
+      //
+      //   Matrix<double> x(n, 1, 1);
+      //   const auto Ax = dense_submatrix * x;
+      //
+      //   const auto x_lupa = state_.lupa.solve_linear(Ax);
+      //
+      //   const auto residue = x - x_lupa;
+      //
+      //   std::println("|| residue || = {}", linalg::inf_norm(residue));
+      //   logging::log_value(linalg::inf_norm(residue), "residue_norm.csv");
+      // }
 
       if (lost_primal_feasibility(bounds)) {
         assert(!history.empty());
@@ -677,7 +666,6 @@ class Simplex {
       }
 
       state_.objective = get_objective(state_);
-      std::println("  objective = {}", state_.objective);
 
       if (state_.cycling.record(state_.iteration_index, state_.variables_states,
                                 state_.objective) ==

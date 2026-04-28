@@ -214,16 +214,6 @@ class FullPivotingLU {
     assert(Q_impl_.size() >= n);
     assert(columns.size() == n);
 
-    // {
-    //   size_t basic_nonzeros = 0;
-    //   for (size_t i = 0; i < n; ++i) {
-    //     for (auto [row, value] : A.get_column(columns[i])) {
-    //       ++basic_nonzeros;
-    //     }
-    //   }
-    //   logging::log_value(basic_nonzeros, "basic_nonzeros_count.txt");
-    // }
-
     std::vector<size_t> rows_nonzeros(n, 0);
     for (size_t i = 0; i < n; ++i) {
       for (auto [row, value] : A.get_column(columns[i])) {
@@ -246,7 +236,7 @@ class FullPivotingLU {
         }
       }
 
-      size_t pivot_column = *nz_count.argmin();
+      const size_t pivot_column = *nz_count.argmin();
 
       for (const auto& [index, value] : A.get_column(columns[pivot_column])) {
         dense_[index] = value;
@@ -255,7 +245,7 @@ class FullPivotingLU {
 
       ArgMaximum<Field> max_value;
 
-      for (size_t row : std::views::reverse(nonzero_indices_)) {
+      for (const size_t row : std::views::reverse(nonzero_indices_)) {
         if (P_impl_[row] == n) {
           max_value.record(row, FieldTraits<Field>::abs(dense_[row]));
         } else {
@@ -490,8 +480,6 @@ class LUPA {
 
     Field diagonal = column[current_column, 0];
 
-    std::cout << diagonal << std::endl;
-
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =
           i != current_column ? -column[i, 0] / diagonal : Field(1) / diagonal;
@@ -500,20 +488,6 @@ class LUPA {
     us_.push_back(current_column, column, EtaType::COLUMN);
 
     return UpdateResult::SUCCESS;
-  }
-
-  static Matrix<Field> purge_zeros(Matrix<Field> matrix) {
-    auto [n, d] = matrix.shape();
-
-    for (size_t col = 0; col < d; ++col) {
-      for (size_t row = 0; row < n; ++row) {
-        if (!FieldTraits<Field>::is_nonzero(matrix[row, col])) {
-          matrix[row, col] = 0;
-        }
-      }
-    }
-
-    return matrix;
   }
 
  public:

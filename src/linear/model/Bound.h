@@ -138,7 +138,7 @@ struct Bound {
   }
 
   bool is_inside(Field value,
-                 Field tolerance = FieldTraits<Field>::kEpsilon) const {
+                 Field tolerance = FieldTraits<Field>::tolerance) const {
     if (lower && value + tolerance < *lower) {
       return false;
     }
