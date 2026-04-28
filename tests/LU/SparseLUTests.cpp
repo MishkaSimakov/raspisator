@@ -107,29 +107,6 @@ TEST(SparseLUTests, ChangeColumnTest) {
 
   ASSERT_EQ(inverse * expected, Matrix<Rational>::unity(4));
 }
-
-// TODO: uncomment
-// TEST(SparseLUTests, DetTest) {
-//   Matrix<Rational> A = {
-//       {3, -7, -2, 2, 1, 1},
-//       {-3, 5, 1, 0, 0, 2},
-//       {6, -4, 0, -5, 2, 3},
-//       {-9, 5, -5, 12, 3, 4},
-//   };
-//
-//   auto sparse = CSCMatrix(A);
-//   auto lupa = linalg::LUPA(sparse);
-//
-//   lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
-//   ASSERT_EQ(lupa.get_det(), -Rational{1} / 6);
-//
-//   lupa.change_column(1, 4);
-//   ASSERT_EQ(lupa.get_det(), -Rational{1} / 63);
-//
-//   lupa.change_column(2, 5);
-//   ASSERT_EQ(lupa.get_det(), -Rational{1} / 279);
-// }
-
 TEST(SparseLUTests, GetInverseMatrixTest) {
   CSCMatrix<Rational> A = {
       {1, 0, 0},
