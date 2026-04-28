@@ -479,7 +479,7 @@ class LUPA {
       throw SingularityError();
     }
 
-    Field diagonal = column[current_column, 0];
+    const Field diagonal = column[current_column, 0];
 
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =

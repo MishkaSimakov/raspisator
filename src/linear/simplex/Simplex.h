@@ -167,10 +167,10 @@ class Simplex {
 
     ArgMinimum<Field> min_ratio;
 
-    auto reduced_costs =
+    const auto reduced_costs =
         get_reduced_costs(get_basic_costs(state.basic_variables));
 
-    auto inverse_row = state.lupa.get_row(leaving.index);
+    const auto inverse_row = state.lupa.get_row(leaving.index);
 
     for (size_t i = 0; i < d; ++i) {
       if (state.variables_states[i] == VariableState::BASIC) {
@@ -186,21 +186,22 @@ class Simplex {
         continue;
       }
 
-      if (!FieldTraits<Field>::is_nonzero(reduced_costs[i, 0])) {
-        reduced_costs[i, 0] = 0;
-      }
+      // TODO: think about drop tolerance
+      const Field cost = FieldTraits<Field>::is_nonzero(reduced_costs[i, 0])
+                             ? reduced_costs[i, 0]
+                             : 0;
 
       if (!((state.variables_states[i] == VariableState::AT_LOWER &&
-             reduced_costs[i, 0] < Field(1) / Field(1e5)) ||
+             cost < Field(1) / Field(1e5)) ||
             (state.variables_states[i] == VariableState::AT_UPPER &&
-             reduced_costs[i, 0] > -Field(1) / Field(1e5)))) {
+             cost > -Field(1) / Field(1e5)))) {
         throw std::runtime_error(
             std::format("Current point is not dual feasible! Reduced cost for "
                         "variable #{} has value {}.",
                         i, reduced_costs[i, 0]));
       }
 
-      Field ratio = reduced_costs[i, 0] / coef;
+      Field ratio = cost / coef;
 
       if (leaving.new_state == VariableState::AT_UPPER) {
         ratio *= -1;

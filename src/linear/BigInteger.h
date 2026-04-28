@@ -1043,7 +1043,7 @@ struct FieldTraits<Rational> {
   static bool is_strictly_negative(const Rational& value) { return value < 0; }
 
   static bool is_nonzero(const Rational& value) { return value != 0; }
-  static bool should_drop(const Rational& value) { return value != 0; }
+  static bool should_drop(const Rational& value) { return value == 0; }
 
   static Rational exp2(int power) {
     if (power > 0) {

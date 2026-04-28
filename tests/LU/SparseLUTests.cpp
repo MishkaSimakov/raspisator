@@ -186,3 +186,31 @@ TEST(SparseLUTests, GetMatrixRandomTest) {
     ASSERT_EQ(matrix, expected);
   }
 }
+
+TEST(SparseLUTests, ChangeColumnsRandomTest) {
+  constexpr size_t size = 10;
+
+  std::default_random_engine random;
+
+  for (size_t i = 0; i < 100; ++i) {
+    SCOPED_TRACE(std::format("iteration: {}", i));
+
+    const auto core = linalg::random_invertible<Rational>(size, random);
+    const auto dense = linalg::hstack(core, core);
+    const auto sparse = CSCMatrix<Rational>(dense);
+
+    auto lupa = linalg::LUPA(sparse);
+
+    std::vector<size_t> columns(size);
+    std::iota(columns.begin(), columns.end(), 0);
+    lupa.set_columns(columns);
+
+    for (size_t j = 0; j < size; ++j) {
+      lupa.change_column(j, j + size);
+    }
+
+    const auto matrix = lupa.get_matrix();
+
+    ASSERT_EQ(matrix, core);
+  }
+}
