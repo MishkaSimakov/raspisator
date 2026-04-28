@@ -580,10 +580,10 @@ class Simplex {
             [](ChangeBasicVariable action) -> IterationAction {
               return ChangeBasicVariable{
                   .leaving_index = action.leaving_index,
-                  .entering_variable = action.leaving_variable,
                   .leaving_variable = action.entering_variable,
-                  .leaving_new_state = action.entering_old_state,
+                  .entering_variable = action.leaving_variable,
                   .entering_old_state = action.leaving_new_state,
+                  .leaving_new_state = action.entering_old_state,
               };
             },
             [](auto /* action */) -> IterationAction { std::unreachable(); }},

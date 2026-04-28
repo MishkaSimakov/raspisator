@@ -31,11 +31,11 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build
-        run: cmake --build build
+        run: cmake --build build --target tests
 
       - name: Run tests (with output)
         run: |
-          cd build
+          cd build/tests
           ctest --output-on-failure --no-tests=error \
                 --output-junit test-results.xml
 
