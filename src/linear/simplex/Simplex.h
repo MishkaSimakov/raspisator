@@ -783,89 +783,62 @@ class Simplex {
     return states;
   }
 
-  // Algorithm for finding initial dual feasible point. It runs simplex method
-  // for a modified problem. This may take some time. This function returns
-  // std::nullopt if and only if the original problem is infeasible.
-  // Algorithm is described here:
-  // https://www.cs.princeton.edu/courses/archive/fall18/cos521/Lectures/lec17.pdf
-  // Important: It is required that either lower or upper bound exists
   std::optional<std::vector<VariableState>> try_get_primal_feasible(
       const Bounds<Field>& bounds) {
     auto [n, d] = A_.shape();
 
-    auto row_basis =
+    const auto basis =
         linalg::get_row_basis(linalg::transposed(linalg::to_dense(A_)));
 
-    // add additional variable t ( + t (b - Al))
-    std::vector<Field> l(n, 0);
-    for (size_t i = 0; i < d; ++i) {
-      if (!bounds[i].lower && !bounds[i].upper) {
-        throw std::runtime_error(
-            "There is a variable without both lower and upper bound. Current "
-            "method does not work with it.");
-      }
-
-      Field coef = bounds[i].lower ? *bounds[i].lower : *bounds[i].upper;
-
-      for (auto [row, value] : A_.get_column(i)) {
-        l[row] += value * coef;
-      }
+    if (basis.size() != n) {
+      throw std::runtime_error("Failed to find basis.");
     }
 
-    for (size_t i = 0; i < n; ++i) {
-      l[i] = b_[i, 0] - l[i];
-    }
+    // set variables states
+    std::vector<VariableState> states(d);
 
-    A_.add_column(l);
-
-    // modify cost vector
-    auto old_c = std::move(c_);
-    c_ = Matrix<Field>(1, d + 1);
-    c_[0, d] = -1;
-    // c_ = old_c.get_extended(1, d + 1, -1);
-
-    // add bound for t variable
-    Bounds<Field> extended_bounds(d + 1);
-    for (size_t i = 0; i < d; ++i) {
-      extended_bounds[i] = bounds[i];
-    }
-
-    extended_bounds[d] = Bound<Field>{0, 1};
-
-    // initial variables states
-    std::vector<VariableState> extended_states(d + 1);
     for (size_t i = 0; i < d; ++i) {
       if (bounds[i].lower) {
-        extended_states[i] = VariableState::AT_LOWER;
+        states[i] = VariableState::AT_LOWER;
+      } else if (bounds[i].upper) {
+        states[i] = VariableState::AT_UPPER;
       } else {
-        extended_states[i] = VariableState::AT_UPPER;
+        throw std::runtime_error("Free variables are not supported yet.");
       }
     }
 
+    for (const size_t basic_var : basis) {
+      states[basic_var] = VariableState::BASIC;
+    }
+
+    // calculate point associated with the variables states
+    const auto rhs = get_rhs(bounds, states);
+
+    state_.lupa.set_columns(basis);
+    const auto point = state_.lupa.solve_linear(rhs);
+
+    // store previous cost function
+    const auto old_c = c_;
+
+    auto relaxed_bounds = bounds;
     for (size_t i = 0; i < n; ++i) {
-      extended_states[row_basis[i]] = VariableState::BASIC;
-    }
+      const auto violation = bounds[basis[i]].get_violation(point[i, 0]);
 
-    extended_states[d] = VariableState::AT_UPPER;
-
-    // solve LP problem
-    auto result = primal_implementation(extended_bounds, extended_states);
-
-    // return everything as it was
-    A_.pop_back_column();
-    c_ = std::move(old_c);
-
-    if (std::holds_alternative<FiniteLPSolution<Field>>(result.solution)) {
-      auto solution = std::get<FiniteLPSolution<Field>>(result.solution);
-
-      if (FieldTraits<Field>::is_nonzero(solution.point[d, 0])) {
-        return std::nullopt;
+      switch (violation.type) {
+        case BoundViolationType::VIOLATE_LOWER_BOUND:
+          relaxed_bounds[basis[i]].lower = std::nullopt;
+          c_[0, basis[i]] = 1;
+          break;
+        case BoundViolationType::VIOLATE_UPPER_BOUND:
+          relaxed_bounds[basis[i]].upper = std::nullopt;
+          c_[0, basis[i]] = -1;
+          break;
       }
-
-      solution.variables.pop_back();
-      return std::move(solution.variables);
     }
 
+    const auto result = primal_implementation(relaxed_bounds, states);
+
+    std::println("{}", result.is_feasible());
     return std::nullopt;
   }
 

@@ -17,7 +17,8 @@ int main() {
   std::unordered_set<std::string> problems = {
       "AFIRO",
       "ADLITTLE",
-      "BANDM", "BLEND",
+      "BANDM",
+    "BLEND",
       "PILOT"
   };
 
