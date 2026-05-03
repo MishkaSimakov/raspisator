@@ -119,6 +119,8 @@ struct Bound {
     return lower && upper && !FieldTraits<Field>::is_nonzero(*lower - *upper);
   }
 
+  bool is_free() const { return !lower && !upper; }
+
   bool is_infeasible() const {
     return lower && upper &&
            FieldTraits<Field>::is_strictly_negative(*upper - *lower);

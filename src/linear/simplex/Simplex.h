@@ -363,7 +363,12 @@ class Simplex {
     }
   }
 
-  std::optional<size_t> get_primal_entering_variable(
+  struct PrimalEnteringVariable {
+    size_t index;
+    Field reduced_cost;
+  };
+
+  std::optional<PrimalEnteringVariable> get_primal_entering_variable(
       const IterationState<Field>& state) {
     using std::abs;
 
@@ -416,10 +421,13 @@ class Simplex {
       const size_t count = std::min(5uz, costs.size());
       const size_t index = rand() % count;
 
-      return costs[index].second;
+      return PrimalEnteringVariable{
+          .index = costs[index].second,
+          .reduced_cost = reduced_costs[costs[index].second, 0],
+      };
     }
 
-    ArgMaximum<Field> max_cost_var;
+    ArgMaximum<Field> max_cost;
 
     for (size_t i = 0; i < d; ++i) {
       const Field cost = reduced_costs[i, 0];
@@ -445,42 +453,48 @@ class Simplex {
       }
 
       if (!is_feasible) {
-        max_cost_var.record(i, abs(cost));
+        max_cost.record(i, abs(cost));
       }
     }
 
-    return max_cost_var.get().transform(
-        [](const auto var) { return var.index; });
+    if (!max_cost.has_value()) {
+      return std::nullopt;
+    }
+
+    return PrimalEnteringVariable{
+        .index = max_cost->index,
+        .reduced_cost = reduced_costs[max_cost->index, 0],
+    };
   }
 
   IterationAction get_primal_leaving_variable(
-      size_t entering, const IterationState<Field>& state) {
+      PrimalEnteringVariable entering, const IterationState<Field>& state) {
     const auto [n, d] = A_.shape();
 
     Matrix<Field> column(n, 1, 0);
-    for (auto [row, value] : A_.get_column(entering)) {
+    for (auto [row, value] : A_.get_column(entering.index)) {
       column[row, 0] = value;
     }
 
     column = state.lupa.solve_linear(std::move(column));
 
-    // theta is maximum basic variable change so that the point would not become
-    // primal infeasible
+    // theta is maximum entering variable change so that the point would not
+    // become primal infeasible for variable i,
+    // change = | new_value - old_value |
     const auto get_variable_theta =
-        [&](size_t index, Field epsilon = 0) -> std::optional<Field> {
-      if (!FieldTraits<Field>::is_nonzero(column[index, 0])) {
+        [&](const size_t i, const Field epsilon = 0) -> std::optional<Field> {
+      if (!FieldTraits<Field>::is_nonzero(column[i, 0])) {
         return std::nullopt;
       }
 
-      Field beta = -column[index, 0];
-      if (state.variables_states[entering] == VariableState::AT_UPPER) {
-        beta *= -1;
-      }
+      // x_i = \alpha + s \beta x_j, where
+      // x_j is entering variable,
+      // s = -sign(entering reduced cost)
+      const Field alpha = state.basic_point[i, 0];
+      const Field beta =
+          entering.reduced_cost > 0 ? -column[i, 0] : column[i, 0];
 
-      Field alpha = state.basic_point[index, 0];
-
-      const auto bound = (*state.bounds)[state.basic_variables[index]];
-      Field current_theta;
+      const auto bound = (*state.bounds)[state.basic_variables[i]];
 
       if (beta > 0 && bound.upper) {
         if (alpha > *bound.upper) {
@@ -500,7 +514,7 @@ class Simplex {
       return std::nullopt;
     };
 
-    // Harris’ ratio test
+    // Harris' ratio test
     // There are 2 steps:
     // 1. Determine theta_max
     // 2. Filter variables using theta_max and determine theta_chosen
@@ -512,14 +526,14 @@ class Simplex {
 
     std::optional<size_t> leaving_id = std::nullopt;
 
-    auto entering_state = state.variables_states[entering];
-    auto entering_bound = (*state.bounds)[entering];
+    const auto entering_state = state.variables_states[entering.index];
+    const auto entering_bound = (*state.bounds)[entering.index];
 
     if (min_theta_bound.has_value()) {
       const Field theta_max = *min_theta_bound;
       // logging::log_value(*theta_max.min(), "theta_max.txt");
 
-      ArgMaximum<Field, std::less<>> max_pivot;
+      ArgMaximum<Field> max_pivot;
 
       for (size_t i = 0; i < n; ++i) {
         auto current_theta = get_variable_theta(i);
@@ -531,18 +545,30 @@ class Simplex {
         }
       }
 
-      assert(max_pivot.has_value());
       // logging::log_value(*max_pivot.max(), "max_pivot.txt");
 
-      Field leaving_theta = *get_variable_theta(max_pivot->index);
+      const Field leaving_theta = *get_variable_theta(max_pivot->index);
 
       // logging::log_value(leaving_theta, "leaving_theta.txt");
       // logging::log_value(state.basic_point[*max_pivot.argmax(), 0],
       // "leaving_value.txt");
 
-      Field new_entering_value = entering_state == VariableState::AT_LOWER
-                                     ? *entering_bound.lower + leaving_theta
-                                     : *entering_bound.upper - leaving_theta;
+      Field new_entering_value;
+
+      switch (entering_state) {
+        case VariableState::AT_LOWER:
+          new_entering_value = *entering_bound.lower + leaving_theta;
+          break;
+        case VariableState::AT_UPPER:
+          new_entering_value = *entering_bound.upper - leaving_theta;
+          break;
+        case VariableState::NONBASIC_FREE:
+          new_entering_value =
+              entering.reduced_cost > 0 ? leaving_theta : -leaving_theta;
+          break;
+        default:
+          throw std::runtime_error("Unexpected variable state.");
+      }
 
       if (entering_bound.is_inside(new_entering_value)) {
         leaving_id = max_pivot->index;
@@ -551,28 +577,25 @@ class Simplex {
 
     if (!leaving_id) {
       if (entering_state == VariableState::AT_LOWER && entering_bound.upper) {
-        return ToggleBound{entering, VariableState::AT_UPPER};
+        return ToggleBound{entering.index, VariableState::AT_UPPER};
       }
       if (entering_state == VariableState::AT_UPPER && entering_bound.lower) {
-        return ToggleBound{entering, VariableState::AT_LOWER};
+        return ToggleBound{entering.index, VariableState::AT_LOWER};
       }
 
       return NoLeaving{};
     }
 
-    Field coef = -column[*leaving_id, 0];
-    if (state.variables_states[entering] == VariableState::AT_UPPER) {
-      coef *= -1;
-    }
-
-    auto leaving_state =
-        coef > 0 ? VariableState::AT_UPPER : VariableState::AT_LOWER;
+    const auto leaving_state =
+        entering.reduced_cost * column[*leaving_id, 0] < 0
+            ? VariableState::AT_UPPER
+            : VariableState::AT_LOWER;
 
     return ChangeBasicVariable{
         .leaving_index = *leaving_id,
         .leaving_variable = state_.basic_variables[*leaving_id],
-        .entering_variable = entering,
-        .entering_old_state = state.variables_states[entering],
+        .entering_variable = entering.index,
+        .entering_old_state = state.variables_states[entering.index],
         .leaving_new_state = leaving_state,
     };
   }
@@ -623,10 +646,6 @@ class Simplex {
         Overload{[this](ToggleBound action) {
                    state_.variables_states[action.variable_index] =
                        action.new_state;
-
-                   std::println("  toggle bound: {} (new value = {})",
-                                action.variable_index,
-                                static_cast<int>(action.new_state));
                  },
                  [this](ChangeBasicVariable action) {
                    state_.lupa.change_column(action.leaving_index,
