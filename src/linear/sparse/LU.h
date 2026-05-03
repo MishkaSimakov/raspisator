@@ -205,6 +205,8 @@ class FullPivotingLU {
   void get(const CSCMatrix<Field>& A, const std::vector<size_t>& columns,
            Permutation& P, Permutation& Q, EtaFile<Field>& ls,
            EtaFile<Field>& us) {
+    using std::abs;
+
     size_t n = size_;
 
     assert(A.shape().first == n && columns.size() == n);
@@ -248,7 +250,7 @@ class FullPivotingLU {
 
       for (const size_t row : std::views::reverse(nonzero_indices_)) {
         if (P_impl_[row] == n) {
-          max_value.record(row, FieldTraits<Field>::abs(dense_[row]));
+          max_value.record(row, abs(dense_[row]));
         } else {
           for (const auto& [index, value] : L_.get_column(P_impl_[row])) {
             dense_[index] -= dense_[row] * value;
@@ -267,7 +269,7 @@ class FullPivotingLU {
 
       for (size_t row : std::views::reverse(nonzero_indices_)) {
         if (P_impl_[row] == n &&
-            FieldTraits<Field>::abs(dense_[row]) > threshold * max_value->max) {
+            abs(dense_[row]) > threshold * max_value->max) {
           min_nz_row.record(row, rows_nonzeros[row]);
         }
       }
@@ -344,7 +346,7 @@ class FullPivotingLU {
       for (auto& [row, value] : column) {
         value /= diagonal;
 
-        max_u.record(FieldTraits<Field>::abs(value));
+        max_u.record(abs(value));
         ++nonzeros;
       }
 
@@ -357,7 +359,7 @@ class FullPivotingLU {
       for (auto [row, value] : L_.get_column(i)) {
         column.emplace_back(row, -value);
 
-        max_l.record(FieldTraits<Field>::abs(value));
+        max_l.record(abs(value));
         ++nonzeros;
       }
 

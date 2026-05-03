@@ -13,6 +13,7 @@ target_sources(tests PUBLIC
         NumericalStabilityTests.cpp
         BoundsTests.cpp
 
+        simplex/FreeVariablesTests.cpp
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
         simplex/BigTests.cpp

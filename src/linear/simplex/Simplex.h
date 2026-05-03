@@ -72,9 +72,9 @@ using IterationAction =
 // This version is specifically tuned for sparse A matrix
 template <typename Field, typename Accountant = EmptyAccountant<Field>>
 class Simplex {
-  CSCMatrix<Field> A_;
-  Matrix<Field> b_;
-  Matrix<Field> c_;
+  const CSCMatrix<Field> A_;
+  const Matrix<Field> b_;
+  const Matrix<Field> c_;
 
   IterationState<Field> state_;
 
@@ -440,13 +440,13 @@ class Simplex {
           is_feasible = true;
           break;
         case VariableState::AT_LOWER:
-          is_feasible = cost < tolerances_.feasibility;
+          is_feasible = cost <= tolerances_.feasibility;
           break;
         case VariableState::AT_UPPER:
-          is_feasible = cost > -tolerances_.feasibility;
+          is_feasible = cost >= -tolerances_.feasibility;
           break;
         case VariableState::NONBASIC_FREE:
-          is_feasible = abs(cost) < tolerances_.feasibility;
+          is_feasible = abs(cost) <= tolerances_.feasibility;
           break;
         default:
           throw std::runtime_error("Unknown variable state.");
@@ -521,7 +521,8 @@ class Simplex {
     Minimum<Field> min_theta_bound;
 
     for (size_t i = 0; i < n; ++i) {
-      min_theta_bound.record(get_variable_theta(i, 1e-10));
+      min_theta_bound.record(
+          get_variable_theta(i, FieldTraits<Field>::tolerance));
     }
 
     std::optional<size_t> leaving_id = std::nullopt;
@@ -538,10 +539,8 @@ class Simplex {
       for (size_t i = 0; i < n; ++i) {
         auto current_theta = get_variable_theta(i);
 
-        if (current_theta && *current_theta <= theta_max &&
-            (!state_.tabu_variable ||
-             state_.tabu_variable != state_.basic_variables[i])) {
-          max_pivot.record(i, FieldTraits<Field>::abs(column[i, 0]));
+        if (current_theta && *current_theta <= theta_max) {
+          max_pivot.record(i, abs(column[i, 0]));
         }
       }
 
@@ -658,10 +657,6 @@ class Simplex {
                        action.leaving_new_state;
                    state_.basic_variables[action.leaving_index] =
                        action.entering_variable;
-
-                   // std::println(" changed basic: {} -> {} (old index: {})",
-                   // action.leaving_variable,
-                   // action.entering_variable, action.leaving_index);
                  },
                  [](auto /* action */) { std::unreachable(); }},
         action);
@@ -704,12 +699,6 @@ class Simplex {
 
         state_.lupa.refactorize();
 
-        if (std::holds_alternative<ChangeBasicVariable>(history.back())) {
-          auto last_change = std::get<ChangeBasicVariable>(history.back());
-
-          state_.tabu_variable = last_change.leaving_variable;
-        }
-
         const auto rollback = get_rollback(history.back());
 
         history.pop_back();
@@ -746,7 +735,6 @@ class Simplex {
       apply_action(action);
 
       ++state_.iteration_index;
-      state_.tabu_variable = std::nullopt;
     }
   }
 
@@ -833,9 +821,10 @@ class Simplex {
     return states;
   }
 
-  // algorithm is taken from
+  // Returns primal feasible basis or std::nullopt if problem is infeasible.
+  // Note: algorithm is taken from
   // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
-  std::optional<std::vector<VariableState>> try_get_primal_feasible(
+  std::optional<std::vector<VariableState>> get_primal_feasible(
       Bounds<Field> bounds) {
     const auto [n, old_d] = A_.shape();
     const size_t new_d = old_d + n;
@@ -880,10 +869,8 @@ class Simplex {
       new_c[0, i] = -1;
     }
 
-    std::swap(c_, new_c);
-    std::swap(A_, new_A);
-
-    const auto result = primal_implementation(new_bounds, states);
+    auto helper = Simplex(new_A, b_, new_c);
+    const auto result = helper.primal(new_bounds, states);
 
     if (!result.is_feasible()) {
       throw std::runtime_error(
@@ -902,13 +889,13 @@ class Simplex {
     // Case 2: try to eliminate artificial variables from basic variables (if
     // there are any) using pivot operation
     for (size_t basic_index = 0; basic_index < n; ++basic_index) {
-      const size_t i = state_.basic_variables[basic_index];
+      const size_t i = helper.state_.basic_variables[basic_index];
 
       if (i < old_d) {
         continue;
       }
 
-      const auto row = state_.lupa.get_row(basic_index);
+      const auto row = helper.state_.lupa.get_row(basic_index);
 
       // try to find replacement for i among non-artificial variables
       bool found = false;
@@ -927,7 +914,7 @@ class Simplex {
         if (FieldTraits<Field>::is_nonzero(coef)) {
           // change i -> j in basis
           solution.variables[j] = VariableState::BASIC;
-          state_.lupa.change_column(basic_index, j);
+          helper.state_.lupa.change_column(basic_index, j);
           found = true;
 
           break;
@@ -941,12 +928,7 @@ class Simplex {
       }
     }
 
-    // roll back all changes
-    std::swap(A_, new_A);
-    std::swap(c_, new_c);
-
     solution.variables.resize(old_d);
-
     return solution.variables;
   }
 

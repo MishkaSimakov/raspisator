@@ -1025,6 +1025,10 @@ inline std::istream& operator>>(std::istream& is, Rational& rational) {
   return is;
 }
 
+inline Rational abs(const Rational& value) {
+  return value < 0 ? -value : value;
+}
+
 template <>
 struct FieldTraits<Rational> {
   static const Rational tolerance;
@@ -1033,10 +1037,6 @@ struct FieldTraits<Rational> {
 
   static Rational fractional(const Rational& value) {
     return value - floor(value);
-  }
-
-  static Rational abs(const Rational& value) {
-    return value < 0 ? -value : value;
   }
 
   static bool is_strictly_positive(const Rational& value) { return value > 0; }

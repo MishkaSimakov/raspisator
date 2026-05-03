@@ -14,13 +14,8 @@
 using Field = double;
 
 int main() {
-  std::unordered_set<std::string> problems = {
-      "AFIRO",
-      "ADLITTLE",
-      "BANDM",
-    "BLEND",
-      "PILOT"
-  };
+  std::unordered_set<std::string> problems = {"AFIRO", "ADLITTLE", "BANDM",
+                                              "BLEND", "PILOT"};
 
   auto problems_path = paths::resource("lp_problems");
   for (auto entry : std::filesystem::directory_iterator{problems_path}) {
@@ -55,7 +50,7 @@ int main() {
     auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
         CSCMatrix(matrices.A), matrices.b, matrices.c, settings);
 
-    auto states = solver.try_get_primal_feasible(matrices.bounds);
+    auto states = solver.get_primal_feasible(matrices.bounds);
 
     if (!states) {
       std::println("  Failed to find primal feasible basis.");

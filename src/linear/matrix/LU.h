@@ -49,6 +49,7 @@ void inplace_lu(MatrixLike auto&& matrix) {
 template <MatrixLike T>
 std::tuple<Matrix<matrix_field_t<T>>, Matrix<matrix_field_t<T>>, Permutation>
 get_lup(T&& matrix) {
+  using std::abs;
   using Field = matrix_field_t<T>;
 
   auto [n, d] = matrix.shape();
@@ -64,8 +65,7 @@ get_lup(T&& matrix) {
   for (size_t i = 0; i < n; ++i) {
     size_t maximizing_row = i;
     for (size_t k = i + 1; k < n; ++k) {
-      if (FieldTraits<Field>::abs(U[k, i]) >
-          FieldTraits<Field>::abs(U[maximizing_row, i])) {
+      if (abs(U[k, i]) > abs(U[maximizing_row, i])) {
         maximizing_row = k;
       }
     }
@@ -85,6 +85,7 @@ get_lup(T&& matrix) {
 
 template <MatrixLike T>
 Permutation inplace_lup(T&& matrix) {
+  using std::abs;
   using Field = matrix_field_t<T>;
 
   auto [n, d] = matrix.shape();
@@ -98,8 +99,7 @@ Permutation inplace_lup(T&& matrix) {
   for (size_t i = 0; i < n; ++i) {
     size_t maximizing_row = i;
     for (size_t k = i + 1; k < n; ++k) {
-      if (FieldTraits<Field>::abs(matrix[k, i]) >
-          FieldTraits<Field>::abs(matrix[maximizing_row, i])) {
+      if (abs(matrix[k, i]) > abs(matrix[maximizing_row, i])) {
         maximizing_row = k;
       }
     }

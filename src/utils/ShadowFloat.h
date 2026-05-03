@@ -166,10 +166,9 @@ struct FieldTraits<ShadowFloat<Field>> {
   constexpr static double kEpsilon = 1e-10;
 
   static ShadowFloat<Field> abs(ShadowFloat<Field> value) {
-    return {
-        FieldTraits<Field>::abs(value.get_value()),
-        FieldTraits<Rational>::abs(value.get_shadow()),
-    };
+    using std::abs;
+
+    return {abs(value.get_value()), abs(value.get_shadow())};
   }
 
   static ShadowFloat<Field> floor(ShadowFloat<Field> value) {
