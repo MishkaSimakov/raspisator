@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <random>
 #include <ranges>
@@ -95,6 +96,8 @@ class Simplex {
         result[i, 0] = *(*state.bounds)[i].lower;
       } else if (state.variables_states[i] == VariableState::AT_UPPER) {
         result[i, 0] = *(*state.bounds)[i].upper;
+      } else if (state.variables_states[i] == VariableState::NONBASIC_FREE) {
+        result[i, 0] = 0;
       }
     }
 
@@ -254,6 +257,7 @@ class Simplex {
     KahanSum<Field> objective;
 
     for (size_t col = 0; col < d; ++col) {
+      // TODO: change this to switch, so that new VariableStates can be handled
       if (state.variables_states[col] == VariableState::AT_LOWER) {
         objective.add(c_[0, col] * *(*state.bounds)[col].lower);
       } else if (state.variables_states[col] == VariableState::AT_UPPER) {
@@ -361,28 +365,45 @@ class Simplex {
 
   std::optional<size_t> get_primal_entering_variable(
       const IterationState<Field>& state) {
-    auto [n, d] = state.problem_shape();
+    using std::abs;
 
-    auto reduced_costs =
+    const auto [n, d] = state.problem_shape();
+
+    const auto reduced_costs =
         get_reduced_costs(get_basic_costs(state.basic_variables));
 
+    // TODO: Reservoir sampling
+    // TODO: code duplication! remove it.
     if (state.last_cycling_iteration &&
         *state.last_cycling_iteration + 10 > state.iteration_index) {
       // choose random among top k by reduced cost
       std::vector<std::pair<double, size_t>> costs;
 
       for (size_t i = 0; i < d; ++i) {
-        if (state.variables_states[i] == VariableState::BASIC) {
-          continue;
+        const Field cost = reduced_costs[i, 0];
+
+        // determine if this variable reduced cost if feasible for the problem
+        bool is_feasible;
+
+        switch (state.variables_states[i]) {
+          case VariableState::BASIC:
+            is_feasible = true;
+            break;
+          case VariableState::AT_LOWER:
+            is_feasible = cost < tolerances_.feasibility;
+            break;
+          case VariableState::AT_UPPER:
+            is_feasible = cost > -tolerances_.feasibility;
+            break;
+          case VariableState::NONBASIC_FREE:
+            is_feasible = abs(cost) < tolerances_.feasibility;
+            break;
+          default:
+            throw std::runtime_error("Unknown variable state.");
         }
 
-        Field cost = reduced_costs[i, 0];
-        if (state.variables_states[i] == VariableState::AT_UPPER) {
-          cost *= -1;
-        }
-
-        if (cost > tolerances_.feasibility) {
-          costs.emplace_back(cost, i);
+        if (!is_feasible) {
+          costs.emplace_back(abs(cost), i);
         }
       }
 
@@ -395,31 +416,38 @@ class Simplex {
       const size_t count = std::min(5uz, costs.size());
       const size_t index = rand() % count;
 
-      // std::println("  entering reduced cost (random) = {}",
-      // costs[index].first);
-
       return costs[index].second;
     }
 
     ArgMaximum<Field> max_cost_var;
 
     for (size_t i = 0; i < d; ++i) {
-      if (state.variables_states[i] == VariableState::BASIC) {
-        continue;
+      const Field cost = reduced_costs[i, 0];
+
+      // determine if this variable reduced cost if feasible for the problem
+      bool is_feasible;
+
+      switch (state.variables_states[i]) {
+        case VariableState::BASIC:
+          is_feasible = true;
+          break;
+        case VariableState::AT_LOWER:
+          is_feasible = cost < tolerances_.feasibility;
+          break;
+        case VariableState::AT_UPPER:
+          is_feasible = cost > -tolerances_.feasibility;
+          break;
+        case VariableState::NONBASIC_FREE:
+          is_feasible = abs(cost) < tolerances_.feasibility;
+          break;
+        default:
+          throw std::runtime_error("Unknown variable state.");
       }
 
-      Field cost = reduced_costs[i, 0];
-      if (state.variables_states[i] == VariableState::AT_UPPER) {
-        cost *= -1;
-      }
-
-      if (cost > tolerances_.feasibility) {
-        max_cost_var.record(i, cost);
+      if (!is_feasible) {
+        max_cost_var.record(i, abs(cost));
       }
     }
-
-    // std::println("  entering reduced cost = {}", *max_cost.max());
-    // logging::log_value(*max_cost.max(), "max_cost.txt");
 
     return max_cost_var.get().transform(
         [](const auto var) { return var.index; });
@@ -427,7 +455,7 @@ class Simplex {
 
   IterationAction get_primal_leaving_variable(
       size_t entering, const IterationState<Field>& state) {
-    auto [n, d] = A_.shape();
+    const auto [n, d] = A_.shape();
 
     Matrix<Field> column(n, 1, 0);
     for (auto [row, value] : A_.get_column(entering)) {
@@ -438,8 +466,8 @@ class Simplex {
 
     // theta is maximum basic variable change so that the point would not become
     // primal infeasible
-    auto get_variable_theta = [&](size_t index,
-                                  Field epsilon = 0) -> std::optional<Field> {
+    const auto get_variable_theta =
+        [&](size_t index, Field epsilon = 0) -> std::optional<Field> {
       if (!FieldTraits<Field>::is_nonzero(column[index, 0])) {
         return std::nullopt;
       }
@@ -451,7 +479,7 @@ class Simplex {
 
       Field alpha = state.basic_point[index, 0];
 
-      auto bound = (*state.bounds)[state.basic_variables[index]];
+      const auto bound = (*state.bounds)[state.basic_variables[index]];
       Field current_theta;
 
       if (beta > 0 && bound.upper) {
@@ -620,6 +648,9 @@ class Simplex {
         action);
   }
 
+  // It is guaranteed, that after execution of this method, if finite LP
+  // solution was found, then inside LUPA basic variables would be selected as
+  // columns.
   SimplexResult<Field> primal_implementation(
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
@@ -783,63 +814,121 @@ class Simplex {
     return states;
   }
 
+  // algorithm is taken from
+  // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
   std::optional<std::vector<VariableState>> try_get_primal_feasible(
-      const Bounds<Field>& bounds) {
-    auto [n, d] = A_.shape();
+      Bounds<Field> bounds) {
+    const auto [n, old_d] = A_.shape();
+    const size_t new_d = old_d + n;
 
-    const auto basis =
-        linalg::get_row_basis(linalg::transposed(linalg::to_dense(A_)));
+    std::vector<VariableState> states(new_d);
+    Bounds<Field> new_bounds(new_d);
 
-    if (basis.size() != n) {
-      throw std::runtime_error("Failed to find basis.");
-    }
-
-    // set variables states
-    std::vector<VariableState> states(d);
-
-    for (size_t i = 0; i < d; ++i) {
+    for (size_t i = 0; i < old_d; ++i) {
       if (bounds[i].lower) {
         states[i] = VariableState::AT_LOWER;
       } else if (bounds[i].upper) {
         states[i] = VariableState::AT_UPPER;
       } else {
-        throw std::runtime_error("Free variables are not supported yet.");
+        states[i] = VariableState::NONBASIC_FREE;
       }
+
+      new_bounds[i] = bounds[i];
     }
 
-    for (const size_t basic_var : basis) {
-      states[basic_var] = VariableState::BASIC;
+    for (size_t i = old_d; i < new_d; ++i) {
+      states[i] = VariableState::BASIC;
+      new_bounds[i] = {0, std::nullopt};
     }
 
-    // calculate point associated with the variables states
+    // add additional slack variable to each constraint
     const auto rhs = get_rhs(bounds, states);
 
-    state_.lupa.set_columns(basis);
-    const auto point = state_.lupa.solve_linear(rhs);
-
-    // store previous cost function
-    const auto old_c = c_;
-
-    auto relaxed_bounds = bounds;
+    auto new_A = A_;
     for (size_t i = 0; i < n; ++i) {
-      const auto violation = bounds[basis[i]].get_violation(point[i, 0]);
+      new_A.add_column();
 
-      switch (violation.type) {
-        case BoundViolationType::VIOLATE_LOWER_BOUND:
-          relaxed_bounds[basis[i]].lower = std::nullopt;
-          c_[0, basis[i]] = 1;
-          break;
-        case BoundViolationType::VIOLATE_UPPER_BOUND:
-          relaxed_bounds[basis[i]].upper = std::nullopt;
-          c_[0, basis[i]] = -1;
-          break;
+      if (rhs[i, 0] > 0) {
+        new_A.push_to_last_column(i, 1);
+      } else {
+        new_A.push_to_last_column(i, -1);
       }
     }
 
-    const auto result = primal_implementation(relaxed_bounds, states);
+    auto new_c = Matrix<Field>(1, new_d, 0);
 
-    std::println("{}", result.is_feasible());
-    return std::nullopt;
+    for (size_t i = old_d; i < new_d; ++i) {
+      new_c[0, i] = -1;
+    }
+
+    std::swap(c_, new_c);
+    std::swap(A_, new_A);
+
+    const auto result = primal_implementation(new_bounds, states);
+
+    if (!result.is_feasible()) {
+      throw std::runtime_error(
+          "Something went wrong in primal implementation.");
+    }
+
+    auto solution = std::get<FiniteLPSolution<Field>>(result.solution);
+
+    // Case 1
+    if (FieldTraits<Field>::is_strictly_negative(solution.value)) {
+      // Problem is infeasible
+      // TODO: indicate infeasibility in some way
+      return std::nullopt;
+    }
+
+    // Case 2: try to eliminate artificial variables from basic variables (if
+    // there are any) using pivot operation
+    for (size_t basic_index = 0; basic_index < n; ++basic_index) {
+      const size_t i = state_.basic_variables[basic_index];
+
+      if (i < old_d) {
+        continue;
+      }
+
+      const auto row = state_.lupa.get_row(basic_index);
+
+      // try to find replacement for i among non-artificial variables
+      bool found = false;
+
+      for (size_t j = 0; j < old_d; ++j) {
+        if (solution.variables[j] == VariableState::BASIC) {
+          continue;
+        }
+
+        Field coef = 0;
+
+        for (const auto [index, value] : A_.get_column(j)) {
+          coef += row[index, 0] * value;
+        }
+
+        if (FieldTraits<Field>::is_nonzero(coef)) {
+          // change i -> j in basis
+          solution.variables[j] = VariableState::BASIC;
+          state_.lupa.change_column(basic_index, j);
+          found = true;
+
+          break;
+        }
+      }
+
+      if (!found) {
+        // Problem contains linearly dependent rows.
+        // TODO: indicate this to user
+        return std::nullopt;
+      }
+    }
+
+    // roll back all changes
+    std::swap(A_, new_A);
+    std::swap(c_, new_c);
+
+    solution.variables.resize(old_d);
+
+    return solution.variables;
   }
 
   // This function does not check whether matrix formed by basic columns is

@@ -6,7 +6,7 @@
 #include "Bound.h"
 #include "linear/matrix/Matrix.h"
 
-enum class VariableState { AT_LOWER, AT_UPPER, BASIC };
+enum class VariableState { AT_LOWER, AT_UPPER, NONBASIC_FREE, BASIC };
 
 template <typename Field>
 class Bounds {
