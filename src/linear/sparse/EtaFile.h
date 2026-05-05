@@ -290,6 +290,8 @@ class EtaFile {
           .type = entry.type,
           .is_removed = false,
       });
+
+      new_values.append_range(entry.values);
     }
 
     values_ = std::move(new_values);

@@ -469,6 +469,8 @@ class Simplex {
 
   IterationAction get_primal_leaving_variable(
       PrimalEnteringVariable entering, const IterationState<Field>& state) {
+    using std::abs;
+
     const auto [n, d] = A_.shape();
 
     Matrix<Field> column(n, 1, 0);
@@ -483,7 +485,7 @@ class Simplex {
     // change = | new_value - old_value |
     const auto get_variable_theta =
         [&](const size_t i, const Field epsilon = 0) -> std::optional<Field> {
-      if (!FieldTraits<Field>::is_nonzero(column[i, 0])) {
+      if (abs(column[i, 0]) < tolerances_.pivot) {
         return std::nullopt;
       }
 
@@ -599,7 +601,7 @@ class Simplex {
     };
   }
 
-  bool lost_primal_feasibility(const Bounds<Field>& bounds) const {
+  bool lost_primal_feasibility(const Bounds<Field>& bounds) {
     auto [n, d] = A_.shape();
 
     for (size_t i = 0; i < n; ++i) {
@@ -645,6 +647,8 @@ class Simplex {
         Overload{[this](ToggleBound action) {
                    state_.variables_states[action.variable_index] =
                        action.new_state;
+
+                   // std::println("  toggle bound: {}", action.variable_index);
                  },
                  [this](ChangeBasicVariable action) {
                    state_.lupa.change_column(action.leaving_index,
@@ -657,6 +661,9 @@ class Simplex {
                        action.leaving_new_state;
                    state_.basic_variables[action.leaving_index] =
                        action.entering_variable;
+
+                   // std::println("  basis change: {} -> {}",
+                   // action.leaving_variable, action.entering_variable);
                  },
                  [](auto /* action */) { std::unreachable(); }},
         action);

@@ -372,6 +372,11 @@ class FullPivotingLU {
   }
 };
 
+struct LUPAConfig {
+  size_t purge_after_iterations{100};
+  size_t refactorize_after_iterations{500};
+};
+
 // LUP-Accelerated (LUPA)
 // For a given matrix this class answers queries of form:
 // get LUP-decomposition of submatrix of A formed by given columns
@@ -391,6 +396,8 @@ class LUPA {
   // Forrest-Tomlin update helpers
   size_t changes_since_refactorization_{0};
   size_t changes_since_purge_{0};
+
+  const LUPAConfig config_;
 
   void purge() {
     ls_.purge();
@@ -451,7 +458,7 @@ class LUPA {
       }
 
       if (!FieldTraits<Field>::is_nonzero(diagonal)) {
-        throw SingularityError();
+        return UpdateResult::NEED_REFACTORIZATION;
       }
 
       r[(*itr).index, 0] = main_value / diagonal;
@@ -478,7 +485,7 @@ class LUPA {
     column = ls_.apply(std::move(column), *(--ls_.cend()));
 
     if (!FieldTraits<Field>::is_nonzero(column[current_column, 0])) {
-      throw SingularityError();
+      return UpdateResult::NEED_REFACTORIZATION;
     }
 
     const Field diagonal = column[current_column, 0];
@@ -494,11 +501,12 @@ class LUPA {
   }
 
  public:
-  explicit LUPA(const CSCMatrix<Field>& A)
+  explicit LUPA(const CSCMatrix<Field>& A, LUPAConfig config = {})
       : A_(A),
         factorizer_(A.shape().first),
         P_(Permutation::id(A.shape().first)),
-        Q_(Permutation::id(A.shape().first)) {}
+        Q_(Permutation::id(A.shape().first)),
+        config_(config) {}
 
   void set_columns(const std::vector<size_t>& columns) {
     assert(columns.size() == A_.shape().first);
@@ -512,7 +520,7 @@ class LUPA {
     ++changes_since_refactorization_;
     ++changes_since_purge_;
 
-    if (changes_since_refactorization_ > 500) {
+    if (changes_since_refactorization_ > config_.refactorize_after_iterations) {
       refactorize();
       return;
     }
@@ -524,7 +532,7 @@ class LUPA {
       return;
     }
 
-    if (changes_since_purge_ > 100) {
+    if (changes_since_purge_ > config_.purge_after_iterations) {
       purge();
     }
   }

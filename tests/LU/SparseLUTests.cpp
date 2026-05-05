@@ -191,3 +191,72 @@ TEST(SparseLUTests, ChangeColumnsRandomTest) {
     ASSERT_EQ(matrix, core);
   }
 }
+
+TEST(SparseLUTests, ChangeColumnsRandomRoundtrip) {
+  constexpr size_t size = 10;
+
+  std::default_random_engine random;
+
+  for (size_t i = 0; i < 1000; ++i) {
+    SCOPED_TRACE(std::format("iteration: {}", i));
+
+    const auto core = linalg::random_invertible<Rational>(size, random);
+    const auto dense = linalg::hstack(core, core);
+    const auto sparse = CSCMatrix<Rational>(dense);
+
+    auto lupa = linalg::LUPA(sparse);
+
+    std::vector<size_t> columns(size);
+    std::iota(columns.begin(), columns.end(), 0);
+    lupa.set_columns(columns);
+
+    for (size_t j = 0; j < size; ++j) {
+      lupa.change_column(j, j + size);
+    }
+
+    for (size_t j = 0; j < size; ++j) {
+      lupa.change_column(j, j);
+    }
+
+    const auto matrix = lupa.get_matrix();
+
+    ASSERT_EQ(matrix, core);
+  }
+}
+
+TEST(SparseLUTests, ChangeColumnsAndPurgeRandomTest) {
+  constexpr size_t size = 10;
+
+  std::default_random_engine random;
+
+  for (size_t i = 0; i < 1000; ++i) {
+    SCOPED_TRACE(std::format("iteration: {}", i));
+
+    const auto core = linalg::random_invertible<Rational>(size, random);
+    const auto dense = linalg::hstack(core, core);
+    const auto sparse = CSCMatrix<Rational>(dense);
+
+    linalg::LUPAConfig config{
+        .purge_after_iterations = 5,
+        .refactorize_after_iterations = 10000,
+    };
+
+    auto lupa = linalg::LUPA(sparse, config);
+
+    std::vector<size_t> columns(size);
+    std::iota(columns.begin(), columns.end(), 0);
+    lupa.set_columns(columns);
+
+    for (size_t j = 0; j < size; ++j) {
+      lupa.change_column(j, j + size);
+    }
+
+    for (size_t j = 0; j < size; ++j) {
+      lupa.change_column(j, j);
+    }
+
+    const auto matrix = lupa.get_matrix();
+
+    ASSERT_EQ(matrix, core);
+  }
+}
