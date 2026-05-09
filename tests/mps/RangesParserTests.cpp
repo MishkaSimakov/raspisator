@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 
 #include "mps/Types.h"
-#include "mps/sections/RHSParser.h"
+#include "mps/sections/RangesParser.h"
 
 using namespace mps;
 
-TEST(RHSParserTests, Simple) {
+TEST(RangesParserTests, Simple) {
   MPSParsingState<double> state;
-  RHSParser<double> parser;
+  RangesParser<double> parser;
 
   state.add_row(RowSense::EQUAL, "c1");
   state.add_row(RowSense::EQUAL, "c2");
@@ -19,13 +19,13 @@ TEST(RHSParserTests, Simple) {
       DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
   parser.parse(record, state);
 
-  ASSERT_EQ(state.rows[0].rhs, 20);
-  ASSERT_EQ(state.rows[1].rhs, 30);
+  ASSERT_EQ(state.rows[0].range, 20);
+  ASSERT_EQ(state.rows[1].range, 30);
 }
 
-TEST(RHSParserTests, DuplicatedRow) {
+TEST(RangesParserTests, DuplicatedRow) {
   MPSParsingState<double> state;
-  RHSParser<double> parser;
+  RangesParser<double> parser;
 
   state.add_row(RowSense::EQUAL, "c1");
   state.add_row(RowSense::EQUAL, "c2");
@@ -39,9 +39,9 @@ TEST(RHSParserTests, DuplicatedRow) {
   ASSERT_ANY_THROW({ parser.parse(record, state); });
 }
 
-TEST(RHSParserTests, MultipleVectors) {
+TEST(RangesParserTests, MultipleVectors) {
   MPSParsingState<double> state;
-  RHSParser<double> parser;
+  RangesParser<double> parser;
 
   state.add_row(RowSense::EQUAL, "c1");
   state.add_row(RowSense::EQUAL, "c2");
@@ -55,8 +55,8 @@ TEST(RHSParserTests, MultipleVectors) {
     parser.parse(record, state);
   }
 
-  ASSERT_EQ(state.rows[0].rhs, 20);
-  ASSERT_EQ(state.rows[1].rhs, std::nullopt);
+  ASSERT_EQ(state.rows[0].range, 20);
+  ASSERT_EQ(state.rows[1].range, std::nullopt);
 
   {
     const auto string = "    rhs2      c2                  30";
@@ -67,13 +67,13 @@ TEST(RHSParserTests, MultipleVectors) {
     parser.parse(record, state);
   }
 
-  ASSERT_EQ(state.rows[0].rhs, 20);
-  ASSERT_EQ(state.rows[1].rhs, std::nullopt);
+  ASSERT_EQ(state.rows[0].range, 20);
+  ASSERT_EQ(state.rows[1].range, std::nullopt);
 }
 
-TEST(RHSParserTests, PartialRecord) {
+TEST(RangesParserTests, PartialRecord) {
   MPSParsingState<double> state;
-  RHSParser<double> parser;
+  RangesParser<double> parser;
 
   state.add_row(RowSense::EQUAL, "c1");
   state.add_row(RowSense::EQUAL, "c2");
@@ -85,13 +85,13 @@ TEST(RHSParserTests, PartialRecord) {
 
   parser.parse(record, state);
 
-  ASSERT_EQ(state.rows[0].rhs, 20);
-  ASSERT_EQ(state.rows[1].rhs, std::nullopt);
+  ASSERT_EQ(state.rows[0].range, 20);
+  ASSERT_EQ(state.rows[1].range, std::nullopt);
 }
 
-TEST(RHSParserTests, UnknownRow) {
+TEST(RangesParserTests, UnknownRow) {
   MPSParsingState<double> state;
-  RHSParser<double> parser;
+  RangesParser<double> parser;
 
   state.add_row(RowSense::EQUAL, "c1");
   state.add_row(RowSense::EQUAL, "c2");

@@ -57,9 +57,11 @@ struct MPSParsingState {
   std::deque<Variable<Field>> cols;
   std::unordered_map<std::string_view, size_t> cols_map;
 
-  // In MPS multiple RHS vectors may be specified, but only the first one must
-  // be selected. This field captures the name of the first RHS vector.
+  // In MPS multiple RHS and RANGES vectors may be specified, but only the first
+  // one must be selected. These fields capture the name of the first RHS and
+  // RANGES vector.
   std::optional<std::string> rhs_vector_name = std::nullopt;
+  std::optional<std::string> ranges_vector_name = std::nullopt;
 
   bool add_row(RowSense sense, std::string_view name) {
     const size_t index = rows.size();
