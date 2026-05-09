@@ -9,7 +9,7 @@ TEST(DataRecordTokenizerTests, FreeFormatWithoutEndSpaces) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FREE, true);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
   expected.fields[0] = record.substr(1, 2);
   expected.fields[1] = record.substr(4, 8);
@@ -24,7 +24,7 @@ TEST(DataRecordTokenizerTests, FreeFormatWithEndSpaces) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FREE, true);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
   expected.fields[0] = record.substr(1, 2);
   expected.fields[1] = record.substr(4, 7);
@@ -40,7 +40,7 @@ TEST(DataRecordTokenizerTests, FreeFormatWithoutField1) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FREE, false);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
   expected.fields[1] = record.substr(4, 7);
   expected.fields[2] = record.substr(14, 6);
@@ -56,7 +56,7 @@ TEST(DataRecordTokenizerTests, Comments1) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FREE, true);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
   expected.fields[0] = record.substr(1, 1);
   expected.fields[1] = record.substr(4, 2);
@@ -72,7 +72,7 @@ TEST(DataRecordTokenizerTests, FreeFormatComments2) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FREE, false);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
   expected.fields[1] = record.substr(4, 4);
   expected.fields[2] = record.substr(14, 4);
@@ -88,9 +88,9 @@ TEST(DataRecordTokenizerTests, FixedFormatComments1) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FIXED, true);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
-  expected.fields[0] = record.substr(1, 2);
+  expected.fields[0] = record.substr(1, 1);
   expected.fields[1] = record.substr(4, 8);
 
   expected.comment = record.substr(15, 27);
@@ -104,9 +104,8 @@ TEST(DataRecordTokenizerTests, FixedFormatComments2) {
 
   const auto result = DataRecordTokenizer::parse(record, Format::FIXED, false);
 
-  DataRecordTokens expected;
+  DataRecord expected;
 
-  expected.fields[0] = record.substr(1, 2);
   expected.fields[1] = record.substr(4, 8);
   expected.fields[2] = record.substr(14, 8);
   expected.fields[3] = record.substr(24, 12);

@@ -26,6 +26,11 @@ inline std::string rtrim(std::string s) {
 
 inline std::string trim(std::string s) { return ltrim(rtrim(s)); }
 
+inline bool all_spaces(std::string_view s) {
+  return std::ranges::all_of(
+      s, [](unsigned char c) { return std::isspace(c) != 0; });
+}
+
 std::string join(std::ranges::range auto&& range, std::string_view delimiter) {
   std::string result;
 

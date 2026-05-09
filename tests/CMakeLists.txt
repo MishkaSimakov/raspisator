@@ -29,6 +29,7 @@ target_sources(tests PUBLIC
         accumulators/ArithmeticMeanTests.cpp
 
         mps/DataRecordTokenizerTests.cpp
+        mps/RowsParserTests.cpp
 
         feature/FullProblemSolvingTests.cpp
 )

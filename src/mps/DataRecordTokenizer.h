@@ -4,16 +4,17 @@
 #include <string_view>
 
 #include "Types.h"
+#include "utils/String.h"
 
 namespace mps {
 
 constexpr size_t kFieldsCount = 6;
 
-struct DataRecordTokens {
+struct DataRecord {
   std::array<std::string_view, kFieldsCount> fields;
   std::string_view comment;
 
-  bool operator==(const DataRecordTokens&) const = default;
+  bool operator==(const DataRecord&) const = default;
 };
 
 // Splits MPS data record into fields. Supports both FREE and FIXED format.
@@ -24,9 +25,8 @@ class DataRecordTokenizer {
   constexpr static size_t kFieldStartPos[kFieldsCount] = {1, 4, 14, 24, 39, 49};
   constexpr static size_t kFieldLength[kFieldsCount] = {2, 8, 8, 12, 8, 12};
 
-  static DataRecordTokens parse_fixed(std::string_view record,
-                                      bool has_field_1) {
-    DataRecordTokens result;
+  static DataRecord parse_fixed(std::string_view record, bool has_field_1) {
+    DataRecord result;
 
     for (size_t i = 0; i < kFieldsCount; ++i) {
       const size_t start = kFieldStartPos[i];
@@ -45,19 +45,25 @@ class DataRecordTokenizer {
     }
 
     if (!has_field_1) {
-      for (const char c : result.fields[0]) {
-        if (!is_space(c)) {
-          throw std::runtime_error(
-              "In the current MPS section Field 1 must be empty.");
-        }
+      if (!str::all_spaces(result.fields[0])) {
+        throw std::runtime_error(
+            "In the current MPS section Field 1 must be empty.");
       }
+    }
+
+    // truncate Field 1
+    for (size_t i = 0; i < kFieldLength[0]; ++i) {
+      if (!is_space(result.fields[0].back())) {
+        break;
+      }
+
+      result.fields[0].remove_suffix(1);
     }
 
     return result;
   }
 
-  static DataRecordTokens parse_free(std::string_view record,
-                                     bool has_field_1) {
+  static DataRecord parse_free(std::string_view record, bool has_field_1) {
     std::array<std::string_view, kFieldsCount> fields;
     std::string_view comment;
 
@@ -91,7 +97,7 @@ class DataRecordTokenizer {
       }
     }
 
-    return DataRecordTokens{
+    return DataRecord{
         .fields = fields,
         .comment = comment,
     };
@@ -102,8 +108,12 @@ class DataRecordTokenizer {
   }
 
  public:
-  static DataRecordTokens parse(std::string_view record, Format format,
-                                bool has_field_1) {
+  static DataRecord parse(std::string_view record, Format format,
+                          bool has_field_1) {
+    if (record.empty()) {
+      return DataRecord{};
+    }
+
     if (!is_space(record[0])) {
       throw std::runtime_error("Column 1 in MPS data record must be empty.");
     }

@@ -6,3 +6,4 @@ AlignOperands: true
 InsertNewlineAtEOF: true
 WhitespaceSensitiveMacros:
   - ASSERT_THROW
+IncludeBlocks: Preserve
