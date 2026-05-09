@@ -601,7 +601,7 @@ class Simplex {
     };
   }
 
-  bool lost_primal_feasibility(const Bounds<Field>& bounds) {
+  bool lost_primal_feasibility(const Bounds<Field>& bounds) const {
     auto [n, d] = A_.shape();
 
     for (size_t i = 0; i < n; ++i) {

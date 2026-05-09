@@ -14,8 +14,11 @@
 using Field = double;
 
 int main() {
-  std::unordered_set<std::string> problems = {"AFIRO", "ADLITTLE", "BANDM",
-                                              "BLEND", "PILOT"};
+  std::unordered_set<std::string> problems = {
+    // "SHELL"
+    // "AFIRO", "ADLITTLE", "BANDM",
+                                              // "BLEND", "PILOT"
+  };
 
   auto problems_path = paths::resource("lp_problems");
   for (auto entry : std::filesystem::directory_iterator{problems_path}) {
@@ -28,9 +31,9 @@ int main() {
 
     auto problem_name = path.filename().string();
 
-    if (!problems.contains(problem_name)) {
-      continue;
-    }
+    // if (!problems.contains(problem_name)) {
+      // continue;
+    // }
 
     auto reader = MPSReader<Field>(MPSFieldsMode::FIXED_WIDTH);
     reader.read(entry);

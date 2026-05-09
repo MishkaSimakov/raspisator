@@ -28,6 +28,8 @@ target_sources(tests PUBLIC
         accumulators/ArgMaxTests.cpp
         accumulators/ArithmeticMeanTests.cpp
 
+        mps/DataRecordTokenizerTests.cpp
+
         feature/FullProblemSolvingTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
