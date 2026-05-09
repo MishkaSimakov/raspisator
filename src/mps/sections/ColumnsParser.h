@@ -18,17 +18,22 @@ class ColumnsParser final : public SectionParser<Field> {
 
     const auto itr = state.rows_map.find(row);
     if (itr == state.rows_map.end()) {
-      throw std::runtime_error(std::format("Unknown row name: {}", row));
+      throw std::runtime_error(std::format("Unknown row name: {}.", row));
     }
 
     if (str::all_spaces(record.fields[3 + 2 * index])) {
       throw std::runtime_error("Coefficient must be specified.");
     }
 
-    const size_t row_index = itr->second;
-    state.cols.back().values.emplace_back(
-        row_index,
+    auto [_, inserted] = state.cols.back().values.emplace(
+        itr->second,
         FieldTraits<Field>::from_string(record.fields[3 + 2 * index]));
+
+    if (!inserted) {
+      throw std::runtime_error(std::format("Row {} is duplicated in column {}.",
+                                           state.rows[itr->second].name,
+                                           state.cols.back().name));
+    }
   }
 
  public:
@@ -41,9 +46,7 @@ class ColumnsParser final : public SectionParser<Field> {
       // new column name
       const bool inserted = state.add_col(column_name);
       if (!inserted) {
-        throw std::runtime_error(
-            "After a matrix element is specified for a column, all other "
-            "nonzero elements in that same column should be specified.");
+        throw std::runtime_error("Non-consecutive entries for one column.");
       }
     }
 

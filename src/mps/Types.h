@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -39,7 +40,7 @@ template <typename Field>
 struct Variable {
   std::string name;
 
-  std::vector<std::pair<size_t, Field>> values;
+  std::map<size_t, Field> values;
 
   explicit Variable(std::string_view name) : name(name) {}
 };
