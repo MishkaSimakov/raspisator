@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "linear/model/Bound.h"
+
 namespace mps {
 
 enum class Format { FREE, FIXED };
@@ -39,8 +41,14 @@ struct Row {
 template <typename Field>
 struct Variable {
   std::string name;
-
   std::map<size_t, Field> values;
+
+  Bound<Field> bound = {0, std::nullopt};
+  bool is_integer = false;
+
+  // whether lower or upper bound was already specified in MPS
+  bool lower_specified = false;
+  bool upper_specified = false;
 
   explicit Variable(std::string_view name) : name(name) {}
 };
@@ -57,11 +65,12 @@ struct MPSParsingState {
   std::deque<Variable<Field>> cols;
   std::unordered_map<std::string_view, size_t> cols_map;
 
-  // In MPS multiple RHS and RANGES vectors may be specified, but only the first
-  // one must be selected. These fields capture the name of the first RHS and
-  // RANGES vector.
+  // In MPS multiple RHS, RANGES, and BOUNDS vectors may be specified, but only
+  // the first one must be selected. These fields capture the name of the first
+  // vector name in each section.
   std::optional<std::string> rhs_vector_name = std::nullopt;
   std::optional<std::string> ranges_vector_name = std::nullopt;
+  std::optional<std::string> bounds_vector_name = std::nullopt;
 
   bool add_row(RowSense sense, std::string_view name) {
     const size_t index = rows.size();

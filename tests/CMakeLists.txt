@@ -33,6 +33,7 @@ target_sources(tests PUBLIC
         mps/ColumnsParserTests.cpp
         mps/RHSParserTests.cpp
         mps/RangesParserTests.cpp
+        mps/BoundsParserTests.cpp
 
         feature/FullProblemSolvingTests.cpp
 )

@@ -30,6 +30,8 @@ struct Bound {
   Bound(std::optional<Field> lower, std::optional<Field> upper)
       : lower(lower), upper(upper) {}
 
+  bool operator==(const Bound&) const = default;
+
   Bound& operator+=(const Bound& other) {
     lower = lower && other.lower ? std::optional(*lower + *other.lower)
                                  : std::nullopt;
