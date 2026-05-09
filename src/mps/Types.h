@@ -32,15 +32,17 @@ struct Row {
   Field rhs{0};
   std::optional<Field> range = std::nullopt;
 
-  explicit Row(RowSense type, std::string_view name)
-      : type(type), name(name) {}
+  explicit Row(RowSense type, std::string_view name) : type(type), name(name) {}
 };
 
 template <typename Field>
 struct MPSParsingState {
-  ObjectiveType objective_ = ObjectiveType::MINIMIZE;
+  ObjectiveType objective = ObjectiveType::MINIMIZE;
 
-  std::vector<Row<Field>> rows;
+  // rows_map stores rows via std::string_view. std::vector can reallocate Row,
+  // and that would invalidate std::string_view. Therefore, std::deque is used
+  // instead.
+  std::deque<Row<Field>> rows;
   std::unordered_map<std::string_view, size_t> rows_map;
 };
 
