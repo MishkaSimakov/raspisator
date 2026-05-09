@@ -31,6 +31,7 @@ target_sources(tests PUBLIC
         mps/DataRecordTokenizerTests.cpp
         mps/RowsParserTests.cpp
         mps/ColumnsParserTests.cpp
+        mps/RHSParserTests.cpp
 
         feature/FullProblemSolvingTests.cpp
 )

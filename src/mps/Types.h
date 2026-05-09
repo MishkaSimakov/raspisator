@@ -30,7 +30,7 @@ template <typename Field>
 struct Row {
   RowSense type;
   std::string name;
-  Field rhs{0};
+  std::optional<Field> rhs = std::nullopt;
   std::optional<Field> range = std::nullopt;
 
   Row(RowSense type, std::string_view name) : type(type), name(name) {}
@@ -56,6 +56,10 @@ struct MPSParsingState {
 
   std::deque<Variable<Field>> cols;
   std::unordered_map<std::string_view, size_t> cols_map;
+
+  // In MPS multiple RHS vectors may be specified, but only the first one must
+  // be selected. This field captures the name of the first RHS vector.
+  std::optional<std::string> rhs_vector_name = std::nullopt;
 
   bool add_row(RowSense sense, std::string_view name) {
     const size_t index = rows.size();

@@ -13,7 +13,7 @@ TEST(ColumnsParserTests, SimpleTest) {
   state.add_row(RowSense::EQUAL, "LIM1");
 
   const auto string =
-      "    XONE      COST                 1   LIM1                 1";
+      "    XONE      COST                 1   LIM1                 2";
 
   const auto record =
       DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
@@ -26,7 +26,7 @@ TEST(ColumnsParserTests, SimpleTest) {
 
   std::map<size_t, double> expected = {
       {0, 1},
-      {1, 1},
+      {1, 2},
   };
 
   ASSERT_EQ(state.cols[0].values, expected);
