@@ -88,3 +88,40 @@ TEST(RowsParserTests, MultipleDifferentRows) {
     ASSERT_EQ(state.rows_map.at(string), i);
   }
 }
+
+TEST(RowsParserTests, DifferentRowSenses) {
+  MPSParsingState<double> state;
+  RowsParser<double> parser;
+
+  std::vector<std::pair<std::string, RowSense>> senses = {
+      {"N", RowSense::FREE},
+      {"L", RowSense::LESS_THAN},
+      {"G", RowSense::GREATER_THAN},
+      {"E", RowSense::EQUAL},
+  };
+
+  for (size_t i = 0; i < senses.size(); ++i) {
+    const std::string string = std::format(" {}  ROW{}", senses[i].first, i);
+    const auto record =
+        DataRecordTokenizer::parse(string, Format::FIXED, parser.has_field_1());
+
+    parser.parse(record, state);
+  }
+
+  ASSERT_EQ(state.rows.size(), senses.size());
+
+  for (size_t i = 0; i < senses.size(); ++i) {
+    ASSERT_EQ(state.rows[i].type, senses[i].second);
+  }
+}
+
+TEST(RowsParserTests, TooManyFields) {
+  MPSParsingState<double> state;
+  RowsParser<double> parser;
+
+  const std::string string = " UP INTBOU    N1037AC4            5.";
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FIXED, parser.has_field_1());
+
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}

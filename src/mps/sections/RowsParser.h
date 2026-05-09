@@ -35,13 +35,10 @@ class RowsParser final : public SectionParser<Field> {
   bool has_field_1() const override { return true; }
 
   void parse(const DataRecord& record, MPSParsingState<Field>& state) override {
-    const size_t index = state.rows.size();
     const auto sense = parse_row_sense(record.fields[0]);
     const auto name = record.fields[1];
 
-    const auto& row = state.rows.emplace_back(sense, name);
-
-    auto [itr, inserted] = state.rows_map.emplace(row.name, index);
+    const bool inserted = state.add_row(sense, name);
     if (!inserted) {
       throw std::runtime_error(std::format("Duplicated row name: {}.", name));
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdlib>
 
 template <typename Field>
 struct FieldTraits;
@@ -44,6 +45,10 @@ struct FieldTraits<double> {
   }
 
   static double exp2(int exponent) { return std::exp2(exponent); }
+
+  static double from_string(std::string_view string) {
+    return std::strtod(string.data(), nullptr);
+  }
 };
 
 // template <std::signed_integral T>

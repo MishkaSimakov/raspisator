@@ -1062,6 +1062,15 @@ struct FieldTraits<Rational> {
       return Rational{1} / denominator;
     }
   }
+
+  static Rational from_string(std::string_view string) {
+    Rational result;
+
+    std::stringstream ss(static_cast<std::string>(string));
+    ss >> result;
+
+    return result;
+  }
 };
 
 inline const Rational FieldTraits<Rational>::tolerance = 0;
