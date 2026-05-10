@@ -24,6 +24,21 @@ class MPSParser {
   constexpr static size_t sections_count =
       static_cast<size_t>(SectionType::SECTIONS_COUNT);
 
+  constexpr static SectionType mandatory_sections[] = {
+      SectionType::NAME, SectionType::ROWS,   SectionType::COLUMNS,
+      SectionType::RHS,  SectionType::ENDATA,
+  };
+
+  struct Section {
+    std::unique_ptr<SectionParser<Field>> parser{nullptr};
+    bool visited{false};
+
+    Section() = default;
+
+    explicit Section(std::unique_ptr<SectionParser<Field>> parser)
+        : parser(std::move(parser)) {}
+  };
+
   static bool should_skip_line(std::string_view line) {
     if (line.empty() || line[0] == '*' || line[0] == '$') {
       return true;
@@ -36,26 +51,37 @@ class MPSParser {
     return false;
   }
 
-  static auto init_parsers() {
-    std::array<std::unique_ptr<SectionParser<Field>>, sections_count> parsers;
+  static std::array<Section, sections_count> init_parsers() {
+    std::array<Section, sections_count> parsers;
 
     parsers[static_cast<size_t>(SectionType::ROWS)] =
-        std::make_unique<RowsParser<Field>>();
+        Section(std::make_unique<RowsParser<Field>>());
     parsers[static_cast<size_t>(SectionType::COLUMNS)] =
-        std::make_unique<ColumnsParser<Field>>();
+        Section(std::make_unique<ColumnsParser<Field>>());
     parsers[static_cast<size_t>(SectionType::RHS)] =
-        std::make_unique<RHSParser<Field>>();
+        Section(std::make_unique<RHSParser<Field>>());
     parsers[static_cast<size_t>(SectionType::BOUNDS)] =
-        std::make_unique<BoundsParser<Field>>();
+        Section(std::make_unique<BoundsParser<Field>>());
     parsers[static_cast<size_t>(SectionType::RANGES)] =
-        std::make_unique<RangesParser<Field>>();
+        Section(std::make_unique<RangesParser<Field>>());
 
     return parsers;
   }
 
+  static void check_mandatory_sections(
+      const MPSParsingState<Field>& state,
+      const std::array<Section, sections_count>& sections) {
+    for (const SectionType section : mandatory_sections) {
+      if (!sections[static_cast<size_t>(section)].visited) {
+        throw std::runtime_error(std::format("Section {} is mandatory.",
+                                             section_type_to_string(section)));
+      }
+    }
+  }
+
  public:
   static MPSParsingState<Field> parse(std::istream& is, Format format) {
-    auto parsers = init_parsers();
+    auto sections = init_parsers();
 
     MPSParsingState<Field> state;
 
@@ -72,6 +98,22 @@ class MPSParser {
       if (line[0] != ' ') {
         // indicator record
         const auto record = IndicatorRecordTokenizer::parse(line);
+
+        // check if we visited this type of section before
+        if (sections[static_cast<size_t>(record.type)].visited) {
+          throw std::runtime_error(
+              std::format("Section {} is duplicated.",
+                          section_type_to_string(record.type)));
+        }
+        sections[static_cast<size_t>(record.type)].visited = true;
+
+        // teardown parser for previous section
+        if (current_section != std::nullopt) {
+          auto& section = sections[static_cast<size_t>(*current_section)];
+
+          assert(section.parser != nullptr);
+          section.parser->teardown();
+        }
 
         if (record.type == SectionType::NAME) {
           state.problem_name = record.data;
@@ -95,15 +137,18 @@ class MPSParser {
           throw std::runtime_error("Data record must be inside section.");
         }
 
-        assert(parsers[static_cast<size_t>(*current_section)] != nullptr);
+        auto& section = sections[static_cast<size_t>(*current_section)];
+
+        assert(section.parser != nullptr);
 
         const auto record = DataRecordTokenizer::parse(
-            line, format,
-            parsers[static_cast<size_t>(*current_section)]->has_field_1());
+            line, format, section.parser->has_field_1());
 
-        parsers[static_cast<size_t>(*current_section)]->parse(record, state);
+        section.parser->parse(record, state);
       }
     }
+
+    check_mandatory_sections(state, sections);
 
     return state;
   }

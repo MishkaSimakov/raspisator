@@ -148,3 +148,20 @@ TEST(IntegerVariablesExtensionTests, DuplicatedName2) {
   wrapper << " x3        obj                 -1";
   ASSERT_ANY_THROW({ wrapper << " MARK002   obj                 2"; });
 }
+
+TEST(IntegerVariablesExtensionTests, EmptyIntegerSection) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1";
+  wrapper << " x2        obj                 -1";
+  wrapper << " MARK001  'MARKER'                 'INTORG'";
+  wrapper << " MARK002  'MARKER'                 'INTEND'";
+  wrapper << " x3        obj                 -1";
+
+  ASSERT_FALSE(wrapper.state.cols[0].is_integer);
+  ASSERT_FALSE(wrapper.state.cols[1].is_integer);
+  ASSERT_FALSE(wrapper.state.cols[2].is_integer);
+}

@@ -18,7 +18,6 @@ TEST(MPSParserTests, Simple) {
       "ENDATA";
 
   std::stringstream ss(mps);
-
   const auto state = MPSParser<double>::parse(ss, Format::FREE);
 
   ASSERT_EQ(state.problem_name, "test");
@@ -34,4 +33,55 @@ TEST(MPSParserTests, Simple) {
   ASSERT_EQ(state.cols[0].name, "x1");
   ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, std::nullopt}));
   ASSERT_EQ(state.cols[0].values.at(0), 1);
+}
+
+TEST(MPSParserTests, MissingSection) {
+  // Each section of the MPS file except the RANGES and BOUNDS sections is
+  // mandatory
+  constexpr std::array mandatory_sections = {
+      "NAME hello", "ROWS", "COLUMNS", "RHS", "ENDATA",
+  };
+
+  for (size_t i = 0; i < mandatory_sections.size(); ++i) {
+    // omit i-th section
+    std::string mps;
+    for (size_t j = 0; j < mandatory_sections.size(); ++j) {
+      if (j != i) {
+        mps += mandatory_sections[j];
+        mps += "\n";
+      }
+    }
+
+    std::stringstream ss(mps);
+    ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });
+  }
+}
+
+TEST(MPSParserTests, DuplicatedSection) {
+  std::string mps =
+      "NAME hello\n"
+      "ROWS\n"
+      "COLUMNS\n"
+      "NAME world\n"
+      "ENDATA";
+
+  std::stringstream ss(mps);
+  ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });
+}
+
+TEST(MPSParserTests, MissingIntegerSectionEnd) {
+  std::string mps =
+      "NAME test\n"
+      "ROWS\n"
+      " N obj\n"
+      "COLUMNS\n"
+      "   x1 obj 1\n"
+      "   MARK001 'MARKER' 'INTORG'\n"
+      "   x2 obj -1\n"
+      "RHS\n"
+      "    RHS1 obj 0\n"
+      "ENDATA";
+
+  std::stringstream ss(mps);
+  ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });
 }
