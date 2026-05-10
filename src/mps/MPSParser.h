@@ -111,8 +111,9 @@ class MPSParser {
         if (current_section != std::nullopt) {
           auto& section = sections[static_cast<size_t>(*current_section)];
 
-          assert(section.parser != nullptr);
-          section.parser->teardown();
+          if (section.parser != nullptr) {
+            section.parser->teardown();
+          }
         }
 
         if (record.type == SectionType::NAME) {
@@ -145,6 +146,15 @@ class MPSParser {
             line, format, section.parser->has_field_1());
 
         section.parser->parse(record, state);
+      }
+    }
+
+    // teardown parser for the last section
+    if (current_section != std::nullopt) {
+      auto& section = sections[static_cast<size_t>(*current_section)];
+
+      if (section.parser != nullptr) {
+        section.parser->teardown();
       }
     }
 

@@ -20,7 +20,7 @@ TEST(BoundsParserTests, Simple) {
 
   ASSERT_TRUE(state.cols[0].upper_specified);
   ASSERT_FALSE(state.cols[0].lower_specified);
-  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, 40}));
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, 40}));
 }
 
 TEST(BoundsParserTests, BothLoAndUp) {
@@ -104,7 +104,7 @@ TEST(BoundsParserTests, BothLiAndUp) {
   ASSERT_EQ(state.cols[0].bound, (Bound<double>{10, 37}));
 }
 
-TEST(BoundsParserTests, DefaultBound) {
+TEST(BoundsParserTests, Default) {
   MPSParsingState<double> state;
   BoundsParser<double> parser;
 
@@ -113,7 +113,7 @@ TEST(BoundsParserTests, DefaultBound) {
   ASSERT_FALSE(state.cols[0].lower_specified);
   ASSERT_FALSE(state.cols[0].upper_specified);
   ASSERT_FALSE(state.cols[0].is_integer);
-  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, std::nullopt}));
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, std::nullopt}));
 }
 
 // specified in:
@@ -151,7 +151,7 @@ TEST(BoundsParserTests, NoBoundSwitchForPl) {
   ASSERT_FALSE(state.cols[0].lower_specified);
   ASSERT_TRUE(state.cols[0].upper_specified);
   ASSERT_FALSE(state.cols[0].is_integer);
-  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, std::nullopt}));
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, std::nullopt}));
 }
 
 TEST(BoundsParserTests, UnknownVariable) {
@@ -247,7 +247,7 @@ TEST(BoundsParserTests, UI) {
   ASSERT_FALSE(state.cols[0].lower_specified);
   ASSERT_TRUE(state.cols[0].upper_specified);
   ASSERT_TRUE(state.cols[0].is_integer);
-  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, 42}));
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, 42}));
 }
 
 TEST(BoundsParserTests, MultipleBoundsVectors) {
@@ -276,5 +276,5 @@ TEST(BoundsParserTests, MultipleBoundsVectors) {
   ASSERT_FALSE(state.cols[1].lower_specified);
   ASSERT_FALSE(state.cols[1].upper_specified);
   ASSERT_FALSE(state.cols[1].is_integer);
-  ASSERT_EQ(state.cols[1].bound, (Bound<double>{0, std::nullopt}));
+  ASSERT_EQ(state.cols[1].bound, (Bound<double>{std::nullopt, std::nullopt}));
 }

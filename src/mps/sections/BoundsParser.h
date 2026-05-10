@@ -28,10 +28,6 @@ class BoundsParser final : public SectionParser<Field> {
 
     variable.bound.upper = value;
     variable.upper_specified = true;
-
-    if (!variable.lower_specified && value && *value < 0) {
-      variable.bound.lower = std::nullopt;
-    }
   }
 
   void set_integer(Variable<Field>& variable) { variable.is_integer = true; }

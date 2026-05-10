@@ -67,10 +67,13 @@ struct Variable {
   std::string name;
   std::map<size_t, Field> values;
 
-  Bound<Field> bound = {0, std::nullopt};
   bool is_integer = false;
 
-  // whether lower or upper bound was already specified in MPS
+  // Bound is (std::nullopt, std::nullopt) by default. lower_specified and
+  // upper_specified encode whether lower or upper bound was specified in the
+  // MPS file. Default bound behaviour (e.g. default bound is (0, +inf)) is
+  // later reconstructed through these values.
+  Bound<Field> bound = {std::nullopt, std::nullopt};
   bool lower_specified = false;
   bool upper_specified = false;
 

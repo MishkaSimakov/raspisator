@@ -31,7 +31,7 @@ TEST(MPSParserTests, Simple) {
 
   ASSERT_EQ(state.cols.size(), 1);
   ASSERT_EQ(state.cols[0].name, "x1");
-  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, std::nullopt}));
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, std::nullopt}));
   ASSERT_EQ(state.cols[0].values.at(0), 1);
 }
 
@@ -69,18 +69,12 @@ TEST(MPSParserTests, DuplicatedSection) {
   ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });
 }
 
-TEST(MPSParserTests, MissingIntegerSectionEnd) {
+TEST(MPSParserTests, MissingEndata) {
   std::string mps =
       "NAME test\n"
       "ROWS\n"
-      " N obj\n"
       "COLUMNS\n"
-      "   x1 obj 1\n"
-      "   MARK001 'MARKER' 'INTORG'\n"
-      "   x2 obj -1\n"
-      "RHS\n"
-      "    RHS1 obj 0\n"
-      "ENDATA";
+      "RHS\n";
 
   std::stringstream ss(mps);
   ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "mps/MPSParser.h"
 #include "mps/sections/ColumnsParser.h"
 
 using namespace mps;
@@ -164,4 +165,21 @@ TEST(IntegerVariablesExtensionTests, EmptyIntegerSection) {
   ASSERT_FALSE(wrapper.state.cols[0].is_integer);
   ASSERT_FALSE(wrapper.state.cols[1].is_integer);
   ASSERT_FALSE(wrapper.state.cols[2].is_integer);
+}
+
+TEST(IntegerVariablesExtensionTests, MissingIntegerSectionEnd) {
+  std::string mps =
+      "NAME test\n"
+      "ROWS\n"
+      " N obj\n"
+      "COLUMNS\n"
+      "   x1 obj 1\n"
+      "   MARK001 'MARKER' 'INTORG'\n"
+      "   x2 obj -1\n"
+      "RHS\n"
+      "    RHS1 obj 0\n"
+      "ENDATA";
+
+  std::stringstream ss(mps);
+  ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });
 }
