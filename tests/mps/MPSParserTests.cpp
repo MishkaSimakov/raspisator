@@ -62,7 +62,7 @@ TEST(MPSParserTests, DuplicatedSection) {
       "NAME hello\n"
       "ROWS\n"
       "COLUMNS\n"
-      "NAME world\n"
+      "ROWS\n"
       "ENDATA";
 
   std::stringstream ss(mps);
@@ -78,4 +78,21 @@ TEST(MPSParserTests, MissingEndata) {
 
   std::stringstream ss(mps);
   ASSERT_ANY_THROW({ MPSParser<double>::parse(ss, Format::FREE); });
+}
+
+// Duplicate NAME shouldn't cause error, because some SIF files contain
+// duplicated NAME section (SCSD6.SIF)
+TEST(MPSParserTests, DuplicateName) {
+  std::string mps =
+      "NAME test1\n"
+      "NAME test2\n"
+      "ROWS\n"
+      "COLUMNS\n"
+      "RHS\n"
+      "ENDATA";
+
+  std::stringstream ss(mps);
+  auto state = MPSParser<double>::parse(ss, Format::FREE);
+
+  ASSERT_EQ(state.problem_name, "test2");
 }

@@ -99,6 +99,13 @@ class MPSParser {
         // indicator record
         const auto record = IndicatorRecordTokenizer::parse(line);
 
+        // NAME section may be duplicated
+        if (record.type == SectionType::NAME) {
+          sections[static_cast<size_t>(record.type)].visited = true;
+          state.problem_name = record.data;
+          continue;
+        }
+
         // check if we visited this type of section before
         if (sections[static_cast<size_t>(record.type)].visited) {
           throw std::runtime_error(
@@ -114,11 +121,6 @@ class MPSParser {
           if (section.parser != nullptr) {
             section.parser->teardown();
           }
-        }
-
-        if (record.type == SectionType::NAME) {
-          state.problem_name = record.data;
-          continue;
         }
 
         if (!record.data.empty()) {

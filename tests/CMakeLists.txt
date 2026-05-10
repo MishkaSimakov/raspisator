@@ -37,6 +37,7 @@ target_sources(tests PUBLIC
         mps/BoundsParserTests.cpp
         mps/MPSParserTests.cpp
         mps/IntegerVariablesExtensionTests.cpp
+        mps/MPSTests.cpp
 
         feature/FullProblemSolvingTests.cpp
 )

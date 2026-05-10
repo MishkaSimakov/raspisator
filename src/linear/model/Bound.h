@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include <optional>
 
 #include "linear/FieldTraits.h"
