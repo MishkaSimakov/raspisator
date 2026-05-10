@@ -15,9 +15,12 @@ class ColumnsParser final : public SectionParser<Field> {
     INTEGER_END,
   };
 
-  constexpr static std::string marker_string = "'MARKER'";
+  constexpr static std::string_view marker_string = "'MARKER'";
 
   bool is_inside_integer_ = false;
+
+  // after begin or end of integer section, column must be changed
+  bool must_change_column_ = false;
 
   void parse_coefficient(const DataRecord& record,
                          MPSParsingState<Field>& state, size_t index) {
@@ -56,8 +59,18 @@ class ColumnsParser final : public SectionParser<Field> {
     throw std::runtime_error(std::format("Unknown marker type: {}.", type));
   }
 
-  void parse_marker(const DataRecord& record) {
+  void parse_marker(const DataRecord& record, MPSParsingState<Field>& state) {
     const auto name = record.fields[1];
+
+    if (state.cols_map.contains(name)) {
+      throw std::runtime_error(
+          std::format("Marker name must differ from the preceding and "
+                      "succeeding column names. Name {} is duplicated.",
+                      name));
+    }
+
+    state.markers.insert(std::string(name));
+
     const auto type = parse_marker_type(record.fields[3]);
 
     switch (type) {
@@ -69,6 +82,7 @@ class ColumnsParser final : public SectionParser<Field> {
         }
 
         is_inside_integer_ = true;
+        must_change_column_ = true;
         break;
       case MarkerType::INTEGER_END:
         if (!is_inside_integer_) {
@@ -77,30 +91,40 @@ class ColumnsParser final : public SectionParser<Field> {
         }
 
         is_inside_integer_ = false;
+        must_change_column_ = true;
         break;
       default:
         throw std::runtime_error("Unknown marker type.");
     }
   }
 
- public:
-  bool has_field_1() const override { return false; }
+  void parse_column(const DataRecord& record, MPSParsingState<Field>& state) {
+    const auto name = record.fields[1];
 
-  void parse(const DataRecord& record, MPSParsingState<Field>& state) override {
-    if (record.fields[2] == marker_string) {
-      parse_marker(record);
-      return;
+    if (state.markers.contains(name)) {
+      throw std::runtime_error(
+          std::format("Marker name must differ from the preceding and "
+                      "succeeding column names. Name {} is duplicated.",
+                      name));
     }
 
-    const auto column_name = record.fields[1];
+    if (must_change_column_ && !state.cols.empty() &&
+        state.cols.back().name == name) {
+      throw std::runtime_error(
+          std::format("Data records for column {} exist both inside and "
+                      "outside of integer section.",
+                      name));
+    }
 
-    if (state.cols.empty() || state.cols.back().name != column_name) {
+    if (state.cols.empty() || state.cols.back().name != name) {
       // new column name
-      const bool inserted = state.add_col(column_name);
+      const bool inserted = state.add_col(name);
       if (!inserted) {
         throw std::runtime_error(
-            std::format("Non-consecutive entries for column {}.", column_name));
+            std::format("Non-consecutive entries for column {}.", name));
       }
+
+      must_change_column_ = false;
     }
 
     if (is_inside_integer_) {
@@ -116,6 +140,23 @@ class ColumnsParser final : public SectionParser<Field> {
 
     if (!str::all_spaces(record.fields[4])) {
       parse_coefficient(record, state, 1);
+    }
+  }
+
+ public:
+  bool has_field_1() const override { return false; }
+
+  void parse(const DataRecord& record, MPSParsingState<Field>& state) override {
+    if (record.fields[2] == marker_string) {
+      parse_marker(record, state);
+    } else {
+      parse_column(record, state);
+    }
+  }
+
+  void teardown() override {
+    if (is_inside_integer_) {
+      throw std::runtime_error("Integer section is not closed.");
     }
   }
 };

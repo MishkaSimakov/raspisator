@@ -12,6 +12,8 @@ class SectionParser {
   virtual void parse(const DataRecord& record,
                      MPSParsingState<Field>& state) = 0;
 
+  virtual void teardown() {}
+
   virtual ~SectionParser() = default;
 };
 

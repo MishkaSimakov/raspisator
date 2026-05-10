@@ -4,37 +4,147 @@
 
 using namespace mps;
 
-template <typename Field>
-void apply_parser(SectionParser<Field>& parser, MPSParsingState<Field>& state,
-                  std::string string) {
-  const auto record =
-      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
-  parser.parse(record, state);
-}
+template <typename Field, typename Parser>
+struct ParserTestWrapper {
+  Parser parser;
+  MPSParsingState<Field> state;
+  Format format;
+
+  explicit ParserTestWrapper(Format format) : format(format) {}
+
+  friend ParserTestWrapper& operator<<(ParserTestWrapper& wrapper,
+                                       std::string_view string) {
+    const auto record = DataRecordTokenizer::parse(
+        string, wrapper.format, wrapper.parser.has_field_1());
+
+    wrapper.parser.parse(record, wrapper.state);
+
+    return wrapper;
+  }
+};
 
 TEST(IntegerVariablesExtensionTests, Simple) {
-  MPSParsingState<double> state;
-  ColumnsParser<double> parser;
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
 
-  state.add_row(RowSense::FREE, "obj");
-  state.add_row(RowSense::LESS_THAN, "c1");
-  state.add_row(RowSense::LESS_THAN, "c2");
-  state.add_row(RowSense::EQUAL, "c3");
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::LESS_THAN, "c1");
+  wrapper.state.add_row(RowSense::LESS_THAN, "c2");
+  wrapper.state.add_row(RowSense::EQUAL, "c3");
 
-  apply_parser(parser, state,
-               " x1        obj                 -1   c1                  -1");
+  wrapper << " x1        obj                 -1   c1                  -1";
+  wrapper << " MARK0000  'MARKER'                 'INTORG'";
+  wrapper << " x4        obj                 -1   c1                  10";
+  wrapper << " x4        c3                -3.5";
+  wrapper << " MARK0001  'MARKER'                 'INTEND'";
 
-  apply_parser(parser, state, " MARK0000  'MARKER'                 'INTORG'");
+  ASSERT_EQ(wrapper.state.cols[0].name, "x1");
+  ASSERT_FALSE(wrapper.state.cols[0].is_integer);
 
-  apply_parser(parser, state,
-               " x4        obj                 -1   c1                  10");
+  ASSERT_EQ(wrapper.state.cols[1].name, "x4");
+  ASSERT_TRUE(wrapper.state.cols[1].is_integer);
+}
 
-  apply_parser(parser, state, " x4        c3                -3.5");
-  apply_parser(parser, state, " MARK0001  'MARKER'                 'INTEND'");
+TEST(IntegerVariablesExtensionTests, IntegerSectionNotClosed) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
 
-  ASSERT_EQ(state.cols[0].name, "x1");
-  ASSERT_FALSE(state.cols[0].is_integer);
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::LESS_THAN, "c1");
+  wrapper.state.add_row(RowSense::LESS_THAN, "c2");
+  wrapper.state.add_row(RowSense::EQUAL, "c3");
 
-  ASSERT_EQ(state.cols[1].name, "x4");
-  ASSERT_TRUE(state.cols[1].is_integer);
+  wrapper << " x1        obj                 -1   c1                  -1";
+  wrapper << " MARK0000  'MARKER'                 'INTORG'";
+  wrapper << " x4        obj                 -1   c1                  10";
+  wrapper << " x4        c3                -3.5";
+
+  // should throw because integer section was never closed
+  ASSERT_ANY_THROW({ wrapper.parser.teardown(); });
+}
+
+TEST(IntegerVariablesExtensionTests, ClosedBeforeOpened) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1   c1                  -1";
+
+  ASSERT_ANY_THROW(
+      { wrapper << " MARK0000  'MARKER'                 'INTEND'"; });
+}
+
+TEST(IntegerVariablesExtensionTests, ClosedBeforeOpened2) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1   c1                  -1";
+  wrapper << " MARK0000  'MARKER'                 'INTORG'";
+  wrapper << " MARK0001  'MARKER'                 'INTEND'";
+
+  ASSERT_ANY_THROW(
+      { wrapper << " MARK0002  'MARKER'                 'INTEND'"; });
+}
+
+TEST(IntegerVariablesExtensionTests, DoubleOpening) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1   c1                  -1";
+  wrapper << " MARK0000  'MARKER'                 'INTORG'";
+
+  ASSERT_ANY_THROW(
+      { wrapper << " MARK0001  'MARKER'                 'INTORG'"; });
+}
+
+TEST(IntegerVariablesExtensionTests, ColumnBothIntegerAndReal1) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1";
+  wrapper << " MARK0000  'MARKER'                 'INTORG'";
+
+  ASSERT_ANY_THROW({ wrapper << "  x1        c1                  -1"; });
+}
+
+TEST(IntegerVariablesExtensionTests, ColumnBothIntegerAndReal2) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " MARK0000  'MARKER'                 'INTORG'";
+  wrapper << "  x1        obj                  -1";
+  wrapper << " MARK0000  'MARKER'                 'INTEND'";
+  ASSERT_ANY_THROW({ wrapper << "  x1        c1                  -1"; });
+}
+
+TEST(IntegerVariablesExtensionTests, DuplicatedName1) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1";
+  wrapper << " x2        obj                 -1";
+  ASSERT_ANY_THROW({ wrapper << " x1  'MARKER'                 'INTORG'"; });
+}
+
+TEST(IntegerVariablesExtensionTests, DuplicatedName2) {
+  ParserTestWrapper<double, ColumnsParser<double>> wrapper(Format::FREE);
+
+  wrapper.state.add_row(RowSense::FREE, "obj");
+  wrapper.state.add_row(RowSense::FREE, "c1");
+
+  wrapper << " x1        obj                 -1";
+  wrapper << " x2        obj                 -1";
+  wrapper << " MARK001  'MARKER'                 'INTORG'";
+  wrapper << " MARK002  'MARKER'                 'INTEND'";
+  wrapper << " x3        obj                 -1";
+  ASSERT_ANY_THROW({ wrapper << " MARK002   obj                 2"; });
 }

@@ -3,8 +3,10 @@
 #include <deque>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "linear/model/Bound.h"
@@ -95,6 +97,12 @@ struct MPSParsingState {
   std::optional<std::string> rhs_vector_name = std::nullopt;
   std::optional<std::string> ranges_vector_name = std::nullopt;
   std::optional<std::string> bounds_vector_name = std::nullopt;
+
+  // Markers names must differ from all columns names. This field records all
+  // markers names.
+  // Ordered set is used to allow for transparent comparator. This allows to
+  // call find with std::string_view.
+  std::set<std::string, std::less<>> markers;
 
   bool add_row(RowSense sense, std::string_view name) {
     const size_t index = rows.size();

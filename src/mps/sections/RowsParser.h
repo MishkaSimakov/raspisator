@@ -27,7 +27,7 @@ class RowsParser final : public SectionParser<Field> {
       case 'N':
         return RowSense::FREE;
       default:
-        throw std::runtime_error(std::format("Unknown row sense.", sense));
+        throw std::runtime_error(std::format("Unknown row sense: {}.", sense));
     }
   }
 

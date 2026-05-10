@@ -95,6 +95,8 @@ class MPSParser {
           throw std::runtime_error("Data record must be inside section.");
         }
 
+        assert(parsers[static_cast<size_t>(*current_section)] != nullptr);
+
         const auto record = DataRecordTokenizer::parse(
             line, format,
             parsers[static_cast<size_t>(*current_section)]->has_field_1());
