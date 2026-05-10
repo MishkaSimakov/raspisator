@@ -135,3 +135,146 @@ TEST(BoundsParserTests, DefaultBoundSwitch) {
   ASSERT_FALSE(state.cols[0].is_integer);
   ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, -37}));
 }
+
+TEST(BoundsParserTests, NoBoundSwitchForPl) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("JCH3TGBE");
+
+  const auto string = " PL BOUND     JCH3TGBE           -37.";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  parser.parse(record, state);
+
+  ASSERT_FALSE(state.cols[0].lower_specified);
+  ASSERT_TRUE(state.cols[0].upper_specified);
+  ASSERT_FALSE(state.cols[0].is_integer);
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, std::nullopt}));
+}
+
+TEST(BoundsParserTests, UnknownVariable) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("x");
+
+  const auto string = " UP BOUND     JCH3TGBE           -37.";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}
+
+TEST(BoundsParserTests, FR) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("JCH3TGBE");
+
+  const auto string = " FR BOUND     JCH3TGBE";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  parser.parse(record, state);
+
+  ASSERT_TRUE(state.cols[0].lower_specified);
+  ASSERT_TRUE(state.cols[0].upper_specified);
+  ASSERT_FALSE(state.cols[0].is_integer);
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, std::nullopt}));
+}
+
+TEST(BoundsParserTests, BV) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("JCH3TGBE");
+
+  const auto string = " BV BOUND     JCH3TGBE";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  parser.parse(record, state);
+
+  ASSERT_TRUE(state.cols[0].lower_specified);
+  ASSERT_TRUE(state.cols[0].upper_specified);
+  ASSERT_TRUE(state.cols[0].is_integer);
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, 1}));
+}
+
+TEST(BoundsParserTests, PlAndMi) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("JCH3TGBE");
+
+  {
+    const auto string = " PL BOUND     JCH3TGBE";
+
+    const auto record =
+        DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+    parser.parse(record, state);
+  }
+
+  {
+    const auto string = " MI BOUND     JCH3TGBE";
+
+    const auto record =
+        DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+    parser.parse(record, state);
+  }
+
+  ASSERT_TRUE(state.cols[0].lower_specified);
+  ASSERT_TRUE(state.cols[0].upper_specified);
+  ASSERT_FALSE(state.cols[0].is_integer);
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, std::nullopt}));
+}
+
+TEST(BoundsParserTests, UI) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("JCH3TGBE");
+
+  const auto string = " UI BOUND     JCH3TGBE 42";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  parser.parse(record, state);
+
+  ASSERT_FALSE(state.cols[0].lower_specified);
+  ASSERT_TRUE(state.cols[0].upper_specified);
+  ASSERT_TRUE(state.cols[0].is_integer);
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{0, 42}));
+}
+
+TEST(BoundsParserTests, MultipleBoundsVectors) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("x1");
+  state.add_col("x2");
+
+  {
+    const auto string = " UP BOUND1     x1 42";
+
+    const auto record =
+        DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+    parser.parse(record, state);
+  }
+
+  {
+    const auto string = " UP BOUND2     x2 43";
+
+    const auto record =
+        DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+    parser.parse(record, state);
+  }
+
+  ASSERT_FALSE(state.cols[1].lower_specified);
+  ASSERT_FALSE(state.cols[1].upper_specified);
+  ASSERT_FALSE(state.cols[1].is_integer);
+  ASSERT_EQ(state.cols[1].bound, (Bound<double>{0, std::nullopt}));
+}

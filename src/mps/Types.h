@@ -25,6 +25,28 @@ enum class SectionType {
   // this value must always be the last one
   SECTIONS_COUNT
 };
+
+inline std::string section_type_to_string(SectionType type) {
+  switch (type) {
+    case SectionType::NAME:
+      return "NAME";
+    case SectionType::ROWS:
+      return "ROWS";
+    case SectionType::COLUMNS:
+      return "COLUMNS";
+    case SectionType::RHS:
+      return "RHS";
+    case SectionType::RANGES:
+      return "RANGES";
+    case SectionType::BOUNDS:
+      return "BOUNDS";
+    case SectionType::ENDATA:
+      return "ENDATA";
+    default:
+      return "<UNKNOWN>";
+  }
+}
+
 enum class ObjectiveType { MINIMIZE, MAXIMIZE };
 enum class RowSense { LESS_THAN, GREATER_THAN, EQUAL, FREE };
 
@@ -55,6 +77,8 @@ struct Variable {
 
 template <typename Field>
 struct MPSParsingState {
+  std::string problem_name;
+
   ObjectiveType objective = ObjectiveType::MINIMIZE;
 
   // Row name is owned by Row class. std::deque never reallocates them.

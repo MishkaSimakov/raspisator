@@ -14,7 +14,7 @@ template <typename Field>
 class RowsParser final : public SectionParser<Field> {
   static RowSense parse_row_sense(std::string_view sense) {
     if (sense.size() != 1) {
-      throw std::runtime_error("Unknown row sense.");
+      throw std::runtime_error(std::format("Unknown row sense: {}.", sense));
     }
 
     switch (sense[0]) {
@@ -27,7 +27,7 @@ class RowsParser final : public SectionParser<Field> {
       case 'N':
         return RowSense::FREE;
       default:
-        throw std::runtime_error("Unknown row sense.");
+        throw std::runtime_error(std::format("Unknown row sense.", sense));
     }
   }
 

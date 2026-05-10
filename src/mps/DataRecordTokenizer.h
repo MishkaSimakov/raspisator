@@ -53,7 +53,7 @@ class DataRecordTokenizer {
 
     // truncate Field 1
     for (size_t i = 0; i < kFieldLength[0]; ++i) {
-      if (!is_space(result.fields[0].back())) {
+      if (!str::is_space(result.fields[0].back())) {
         break;
       }
 
@@ -71,7 +71,7 @@ class DataRecordTokenizer {
     size_t current_field_begin = 0;
 
     for (size_t i = 0; i < record.size(); ++i) {
-      if (i > 0 && !is_space(record[i]) && is_space(record[i - 1])) {
+      if (i > 0 && !str::is_space(record[i]) && str::is_space(record[i - 1])) {
         // field begin
 
         if (current_field_index >= kFieldsCount) {
@@ -87,8 +87,8 @@ class DataRecordTokenizer {
         current_field_begin = i;
       }
 
-      if (!is_space(record[i]) &&
-          (i + 1 == record.size() || is_space(record[i + 1]))) {
+      if (!str::is_space(record[i]) &&
+          (i + 1 == record.size() || str::is_space(record[i + 1]))) {
         // field end
         fields[current_field_index] =
             record.substr(current_field_begin, i - current_field_begin + 1);
@@ -103,10 +103,6 @@ class DataRecordTokenizer {
     };
   }
 
-  static bool is_space(char symbol) {
-    return std::isspace(static_cast<unsigned char>(symbol)) != 0;
-  }
-
  public:
   static DataRecord parse(std::string_view record, Format format,
                           bool has_field_1) {
@@ -114,7 +110,7 @@ class DataRecordTokenizer {
       return DataRecord{};
     }
 
-    if (!is_space(record[0])) {
+    if (!str::is_space(record[0])) {
       throw std::runtime_error("Column 1 in MPS data record must be empty.");
     }
 

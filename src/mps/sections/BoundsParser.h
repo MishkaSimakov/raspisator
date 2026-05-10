@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
-#include <string>
+#include <optional>
+#include <string_view>
 
 #include "SectionParser.h"
 #include "linear/model/Bound.h"
@@ -9,7 +9,7 @@
 namespace mps {
 
 template <typename Field>
-class BoundsParser final : SectionParser<Field> {
+class BoundsParser final : public SectionParser<Field> {
   void set_lower(Variable<Field>& variable, std::optional<Field> value) {
     if (variable.lower_specified) {
       throw std::runtime_error(std::format(
@@ -29,7 +29,7 @@ class BoundsParser final : SectionParser<Field> {
     variable.bound.upper = value;
     variable.upper_specified = true;
 
-    if (!variable.lower_specified && value < 0) {
+    if (!variable.lower_specified && value && *value < 0) {
       variable.bound.lower = std::nullopt;
     }
   }
@@ -65,7 +65,7 @@ class BoundsParser final : SectionParser<Field> {
       set_lower(variable, std::nullopt);
     } else if (type == "PL") {
       set_upper(variable, std::nullopt);
-    } else if (type == "BF") {
+    } else if (type == "BV") {
       set_lower(variable, 0);
       set_upper(variable, 1);
       set_integer(variable);
