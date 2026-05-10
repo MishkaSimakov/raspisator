@@ -52,11 +52,10 @@ class DataRecordTokenizer {
     }
 
     // truncate Field 1
-    for (size_t i = 0; i < kFieldLength[0]; ++i) {
-      if (!str::is_space(result.fields[0].back())) {
-        break;
-      }
-
+    while (!result.fields[0].empty() && str::is_space(result.fields[0].front())) {
+      result.fields[0].remove_prefix(1);
+    }
+    while (!result.fields[0].empty() && str::is_space(result.fields[0].back())) {
       result.fields[0].remove_suffix(1);
     }
 

@@ -96,3 +96,21 @@ TEST(MPSParserTests, DuplicateName) {
 
   ASSERT_EQ(state.problem_name, "test2");
 }
+
+// From QAP8.SIF
+TEST(MPSParserTests, FixedFormatShortRow) {
+  std::string mps =
+      "NAME test\n"
+      "ROWS\n"
+      "  N NOBJ\n"
+      "COLUMNS\n"
+      "    Y001A001  NOBJ            10.0\n"
+      "RHS\n"
+      "ENDATA";
+
+  std::stringstream ss(mps);
+  auto state = MPSParser<double>::parse(ss, Format::FIXED);
+
+  ASSERT_EQ(state.rows[0].name, "NOBJ    ");
+  ASSERT_EQ(state.cols[0].values.size(), 1);
+}

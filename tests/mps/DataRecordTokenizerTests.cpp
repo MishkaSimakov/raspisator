@@ -114,3 +114,19 @@ TEST(DataRecordTokenizerTests, FixedFormatComments2) {
 
   ASSERT_EQ(expected, result);
 }
+
+TEST(DataRecordTokenizerTests, FixedFormatRowSenseTrimming1) {
+  std::string_view record = " N  x1";
+
+  const auto result = DataRecordTokenizer::parse(record, Format::FIXED, true);
+
+  ASSERT_EQ(result.fields[0], record.substr(1, 1));
+}
+
+TEST(DataRecordTokenizerTests, FixedFormatRowSenseTrimming2) {
+  std::string_view record = "  N x1";
+
+  const auto result = DataRecordTokenizer::parse(record, Format::FIXED, true);
+
+  ASSERT_EQ(result.fields[0], record.substr(2, 1));
+}

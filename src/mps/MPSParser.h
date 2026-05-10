@@ -85,69 +85,85 @@ class MPSParser {
 
     MPSParsingState<Field> state;
 
+    size_t row_index = 0;
     std::string line;
     std::optional<SectionType> current_section = std::nullopt;
 
     while (std::getline(is, line)) {
+      if (format == Format::FIXED) {
+        line.resize(std::max(line.size(), 61uz), ' ');
+      }
+
+      ++row_index;
+
       if (should_skip_line(line)) {
         continue;
       }
 
       assert(!line.empty() && "empty line should've been skipped");
 
-      if (line[0] != ' ') {
-        // indicator record
-        const auto record = IndicatorRecordTokenizer::parse(line);
+      try {
+        if (line[0] != ' ') {
+          // indicator record
+          const auto record = IndicatorRecordTokenizer::parse(line);
 
-        // NAME section may be duplicated
-        if (record.type == SectionType::NAME) {
+          // NAME section may be duplicated
+          if (record.type == SectionType::NAME) {
+            sections[static_cast<size_t>(record.type)].visited = true;
+            state.problem_name = record.data;
+            continue;
+          }
+
+          // check if we visited this type of section before
+          if (sections[static_cast<size_t>(record.type)].visited) {
+            throw std::runtime_error(
+                std::format("Section {} is duplicated.",
+                            section_type_to_string(record.type)));
+          }
           sections[static_cast<size_t>(record.type)].visited = true;
-          state.problem_name = record.data;
-          continue;
-        }
 
-        // check if we visited this type of section before
-        if (sections[static_cast<size_t>(record.type)].visited) {
-          throw std::runtime_error(
-              std::format("Section {} is duplicated.",
-                          section_type_to_string(record.type)));
-        }
-        sections[static_cast<size_t>(record.type)].visited = true;
+          // teardown parser for previous section
+          if (current_section != std::nullopt) {
+            auto& section = sections[static_cast<size_t>(*current_section)];
 
-        // teardown parser for previous section
-        if (current_section != std::nullopt) {
+            if (section.parser != nullptr) {
+              section.parser->teardown();
+            }
+          }
+
+          if (!record.data.empty()) {
+            throw std::runtime_error(std::format(
+                "Indicator record of type {} doesn't accept additional data.",
+                section_type_to_string(record.type)));
+          }
+
+          if (record.type == SectionType::ENDATA) {
+            break;
+          }
+
+          current_section = record.type;
+        } else {
+          // data record
+          if (!current_section.has_value()) {
+            throw std::runtime_error("Data record must be inside section.");
+          }
+
           auto& section = sections[static_cast<size_t>(*current_section)];
 
-          if (section.parser != nullptr) {
-            section.parser->teardown();
-          }
+          assert(section.parser != nullptr);
+
+          const auto record = DataRecordTokenizer::parse(
+              line, format, section.parser->has_field_1());
+
+          section.parser->parse(record, state);
         }
+      } catch (...) {
+        // TODO: add MPSException class, store row inside it
+        std::cerr << std::format("Error while parsing MPS on line {}.",
+                                 row_index)
+                  << std::endl;
 
-        if (!record.data.empty()) {
-          throw std::runtime_error(std::format(
-              "Indicator record of type {} doesn't accept additional data.",
-              section_type_to_string(record.type)));
-        }
-
-        if (record.type == SectionType::ENDATA) {
-          break;
-        }
-
-        current_section = record.type;
-      } else {
-        // data record
-        if (!current_section.has_value()) {
-          throw std::runtime_error("Data record must be inside section.");
-        }
-
-        auto& section = sections[static_cast<size_t>(*current_section)];
-
-        assert(section.parser != nullptr);
-
-        const auto record = DataRecordTokenizer::parse(
-            line, format, section.parser->has_field_1());
-
-        section.parser->parse(record, state);
+        throw;
       }
     }
 
