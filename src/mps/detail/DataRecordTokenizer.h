@@ -4,9 +4,10 @@
 #include <string_view>
 
 #include "Types.h"
+#include "mps/Format.h"
 #include "utils/String.h"
 
-namespace mps {
+namespace mps::detail {
 
 constexpr size_t kFieldsCount = 6;
 
@@ -52,10 +53,12 @@ class DataRecordTokenizer {
     }
 
     // truncate Field 1
-    while (!result.fields[0].empty() && str::is_space(result.fields[0].front())) {
+    while (!result.fields[0].empty() &&
+           str::is_space(result.fields[0].front())) {
       result.fields[0].remove_prefix(1);
     }
-    while (!result.fields[0].empty() && str::is_space(result.fields[0].back())) {
+    while (!result.fields[0].empty() &&
+           str::is_space(result.fields[0].back())) {
       result.fields[0].remove_suffix(1);
     }
 
@@ -124,4 +127,4 @@ class DataRecordTokenizer {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

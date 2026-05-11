@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "mps/Types.h"
-#include "mps/sections/ColumnsParser.h"
+#include "mps/Format.h"
+#include "mps/detail/Types.h"
+#include "mps/detail/sections/ColumnsParser.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 TEST(ColumnsParserTests, SimpleTest) {
   MPSParsingState<double> state;

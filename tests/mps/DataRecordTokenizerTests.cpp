@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "mps/DataRecordTokenizer.h"
+#include "mps/detail/DataRecordTokenizer.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 TEST(DataRecordTokenizerTests, FreeFormatWithoutEndSpaces) {
   std::string_view record = " UP BOUNDROW  DD1CLIND          .001";

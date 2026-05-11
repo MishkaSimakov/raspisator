@@ -1,8 +1,8 @@
 #pragma once
 
-#include "mps/DataRecordTokenizer.h"
+#include "mps/detail/DataRecordTokenizer.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
 class SectionParser {
@@ -17,4 +17,4 @@ class SectionParser {
   virtual ~SectionParser() = default;
 };
 
-}  // namespace mps
+}  // namespace mps::detail

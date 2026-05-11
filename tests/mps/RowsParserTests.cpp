@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "mps/Types.h"
-#include "mps/sections/RowsParser.h"
+#include "mps/detail/Types.h"
+#include "mps/detail/sections/RowsParser.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 TEST(RowsParserTests, SimpleTest) {
   MPSParsingState<double> state;

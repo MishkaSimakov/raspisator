@@ -6,7 +6,7 @@
 #include "SectionParser.h"
 #include "linear/model/Bound.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
 class BoundsParser final : public SectionParser<Field> {
@@ -117,4 +117,4 @@ class BoundsParser final : public SectionParser<Field> {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

@@ -8,6 +8,7 @@
 #include "DataRecordTokenizer.h"
 #include "IndicatorRecordTokenizer.h"
 #include "Types.h"
+#include "mps/Format.h"
 #include "utils/String.h"
 
 #include "sections/BoundsParser.h"
@@ -17,7 +18,7 @@
 #include "sections/RowsParser.h"
 #include "sections/SectionParser.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
 class MPSParser {
@@ -191,4 +192,4 @@ class MPSParser {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

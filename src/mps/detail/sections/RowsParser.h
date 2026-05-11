@@ -8,7 +8,7 @@
 #include "SectionParser.h"
 #include "utils/String.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
 class RowsParser final : public SectionParser<Field> {
@@ -51,4 +51,4 @@ class RowsParser final : public SectionParser<Field> {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

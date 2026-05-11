@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "mps/MPSParser.h"
-#include "mps/sections/ColumnsParser.h"
+#include "mps/detail/MPSParser.h"
+#include "mps/detail/sections/ColumnsParser.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 template <typename Field, typename Parser>
 struct ParserTestWrapper {

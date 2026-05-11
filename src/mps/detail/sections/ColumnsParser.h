@@ -6,7 +6,7 @@
 #include "SectionParser.h"
 #include "linear/FieldTraits.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
 class ColumnsParser final : public SectionParser<Field> {
@@ -161,4 +161,4 @@ class ColumnsParser final : public SectionParser<Field> {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

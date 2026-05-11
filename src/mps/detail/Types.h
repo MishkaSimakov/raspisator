@@ -7,13 +7,10 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 #include "linear/model/Bound.h"
 
-namespace mps {
-
-enum class Format { FREE, FIXED };
+namespace mps::detail {
 
 enum class SectionType {
   NAME = 0,

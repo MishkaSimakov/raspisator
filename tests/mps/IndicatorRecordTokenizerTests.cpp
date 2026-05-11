@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "mps/IndicatorRecordTokenizer.h"
+#include "mps/detail/IndicatorRecordTokenizer.h"
 
-using namespace mps;
+using namespace mps::detail;
 
 TEST(IndicatorRecordTokenizerTests, Simple) {
   const std::string line = "NAME hello world";

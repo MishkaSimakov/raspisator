@@ -2,9 +2,10 @@
 
 #include <sstream>
 
-#include "mps/MPSParser.h"
+#include "mps/detail/MPSParser.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 TEST(MPSParserTests, Simple) {
   std::string mps =

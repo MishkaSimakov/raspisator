@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "mps/DataRecordTokenizer.h"
-#include "mps/Types.h"
-#include "mps/sections/BoundsParser.h"
+#include "mps/detail/DataRecordTokenizer.h"
+#include "mps/detail/Types.h"
+#include "mps/detail/sections/BoundsParser.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 TEST(BoundsParserTests, Simple) {
   MPSParsingState<double> state;

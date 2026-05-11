@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "mps/Types.h"
-#include "mps/sections/RangesParser.h"
+#include "mps/Format.h"
+#include "mps/detail/Types.h"
+#include "mps/detail/sections/RangesParser.h"
 
+using namespace mps::detail;
 using namespace mps;
 
 TEST(RangesParserTests, Simple) {

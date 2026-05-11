@@ -6,10 +6,10 @@
 #include "SectionParser.h"
 #include "linear/FieldTraits.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
-class RangesParser final : public SectionParser<Field> {
+class RHSParser final : public SectionParser<Field> {
   void parse_coefficient(const DataRecord& record,
                          MPSParsingState<Field>& state, size_t index) {
     assert(index == 0 || index == 1);
@@ -25,13 +25,12 @@ class RangesParser final : public SectionParser<Field> {
       throw std::runtime_error("Coefficient must be specified.");
     }
 
-    if (state.rows[itr->second].range.has_value()) {
-      throw std::runtime_error(
-          std::format("Range for row {} is specified twice.",
-                      state.rows[itr->second].name));
+    if (state.rows[itr->second].rhs.has_value()) {
+      throw std::runtime_error(std::format("RHS for row {} is specified twice.",
+                                           state.rows[itr->second].name));
     }
 
-    state.rows[itr->second].range =
+    state.rows[itr->second].rhs =
         FieldTraits<Field>::from_string(record.fields[3 + 2 * index]);
   }
 
@@ -41,17 +40,17 @@ class RangesParser final : public SectionParser<Field> {
   void parse(const DataRecord& record, MPSParsingState<Field>& state) override {
     const auto vector_name = record.fields[1];
 
-    if (!state.ranges_vector_name) {
-      state.ranges_vector_name = vector_name;
+    if (!state.rhs_vector_name) {
+      state.rhs_vector_name = vector_name;
     }
 
-    if (*state.ranges_vector_name != vector_name) {
+    if (*state.rhs_vector_name != vector_name) {
       return;
     }
 
     if (str::all_spaces(record.fields[2])) {
       throw std::runtime_error(
-          "There should be at least one row specified for RANGES data record.");
+          "There should be at least one row specified for RHS data record.");
     }
 
     parse_coefficient(record, state, 0);
@@ -62,4 +61,4 @@ class RangesParser final : public SectionParser<Field> {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

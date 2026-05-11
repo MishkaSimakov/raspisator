@@ -4,13 +4,15 @@
 #include <sstream>
 
 #include "linear/problem/VariableType.h"
+#include "mps/Format.h"
 #include "mps/MPS.h"
 
 using namespace mps;
+using namespace mps::detail;
 
 static MILPProblem<double> parse(std::string_view text) {
   std::stringstream ss{std::string(text)};
-  return MPS<double>::read(ss, Format::FREE);
+  return read<double>(ss, Format::FREE);
 }
 
 static std::string fmt(const Constraint<double>& c) {
@@ -246,5 +248,5 @@ TEST(MPSTests, DataRowsInObjectSection) {
 
   std::stringstream ss{std::string(mps)};
 
-  ASSERT_ANY_THROW({ MPS<double>::read(ss, Format::FREE); });
+  ASSERT_ANY_THROW({ read<double>(ss, Format::FREE); });
 }

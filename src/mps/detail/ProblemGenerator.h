@@ -5,7 +5,7 @@
 #include "Types.h"
 #include "linear/problem/MILPProblem.h"
 
-namespace mps {
+namespace mps::detail {
 
 template <typename Field>
 class ProblemGenerator {
@@ -131,4 +131,4 @@ class ProblemGenerator {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

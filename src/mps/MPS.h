@@ -1,20 +1,18 @@
 #pragma once
 
-#include "MPSParser.h"
-#include "ProblemGenerator.h"
-#include "Types.h"
+#include "Format.h"
+#include "detail/MPSParser.h"
+#include "detail/ProblemGenerator.h"
+
 #include "linear/problem/MILPProblem.h"
 
 namespace mps {
 
 template <typename Field>
-class MPS {
- public:
-  static MILPProblem<Field> read(std::istream& is, Format format) {
-    auto state = MPSParser<Field>::parse(is, format);
+MILPProblem<Field> read(std::istream& is, Format format) {
+  auto state = detail::MPSParser<Field>::parse(is, format);
 
-    return ProblemGenerator<Field>::generate(state);
-  }
-};
+  return detail::ProblemGenerator<Field>::generate(state);
+}
 
 }  // namespace mps

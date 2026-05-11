@@ -7,7 +7,7 @@
 #include "Types.h"
 #include "utils/String.h"
 
-namespace mps {
+namespace mps::detail {
 
 struct IndicatorRecord {
   SectionType type;
@@ -70,4 +70,4 @@ class IndicatorRecordTokenizer {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail
