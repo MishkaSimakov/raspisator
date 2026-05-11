@@ -74,8 +74,8 @@ class MPSParser {
       const std::array<Section, sections_count>& sections) {
     for (const SectionType section : mandatory_sections) {
       if (!sections[static_cast<size_t>(section)].visited) {
-        throw std::runtime_error(std::format("Section {} is mandatory.",
-                                             section_type_to_string(section)));
+        throw ParseError(std::format("Section '{}' is mandatory.",
+                                     section_type_to_string(section)));
       }
     }
   }
@@ -121,9 +121,8 @@ class MPSParser {
 
           // check if we visited this type of section before
           if (sections[static_cast<size_t>(record.type)].visited) {
-            throw std::runtime_error(
-                std::format("Section {} is duplicated.",
-                            section_type_to_string(record.type)));
+            throw ParseError(std::format("Section '{}' is duplicated.",
+                                         section_type_to_string(record.type)));
           }
           sections[static_cast<size_t>(record.type)].visited = true;
 
@@ -137,8 +136,8 @@ class MPSParser {
           }
 
           if (!section_has_data(record.type) && !record.data.empty()) {
-            throw std::runtime_error(std::format(
-                "Indicator record of type {} doesn't accept additional data.",
+            throw ParseError(std::format(
+                "Indicator record of type '{}' doesn't accept additional data.",
                 section_type_to_string(record.type)));
           }
 
@@ -150,12 +149,11 @@ class MPSParser {
         } else {
           // data record
           if (!current_section.has_value()) {
-            throw std::runtime_error("Data record must be inside section.");
+            throw ParseError("Data record must be inside section.");
           }
 
           if (*current_section == SectionType::OBJECT) {
-            throw std::runtime_error(
-                "OBJECT section must not contain data records.");
+            throw ParseError("OBJECT section must not contain data records.");
           }
 
           auto& section = sections[static_cast<size_t>(*current_section)];
@@ -167,26 +165,27 @@ class MPSParser {
 
           section.parser->parse(record, state);
         }
-      } catch (...) {
-        // TODO: add MPSException class, store row inside it
-        std::cerr << std::format("Error while parsing MPS on line {}.",
-                                 row_index)
-                  << std::endl;
-
+      } catch (ParseError& error) {
+        error.set_line(row_index);
         throw;
       }
     }
 
-    // teardown parser for the last section
-    if (current_section != std::nullopt) {
-      auto& section = sections[static_cast<size_t>(*current_section)];
+    try {
+      // teardown parser for the last section
+      if (current_section != std::nullopt) {
+        auto& section = sections[static_cast<size_t>(*current_section)];
 
-      if (section.parser != nullptr) {
-        section.parser->teardown();
+        if (section.parser != nullptr) {
+          section.parser->teardown();
+        }
       }
-    }
 
-    check_mandatory_sections(state, sections);
+      check_mandatory_sections(state, sections);
+    } catch (ParseError& error) {
+      error.set_line(row_index);
+      throw;
+    }
 
     return state;
   }

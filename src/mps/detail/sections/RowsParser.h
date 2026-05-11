@@ -14,7 +14,7 @@ template <typename Field>
 class RowsParser final : public SectionParser<Field> {
   static RowSense parse_row_sense(std::string_view sense) {
     if (sense.size() != 1) {
-      throw std::runtime_error(std::format("Unknown row sense: {}.", sense));
+      throw ParseError(std::format("Unknown row sense: '{}'.", sense));
     }
 
     switch (sense[0]) {
@@ -27,7 +27,7 @@ class RowsParser final : public SectionParser<Field> {
       case 'N':
         return RowSense::FREE;
       default:
-        throw std::runtime_error(std::format("Unknown row sense: {}.", sense));
+        throw ParseError(std::format("Unknown row sense: '{}'.", sense));
     }
   }
 
@@ -40,12 +40,12 @@ class RowsParser final : public SectionParser<Field> {
 
     const bool inserted = state.add_row(sense, name);
     if (!inserted) {
-      throw std::runtime_error(std::format("Duplicated row name: {}.", name));
+      throw ParseError(std::format("Duplicated row name: '{}'.", name));
     }
 
     for (size_t i = 2; i < 6; ++i) {
       if (!str::all_spaces(record.fields[i])) {
-        throw std::runtime_error("Fields 3-6 must be empty in ROWS section.");
+        throw ParseError("Fields 3-6 must be empty in ROWS section.");
       }
     }
   }

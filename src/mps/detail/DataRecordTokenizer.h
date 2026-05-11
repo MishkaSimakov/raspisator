@@ -5,6 +5,7 @@
 
 #include "Types.h"
 #include "mps/Format.h"
+#include "mps/ParseError.h"
 #include "utils/String.h"
 
 namespace mps::detail {
@@ -47,8 +48,7 @@ class DataRecordTokenizer {
 
     if (!has_field_1) {
       if (!str::all_spaces(result.fields[0])) {
-        throw std::runtime_error(
-            "In the current MPS section Field 1 must be empty.");
+        throw ParseError("In the current MPS section Field 1 must be empty.");
       }
     }
 
@@ -77,7 +77,7 @@ class DataRecordTokenizer {
         // field begin
 
         if (current_field_index >= kFieldsCount) {
-          throw std::runtime_error("Too many fields in MPS data record.");
+          throw ParseError("Too many fields in MPS data record.");
         }
 
         if ((current_field_index == 2 || current_field_index == 4) &&
@@ -113,7 +113,7 @@ class DataRecordTokenizer {
     }
 
     if (!str::is_space(record[0])) {
-      throw std::runtime_error("Column 1 in MPS data record must be empty.");
+      throw ParseError("Column 1 in MPS data record must be empty.");
     }
 
     switch (format) {
@@ -122,7 +122,7 @@ class DataRecordTokenizer {
       case Format::FIXED:
         return parse_fixed(record, has_field_1);
       default:
-        throw std::runtime_error("Unknown MPS format.");
+        throw ParseError("Unknown MPS format.");
     }
   }
 };

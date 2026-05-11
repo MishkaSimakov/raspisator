@@ -5,6 +5,7 @@
 
 #include "SectionParser.h"
 #include "linear/FieldTraits.h"
+#include "mps/ParseError.h"
 
 namespace mps::detail {
 
@@ -18,16 +19,16 @@ class RHSParser final : public SectionParser<Field> {
 
     const auto itr = state.rows_map.find(row);
     if (itr == state.rows_map.end()) {
-      throw std::runtime_error(std::format("Unknown row name: {}.", row));
+      throw ParseError(std::format("Unknown row name: \"{}\".", row));
     }
 
     if (str::all_spaces(record.fields[3 + 2 * index])) {
-      throw std::runtime_error("Coefficient must be specified.");
+      throw ParseError("Coefficient must be specified.");
     }
 
     if (state.rows[itr->second].rhs.has_value()) {
-      throw std::runtime_error(std::format("RHS for row {} is specified twice.",
-                                           state.rows[itr->second].name));
+      throw ParseError(std::format("RHS for row '{}' is specified twice.",
+                                   state.rows[itr->second].name));
     }
 
     state.rows[itr->second].rhs =
@@ -49,8 +50,8 @@ class RHSParser final : public SectionParser<Field> {
     }
 
     if (str::all_spaces(record.fields[2])) {
-      throw std::runtime_error(
-          "There should be at least one row specified for RHS data record.");
+      throw ParseError(
+          "At least one row must be specified for RHS data record.");
     }
 
     parse_coefficient(record, state, 0);

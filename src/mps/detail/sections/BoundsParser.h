@@ -12,8 +12,8 @@ template <typename Field>
 class BoundsParser final : public SectionParser<Field> {
   void set_lower(Variable<Field>& variable, std::optional<Field> value) {
     if (variable.lower_specified) {
-      throw std::runtime_error(std::format(
-          "Lower bound is specified twice for variable: {}", variable.name));
+      throw ParseError(std::format(
+          "Lower bound is specified twice for variable: '{}'", variable.name));
     }
 
     variable.bound.lower = value;
@@ -22,8 +22,8 @@ class BoundsParser final : public SectionParser<Field> {
 
   void set_upper(Variable<Field>& variable, std::optional<Field> value) {
     if (variable.upper_specified) {
-      throw std::runtime_error(std::format(
-          "Upper bound is specified twice for variable: {}", variable.name));
+      throw ParseError(std::format(
+          "Upper bound is specified twice for variable: '{}'", variable.name));
     }
 
     variable.bound.upper = value;
@@ -48,7 +48,7 @@ class BoundsParser final : public SectionParser<Field> {
       set_lower(variable, value);
       set_upper(variable, value);
     } else {
-      throw std::runtime_error(std::format("Unknown bound type: {}.", type));
+      throw ParseError(std::format("Unknown bound type: '{}'.", type));
     }
   }
 
@@ -66,7 +66,7 @@ class BoundsParser final : public SectionParser<Field> {
       set_upper(variable, 1);
       set_integer(variable);
     } else {
-      throw std::runtime_error(std::format("Unknown bound type: {}.", type));
+      throw ParseError(std::format("Unknown bound type: '{}'.", type));
     }
   }
 
@@ -86,8 +86,8 @@ class BoundsParser final : public SectionParser<Field> {
 
     auto itr = state.cols_map.find(record.fields[2]);
     if (itr == state.cols_map.end()) {
-      throw std::runtime_error(
-          std::format("Unknown variable name: {}.", record.fields[2]));
+      throw ParseError(
+          std::format("Unknown variable name: '{}'.", record.fields[2]));
     }
 
     const auto type = record.fields[0];
@@ -108,10 +108,9 @@ class BoundsParser final : public SectionParser<Field> {
 
     for (size_t i = empty_fields_start; i < 6; ++i) {
       if (!str::all_spaces(record.fields[i])) {
-        throw std::runtime_error(
-            std::format("Fields {}-6 must be empty in BOUNDS section for bound "
-                        "type \"{}\".",
-                        empty_fields_start + 1, type));
+        throw ParseError(std::format(
+            "Fields {}-6 must be empty in BOUNDS section for bound type '{}'.",
+            empty_fields_start + 1, type));
       }
     }
   }

@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "Types.h"
+#include "mps/ParseError.h"
 #include "utils/String.h"
 
 namespace mps::detail {
@@ -47,8 +48,8 @@ class IndicatorRecordTokenizer {
       }
     }
 
-    throw std::runtime_error(
-        std::format("Unknown indicator record type: {}.", type_string));
+    throw ParseError(
+        std::format("Unknown indicator record type: '{}'.", type_string));
   }
 
  public:
