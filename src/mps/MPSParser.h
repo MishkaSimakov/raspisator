@@ -79,6 +79,10 @@ class MPSParser {
     }
   }
 
+  static bool section_has_data(SectionType type) {
+    return type == SectionType::NAME || type == SectionType::OBJECT;
+  }
+
  public:
   static MPSParsingState<Field> parse(std::istream& is, Format format) {
     auto sections = init_parsers();
@@ -131,7 +135,7 @@ class MPSParser {
             }
           }
 
-          if (!record.data.empty()) {
+          if (!section_has_data(record.type) && !record.data.empty()) {
             throw std::runtime_error(std::format(
                 "Indicator record of type {} doesn't accept additional data.",
                 section_type_to_string(record.type)));
@@ -146,6 +150,11 @@ class MPSParser {
           // data record
           if (!current_section.has_value()) {
             throw std::runtime_error("Data record must be inside section.");
+          }
+
+          if (*current_section == SectionType::OBJECT) {
+            throw std::runtime_error(
+                "OBJECT section must not contain data records.");
           }
 
           auto& section = sections[static_cast<size_t>(*current_section)];

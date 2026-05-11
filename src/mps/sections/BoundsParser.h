@@ -92,12 +92,27 @@ class BoundsParser final : public SectionParser<Field> {
 
     const auto type = record.fields[0];
 
+    size_t empty_fields_start;
+
     if (type == "LO" || type == "LI" || type == "UP" || type == "UI" ||
         type == "FX") {
       const Field value = FieldTraits<Field>::from_string(record.fields[3]);
       parse_bound_with_value(state.cols[itr->second], type, value);
+
+      empty_fields_start = 4;
     } else {
       parse_bound_without_value(state.cols[itr->second], type);
+
+      empty_fields_start = 3;
+    }
+
+    for (size_t i = empty_fields_start; i < 6; ++i) {
+      if (!str::all_spaces(record.fields[i])) {
+        throw std::runtime_error(
+            std::format("Fields {}-6 must be empty in BOUNDS section for bound "
+                        "type \"{}\".",
+                        empty_fields_start + 1, type));
+      }
     }
   }
 };

@@ -24,6 +24,8 @@ enum class SectionType {
   BOUNDS,
   ENDATA,
 
+  OBJECT,
+
   // this value must always be the last one
   SECTIONS_COUNT
 };

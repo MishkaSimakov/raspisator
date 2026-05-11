@@ -28,6 +28,7 @@ class IndicatorRecordTokenizer {
       std::pair{"BOUNDS", SectionType::BOUNDS},
       std::pair{"RANGES", SectionType::RANGES},
       std::pair{"ENDATA", SectionType::ENDATA},
+      std::pair{"OBJECT", SectionType::OBJECT},
   };
 
   static std::pair<SectionType, std::string_view> parse_type(

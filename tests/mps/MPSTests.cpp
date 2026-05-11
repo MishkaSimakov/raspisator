@@ -225,3 +225,26 @@ TEST(MPSTests, RangeConstraintProducesTwoConstraints) {
 
   ASSERT_EQ(problem.constraints.size(), 2u);
 }
+
+TEST(MPSTests, DataRowsInObjectSection) {
+  // Object section is skipped by the parser. No data rows should be present
+  // inside it.
+  const auto mps =
+      "NAME ranged\n"
+      "ROWS\n"
+      " N obj\n"
+      " L c1\n"
+      "COLUMNS\n"
+      "   x1 obj 0  c1 1\n"
+      "RHS\n"
+      "   RHS c1 10\n"
+      "RANGES\n"
+      "   RNG c1 4\n"
+      "OBJECT\n"
+      "   RNG2 c1 4\n"
+      "ENDATA";
+
+  std::stringstream ss{std::string(mps)};
+
+  ASSERT_ANY_THROW({ MPS<double>::read(ss, Format::FREE); });
+}

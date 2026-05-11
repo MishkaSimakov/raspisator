@@ -142,7 +142,7 @@ TEST(BoundsParserTests, NoBoundSwitchForPl) {
 
   state.add_col("JCH3TGBE");
 
-  const auto string = " PL BOUND     JCH3TGBE           -37.";
+  const auto string = " PL BOUND     JCH3TGBE ";
 
   const auto record =
       DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
@@ -277,4 +277,45 @@ TEST(BoundsParserTests, MultipleBoundsVectors) {
   ASSERT_FALSE(state.cols[1].upper_specified);
   ASSERT_FALSE(state.cols[1].is_integer);
   ASSERT_EQ(state.cols[1].bound, (Bound<double>{std::nullopt, std::nullopt}));
+}
+
+TEST(BoundsParserTests, TooManyColumns1) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("x1");
+  state.add_col("x2");
+
+  const auto string = " UP BOUND1 x1 42 x2";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}
+
+TEST(BoundsParserTests, TooManyColumns2) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("x1");
+  state.add_col("x2");
+
+  const auto string = " UP BOUND1 x1 42 x2 3";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}
+
+TEST(BoundsParserTests, TooManyColumns3) {
+  MPSParsingState<double> state;
+  BoundsParser<double> parser;
+
+  state.add_col("x1");
+
+  const auto string = " FR BOUND1 x1 42";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
 }
