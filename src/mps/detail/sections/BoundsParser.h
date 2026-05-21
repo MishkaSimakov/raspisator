@@ -96,8 +96,14 @@ class BoundsParser final : public SectionParser<Field> {
 
     if (type == "LO" || type == "LI" || type == "UP" || type == "UI" ||
         type == "FX") {
-      const Field value = FieldTraits<Field>::from_string(record.fields[3]);
-      parse_bound_with_value(state.cols[itr->second], type, value);
+      const std::optional<Field> value =
+          FieldTraits<Field>::from_string(str::trim(record.fields[3]));
+
+      if (!value) {
+        throw ParseError("Failed to parse value in Field 4.");
+      }
+
+      parse_bound_with_value(state.cols[itr->second], type, *value);
 
       empty_fields_start = 4;
     } else {

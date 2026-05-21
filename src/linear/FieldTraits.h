@@ -1,5 +1,6 @@
 #pragma once
 
+#include <charconv>
 #include <cmath>
 #include <cstdlib>
 
@@ -46,8 +47,16 @@ struct FieldTraits<double> {
 
   static double exp2(int exponent) { return std::exp2(exponent); }
 
-  static double from_string(std::string_view string) {
-    return std::strtod(string.data(), nullptr);
+  // Returns std::nullopt if parsing failed
+  static std::optional<double> from_string(std::string_view string) {
+    char* end;
+    const double result = std::strtod(string.data(), &end);
+
+    if (end != string.data() + string.size()) {
+      return std::nullopt;
+    }
+
+    return result;
   }
 };
 

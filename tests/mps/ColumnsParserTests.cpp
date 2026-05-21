@@ -126,3 +126,31 @@ TEST(ColumnsParserTests, DuplicateRow) {
 
   ASSERT_ANY_THROW({ parser.parse(record, state); });
 }
+
+TEST(ColumnsParserTests, GarbageAfterValue) {
+  MPSParsingState<double> state;
+  ColumnsParser<double> parser;
+
+  state.add_row(RowSense::EQUAL, "COST1");
+
+  const auto string = "    XONE COST1 1abc";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}
+
+TEST(ColumnsParserTests, GarbageInsteadOfValue) {
+  MPSParsingState<double> state;
+  ColumnsParser<double> parser;
+
+  state.add_row(RowSense::EQUAL, "COST1");
+
+  const auto string = "    XONE COST1 abc123";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}

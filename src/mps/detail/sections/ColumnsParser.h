@@ -37,9 +37,16 @@ class ColumnsParser final : public SectionParser<Field> {
       throw ParseError("Coefficient must be specified.");
     }
 
-    auto [_, inserted] = state.cols.back().values.emplace(
-        itr->second,
-        FieldTraits<Field>::from_string(record.fields[3 + 2 * index]));
+    const std::optional<Field> parsed_value = FieldTraits<Field>::from_string(
+        str::trim(record.fields[3 + 2 * index]));
+
+    if (!parsed_value) {
+      throw ParseError(
+          std::format("Failed to parse value in Field {}", 4 + 2 * index));
+    }
+
+    auto [_, inserted] =
+        state.cols.back().values.emplace(itr->second, *parsed_value);
 
     if (!inserted) {
       throw ParseError(std::format("Row '{}' is duplicated in column '{}'.",

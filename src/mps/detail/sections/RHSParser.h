@@ -31,8 +31,15 @@ class RHSParser final : public SectionParser<Field> {
                                    state.rows[itr->second].name));
     }
 
-    state.rows[itr->second].rhs =
-        FieldTraits<Field>::from_string(record.fields[3 + 2 * index]);
+    const std::optional<Field> parsed_value = FieldTraits<Field>::from_string(
+        str::trim(record.fields[3 + 2 * index]));
+
+    if (!parsed_value) {
+      throw ParseError(
+          std::format("Failed to parse value in Field {}.", 4 + 2 * index));
+    }
+
+    state.rows[itr->second].rhs = *parsed_value;
   }
 
  public:

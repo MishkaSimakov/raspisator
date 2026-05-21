@@ -133,6 +133,8 @@ class MPSParser {
             if (section.parser != nullptr) {
               section.parser->teardown();
             }
+
+            current_section = std::nullopt;
           }
 
           if (!section_has_data(record.type) && !record.data.empty()) {

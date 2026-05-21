@@ -105,3 +105,17 @@ TEST(RangesParserTests, UnknownRow) {
 
   ASSERT_ANY_THROW({ parser.parse(record, state); });
 }
+
+TEST(RangesParserTests, GarbageAfterValue) {
+  MPSParsingState<double> state;
+  RangesParser<double> parser;
+
+  state.add_row(RowSense::EQUAL, "c1");
+
+  const auto string = "    rhs       c1                  20abc";
+
+  const auto record =
+      DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
+
+  ASSERT_ANY_THROW({ parser.parse(record, state); });
+}

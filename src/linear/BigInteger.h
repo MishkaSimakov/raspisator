@@ -1063,7 +1063,7 @@ struct FieldTraits<Rational> {
     }
   }
 
-  static Rational from_string(std::string_view string) {
+  static std::optional<Rational> from_string(std::string_view string) {
     Rational result;
 
     std::stringstream ss(static_cast<std::string>(string));
