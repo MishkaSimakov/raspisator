@@ -228,6 +228,47 @@ TEST(MPSTests, RangeConstraintProducesTwoConstraints) {
   ASSERT_EQ(problem.constraints.size(), 2u);
 }
 
+TEST(MPSTests, FixedFormatEndToEnd) {
+  std::string mps =
+      "NAME          FIXTEST\n"
+      "ROWS\n"
+      " N  NOBJ\n"
+      " L  LIM1\n"
+      "COLUMNS\n"
+      "    X1        NOBJ               1.0   LIM1               2.0\n"
+      "RHS\n"
+      "    RHS       LIM1              10.0\n"
+      "ENDATA";
+
+  std::stringstream ss(mps);
+  const auto problem = read<double>(ss, Format::FIXED);
+
+  ASSERT_EQ(problem.variables.size(), 1u);
+  ASSERT_EQ(problem.variables[0].name, "X1      ");
+  ASSERT_EQ(problem.variables[0].bound, (Bound<double>{0.0, std::nullopt}));
+  ASSERT_EQ(problem.constraints.size(), 1u);
+}
+
+TEST(MPSTests, MultipleObjectiveRows) {
+  // The MPS spec says the first N row is the objective; extra N rows are
+  // free rows and are silently skipped during constraint generation.
+  const auto problem = parse(
+      "NAME multi_n\n"
+      "ROWS\n"
+      " N obj\n"
+      " N extra\n"
+      " L c1\n"
+      "COLUMNS\n"
+      "   x1 obj 3  c1 2\n"
+      "   x1 extra 99\n"
+      "RHS\n"
+      "   RHS c1 10\n"
+      "ENDATA");
+
+  ASSERT_EQ(problem.variables.size(), 1u);
+  ASSERT_EQ(problem.constraints.size(), 1u);
+}
+
 TEST(MPSTests, DataRowsInObjectSection) {
   // Object section is skipped by the parser. No data rows should be present
   // inside it.

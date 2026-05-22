@@ -308,7 +308,8 @@ TEST(BoundsParserTests, TooManyColumns2) {
   ASSERT_ANY_THROW({ parser.parse(record, state); });
 }
 
-TEST(BoundsParserTests, TooManyColumns3) {
+TEST(BoundsParserTests, FreeBoundWithValue) {
+  // Value may be specified for a free bound, but it is ignored
   MPSParsingState<double> state;
   BoundsParser<double> parser;
 
@@ -318,5 +319,10 @@ TEST(BoundsParserTests, TooManyColumns3) {
 
   const auto record =
       DataRecordTokenizer::parse(string, Format::FREE, parser.has_field_1());
-  ASSERT_ANY_THROW({ parser.parse(record, state); });
+  parser.parse(record, state);
+
+  ASSERT_TRUE(state.cols[0].lower_specified);
+  ASSERT_TRUE(state.cols[0].upper_specified);
+  ASSERT_FALSE(state.cols[0].is_integer);
+  ASSERT_EQ(state.cols[0].bound, (Bound<double>{std::nullopt, std::nullopt}));
 }

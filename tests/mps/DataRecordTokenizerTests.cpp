@@ -131,3 +131,12 @@ TEST(DataRecordTokenizerTests, FixedFormatRowSenseTrimming2) {
 
   ASSERT_EQ(result.fields[0], record.substr(2, 1));
 }
+
+TEST(DataRecordTokenizerTests,
+     FixedFormatRejectsNonEmptyField1WhenNotExpected) {
+  // In COLUMNS/RHS sections field 1 (columns 2-3) must be blank
+  std::string_view record = " UP BOUNDROW  DD1CLIND          .001";
+
+  ASSERT_ANY_THROW(
+      { DataRecordTokenizer::parse(record, Format::FIXED, false); });
+}
