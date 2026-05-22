@@ -85,8 +85,7 @@ struct MILPProblem {
   }
 
   Variable<Field> new_variable(std::string name, VariableType type,
-                               std::optional<Field> lower_bound,
-                               std::optional<Field> upper_bound) {
+                               Bound<Field> bound) {
     for (const VariableInfo<Field>& info : variables) {
       if (info.name == name) {
         throw std::runtime_error(
@@ -94,9 +93,15 @@ struct MILPProblem {
       }
     }
 
-    variables.emplace_back(name, type, Bound<Field>{lower_bound, upper_bound});
+    variables.emplace_back(name, type, bound);
 
     return Variable<Field>{name};
+  }
+
+  Variable<Field> new_variable(std::string name, VariableType type,
+                               std::optional<Field> lower_bound,
+                               std::optional<Field> upper_bound) {
+    return new_variable(name, type, Bound<Field>(lower_bound, upper_bound));
   }
 
   void add_constraint(Constraint<Field> constraint) {

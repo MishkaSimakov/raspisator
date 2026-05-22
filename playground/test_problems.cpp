@@ -11,14 +11,15 @@
 #include "utils/ShadowFloat.h"
 #include "utils/Variant.h"
 
+#include "mps/MPS.h"
+
 using Field = double;
 
 int main() {
   std::unordered_set<std::string> problems = {
-      "AFIRO",
-      "ADLITTLE",
-      "BANDM", "BLEND",
-      "PILOT"
+      // "SHELL"
+      // "AFIRO", "ADLITTLE", "BANDM",
+      // "BLEND", "PILOT"
   };
 
   auto problems_path = paths::resource("lp_problems");
@@ -32,14 +33,17 @@ int main() {
 
     auto problem_name = path.filename().string();
 
-    if (!problems.contains(problem_name)) {
-      continue;
+    // if (!problems.contains(problem_name)) {
+    // continue;
+    // }
+
+    std::ifstream is(entry);
+    if (!is) {
+      throw std::runtime_error("Failed to open problem file.");
     }
 
-    auto reader = MPSReader<Field>(MPSFieldsMode::FIXED_WIDTH);
-    reader.read(entry);
-
-    auto problem = reader.get_canonical_representation();
+    std::println("{}", problem_name);
+    auto problem = mps::read<Field>(is, mps::Format::FIXED);
 
     problem = Scaling<Field>().apply(problem);
     problem = TransformToEqualities<Field>().apply(problem);
@@ -54,7 +58,7 @@ int main() {
     auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
         CSCMatrix(matrices.A), matrices.b, matrices.c, settings);
 
-    auto states = solver.try_get_primal_feasible(matrices.bounds);
+    auto states = solver.get_primal_feasible(matrices.bounds);
 
     if (!states) {
       std::println("  Failed to find primal feasible basis.");

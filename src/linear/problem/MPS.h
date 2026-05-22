@@ -48,6 +48,8 @@ class MPSReader {
   MPSFieldsMode mode_;
 
   ObjectiveType objective_ = ObjectiveType::MINIMIZE;
+  std::optional<std::string> objective_row_;
+
   std::unordered_map<std::string, Row> rows_;
   std::unordered_map<std::string, VariableInfo> variables_;
 
@@ -82,6 +84,10 @@ class MPSReader {
         if (i > 0 && std::isspace(str[i]) != 0 &&
             std::isspace(str[i - 1]) == 0) {
           ++current_index;
+
+          if (current_index >= kNumFields) {
+            break;
+          }
         } else if (std::isspace(str[i]) == 0) {
           result[current_index] += str[i];
         }
@@ -115,7 +121,11 @@ class MPSReader {
   }
 
   static RowType decode_row_type(const std::string& type) {
-    auto trimmed = str::trim(type);
+    const auto trimmed = str::trim(type);
+
+    if (trimmed.empty()) {
+      throw std::runtime_error("Unknown row type.");
+    }
 
     switch (trimmed[0]) {
       case 'E':
@@ -227,14 +237,23 @@ class MPSReader {
       auto parts = get_parts(line);
 
       if (current_section == SectionType::ROWS) {
-        rows_.emplace(parts[1], Row(decode_row_type(parts[0])));
+        const auto row_type = decode_row_type(parts[0]);
+        rows_.emplace(parts[1], Row(row_type));
+
+        if (row_type == RowType::OBJECTIVE) {
+          if (objective_row_) {
+            throw std::runtime_error("Multiple objective rows in MPS");
+          }
+
+          objective_row_ = parts[1];
+        }
       } else if (current_section == SectionType::COLUMNS) {
         auto marker = get_marker_type(parts);
 
         if (marker.has_value()) {
           if (marker == "'INTORG'") {
             is_integer_section_ = true;
-          } else if (marker == "'INTEND") {
+          } else if (marker == "'INTEND'") {
             is_integer_section_ = false;
           }
         } else {
@@ -269,7 +288,11 @@ class MPSReader {
         std::string variable_name = parts[2];
         Field value = parse_field(parts[3]);
 
-        variables_.at(variable_name) = parse_bounds(type, value);
+        const auto new_bounds = parse_bounds(type, value);
+        auto& old_bounds = variables_.at(variable_name);
+
+        old_bounds.bound = old_bounds.bound ^ new_bounds.bound;
+        old_bounds.is_integer = old_bounds.is_integer && new_bounds.is_integer;
       } else if (current_section == SectionType::RANGES) {
         for (size_t i = 2; i < parts.size(); i += 2) {
           std::string row_name = parts[i];
@@ -291,6 +314,10 @@ class MPSReader {
   // generates a problem suitable for simplex method:
   // c x -> max, s.t. Ax = b, l <= x <= u
   MILPProblem<Field> get_canonical_representation() {
+    if (!objective_row_) {
+      throw std::runtime_error("No objective row found in MPS file");
+    }
+
     MILPProblem<Field> result;
     std::unordered_map<std::string, Variable<Field>> variables;
 
@@ -309,12 +336,7 @@ class MPSReader {
       }
     }
 
-    auto objective_row = std::ranges::find_if(
-        rows_, [](auto p) { return p.second.type == RowType::OBJECTIVE; });
-
-    if (objective_row == rows_.end()) {
-      throw std::runtime_error("No objective row found.");
-    }
+    const Row& objective_row = rows_.at(*objective_row_);
 
     Expression<Field> objective;
     for (auto [name, coef] : objective_row->second.variables) {

@@ -25,7 +25,7 @@ TEST(UnboundedSimplexTests, SimpleTest1) {
 
   simplex::Simplex solver(A, b, c);
 
-  auto feasible = solver.try_get_primal_feasible(bounds);
+  auto feasible = solver.get_primal_feasible(bounds);
 
   ASSERT_TRUE(feasible.has_value());
 
@@ -54,7 +54,7 @@ TEST(UnboundedSimplexTests, SimpleTest2) {
 
   simplex::Simplex solver(CSCMatrix(A), b, c);
 
-  auto feasible = solver.try_get_primal_feasible(bounds);
+  auto feasible = solver.get_primal_feasible(bounds);
   ASSERT_TRUE(feasible.has_value());
 
   auto solution = solver.primal(bounds, *feasible).solution;
@@ -85,7 +85,7 @@ TEST(UnboundedSimplexTests, UnboundedTest) {
 
   simplex::Simplex solver(CSCMatrix(A), b, c);
 
-  auto feasible = solver.try_get_primal_feasible(bounds);
+  auto feasible = solver.get_primal_feasible(bounds);
   ASSERT_TRUE(feasible.has_value());
 
   auto solution = solver.primal(bounds, *feasible).solution;

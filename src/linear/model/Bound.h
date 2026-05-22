@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include <optional>
 
 #include "linear/FieldTraits.h"
@@ -29,6 +30,8 @@ struct Bound {
 
   Bound(std::optional<Field> lower, std::optional<Field> upper)
       : lower(lower), upper(upper) {}
+
+  bool operator==(const Bound&) const = default;
 
   Bound& operator+=(const Bound& other) {
     lower = lower && other.lower ? std::optional(*lower + *other.lower)
@@ -118,6 +121,8 @@ struct Bound {
   bool is_fixed() const {
     return lower && upper && !FieldTraits<Field>::is_nonzero(*lower - *upper);
   }
+
+  bool is_free() const { return !lower && !upper; }
 
   bool is_infeasible() const {
     return lower && upper &&

@@ -53,6 +53,8 @@ void gaussian_elimination(MatrixLike auto&& matrix, size_t row_index,
 // TODO: inverse modifies matrix. This is super strange and should be fixed.
 template <MatrixLike T>
 Matrix<matrix_field_t<T>> inverse(T&& matrix) {
+  using std::abs;
+
   using Field = matrix_field_t<T>;
 
   auto [n, m] = matrix.shape();
@@ -75,8 +77,7 @@ Matrix<matrix_field_t<T>> inverse(T&& matrix) {
     size_t maximizing_row = j;
 
     for (size_t i = j + 1; i < n; ++i) {
-      if (FieldTraits<Field>::abs(matrix[i, j]) >
-          FieldTraits<Field>::abs(matrix[maximizing_row, j])) {
+      if (abs(matrix[i, j]) > abs(matrix[maximizing_row, j])) {
         maximizing_row = i;
       }
     }

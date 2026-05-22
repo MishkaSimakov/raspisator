@@ -13,6 +13,7 @@ target_sources(tests PUBLIC
         NumericalStabilityTests.cpp
         BoundsTests.cpp
 
+        simplex/FreeVariablesTests.cpp
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
         simplex/BigTests.cpp
@@ -26,6 +27,17 @@ target_sources(tests PUBLIC
         accumulators/ArgMinTests.cpp
         accumulators/ArgMaxTests.cpp
         accumulators/ArithmeticMeanTests.cpp
+
+        mps/DataRecordTokenizerTests.cpp
+        mps/IndicatorRecordTokenizerTests.cpp
+        mps/RowsParserTests.cpp
+        mps/ColumnsParserTests.cpp
+        mps/RHSParserTests.cpp
+        mps/RangesParserTests.cpp
+        mps/BoundsParserTests.cpp
+        mps/MPSParserTests.cpp
+        mps/IntegerVariablesExtensionTests.cpp
+        mps/MPSTests.cpp
 
         feature/FullProblemSolvingTests.cpp
 )

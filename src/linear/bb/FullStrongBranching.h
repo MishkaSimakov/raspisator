@@ -340,7 +340,7 @@ class FullStrongBranchingBranchAndBound {
     assert(root.has_value());
 
     // TODO: calculate states for root
-    auto feasible = lp_solver_.try_get_primal_feasible(root->bounds);
+    auto feasible = lp_solver_.get_primal_feasible(root->bounds);
 
     if (!feasible) {
       throw std::runtime_error("Unsupported.");

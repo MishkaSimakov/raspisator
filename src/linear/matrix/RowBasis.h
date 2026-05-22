@@ -13,6 +13,8 @@ namespace linalg {
 
 template <typename Field>
 std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
+  using std::abs;
+
   if (matrix.get_height() == 0) {
     return {};
   }
@@ -28,7 +30,7 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
     ArgMaximum<Field> max_row;
 
     for (size_t row = current_row; row < n; ++row) {
-      max_row.record(row, FieldTraits<Field>::abs(matrix[row, col]));
+      max_row.record(row, abs(matrix[row, col]));
     }
 
     const size_t max_row_index = max_row->index;
@@ -63,6 +65,8 @@ std::vector<size_t> get_row_basis(Matrix<Field> matrix) {
 template <typename Field>
 std::vector<size_t> complete_row_basis(
     Matrix<Field> matrix, const std::vector<size_t>& partial_basis) {
+  using std::abs;
+
   std::vector<size_t> rows_map(matrix.get_height());
   std::iota(rows_map.begin(), rows_map.end(), 0);
 
@@ -88,8 +92,7 @@ std::vector<size_t> complete_row_basis(
     size_t maximizing_col = current_col;
 
     for (size_t col = current_col + 1; col < d; ++col) {
-      if (FieldTraits<Field>::abs(matrix[row, col]) >
-          FieldTraits<Field>::abs(matrix[row, maximizing_col])) {
+      if (abs(matrix[row, col]) > abs(matrix[row, maximizing_col])) {
         maximizing_col = col;
       }
     }

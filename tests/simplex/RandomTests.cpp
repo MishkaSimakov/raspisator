@@ -101,7 +101,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
     // calculate solution
     auto solver = simplex::Simplex(CSCMatrix(A), b, c);
 
-    auto states = solver.try_get_primal_feasible(bounds);
+    auto states = solver.get_primal_feasible(bounds);
 
     ASSERT_TRUE(states.has_value());
 
