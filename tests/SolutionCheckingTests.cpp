@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "model/Solution.h"
 #include "linear/BigInteger.h"
+#include "schedule/model/Solution.h"
 
 STN<Rational>* generate_sequential_problem() {
   STN<Rational>* stn = new STN<Rational>{};
@@ -33,16 +33,11 @@ STN<Rational>* generate_sequential_problem() {
 
 class SolutionCheckerTests : public ::testing::Test {
  protected:
-
   STN<Rational>* sequential;
 
-  void SetUp() override {
-    sequential = generate_sequential_problem();
-  }
+  void SetUp() override { sequential = generate_sequential_problem(); }
 
-  void TearDown() override {
-    delete sequential;
-  }
+  void TearDown() override { delete sequential; }
 };
 
 TEST_F(SolutionCheckerTests, AllOk) {

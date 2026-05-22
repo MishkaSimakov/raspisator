@@ -4,13 +4,13 @@
 #include <iostream>
 
 #include "Types.h"
-#include "linear/problem/MILPProblem.h"
+#include "problem/MILP.h"
 
 namespace mps::detail {
 
 template <typename Field>
 class ProblemGenerator {
-  static Bound<Field> get_bound(const Variable<Field>& variable) {
+  static Bound<Field> get_var_bound(const Variable<Field>& variable) {
     if (!variable.lower_specified && !variable.upper_specified) {
       return variable.is_integer ? Bound<Field>{0, 1}
                                  : Bound<Field>{0, std::nullopt};
@@ -30,6 +30,43 @@ class ProblemGenerator {
     return variable.bound;
   }
 
+  static Bound<Field> get_rhs_bound(const Row<Field>& row) {
+    using std::abs;
+
+    if (row.type == RowSense::FREE) {
+      return Bound<Field>{std::nullopt, std::nullopt};
+    }
+
+    const Field rhs = row.rhs.value_or(0);
+
+    if (!row.range) {
+      switch (row.type) {
+        case RowSense::LESS_THAN:
+          return Bound<Field>{std::nullopt, rhs};
+        case RowSense::GREATER_THAN:
+          return Bound<Field>{rhs, std::nullopt};
+        case RowSense::EQUAL:
+          return Bound<Field>{rhs, rhs};
+        default:
+          throw std::runtime_error("Unknown row type.");
+      }
+    }
+
+    const Field range = *row.range;
+
+    switch (row.type) {
+      case RowSense::LESS_THAN:
+        return Bound<Field>{rhs - abs(range), rhs};
+      case RowSense::GREATER_THAN:
+        return Bound<Field>{rhs, rhs + abs(range)};
+      case RowSense::EQUAL:
+        return range < 0 ? Bound<Field>{rhs + range, rhs}
+                         : Bound<Field>{rhs, rhs + range};
+      default:
+        throw std::runtime_error("Unknown row type.");
+    }
+  }
+
   static size_t get_objective_row(const MPSParsingState<Field>& state) {
     for (size_t i = 0; i < state.rows.size(); ++i) {
       if (state.rows[i].type == RowSense::FREE) {
@@ -41,92 +78,72 @@ class ProblemGenerator {
         "Objective row was not specified in the MPS file.");
   }
 
-  static Expression<Field> get_row_expr(
-      const MPSParsingState<Field>& state, size_t row,
-      const std::vector<::Variable<Field>>& variables) {
-    Expression<Field> result;
-
-    for (size_t i = 0; i < state.cols.size(); ++i) {
-      auto itr = state.cols[i].values.find(row);
-
-      if (itr != state.cols[i].values.end()) {
-        result += itr->second * variables[i];
-      }
-    }
-
-    result -= state.rows[row].rhs.value_or(0);
-
-    return result;
-  }
-
  public:
-  static MILPProblem<Field> generate(const MPSParsingState<Field>& state) {
+  static problem::MILP<Field> generate(const MPSParsingState<Field>& state) {
     using std::abs;
 
-    MILPProblem<Field> result;
-    std::vector<::Variable<Field>> variables;
+    problem::MILP<Field> result;
 
-    for (const Variable<Field>& var : state.cols) {
-      const auto variable_type =
-          var.is_integer ? VariableType::INTEGER : VariableType::REAL;
+    result.name = state.problem_name;
 
-      variables.push_back(
-          result.new_variable(var.name, variable_type, get_bound(var)));
+    // create variables
+    result.is_integer.resize(state.cols.size());
+    result.var_bounds.resize(state.cols.size());
+    result.var_names.resize(state.cols.size());
+
+    for (size_t i = 0; i < state.cols.size(); ++i) {
+      result.var_names[i] = state.cols[i].name;
+      result.var_bounds[i] = get_var_bound(state.cols[i]);
+      result.is_integer[i] = state.cols[i].is_integer;
     }
 
+    // fill in cost information
     const size_t objective_row_index = get_objective_row(state);
 
-    auto objective_expr = get_row_expr(state, objective_row_index, variables);
+    result.cost_name = state.rows[objective_row_index].name;
 
+    double cost_multiplier = 1;
     if (state.objective == ObjectiveType::MAXIMIZE) {
       std::cerr << "MPS objective is MAXIMIZE, negating objective value."
                 << std::endl;
 
-      objective_expr *= -1;
+      cost_multiplier = -1;
     }
 
-    result.set_objective(objective_expr);
+    result.cost.resize(state.cols.size(), 0);
+    for (size_t i = 0; i < state.cols.size(); ++i) {
+      auto itr = state.cols[i].values.find(objective_row_index);
 
-    // process constraints
+      if (itr != state.cols[i].values.end()) {
+        result.cost[i] = itr->second * cost_multiplier;
+      }
+    }
+
+    // fill in constraints matrix
+    result.matrix.resize(state.rows.size(), 0);
+    std::vector<std::tuple<size_t, size_t, Field>> triplets;
+
+    for (size_t col = 0; col < state.cols.size(); ++col) {
+      result.matrix.add_column(state.cols[col].values);
+    }
+
+    // constraints names
+    result.row_names.resize(state.rows.size());
+
+    for (size_t row = 0; row < state.rows.size(); ++row) {
+      result.row_names[row] = state.rows[row].name;
+    }
+
+    // fill in rhs bounds
+    result.rhs_bounds.resize(state.rows.size());
+
     for (size_t i = 0; i < state.rows.size(); ++i) {
-      if (state.rows[i].type == RowSense::FREE) {
-        continue;
-      }
-
-      const auto row = get_row_expr(state, i, variables);
-
-      if (!state.rows[i].range) {
-        if (state.rows[i].type == RowSense::LESS_THAN) {
-          result.add_constraint(row <= Expression<Field>{0});
-        } else if (state.rows[i].type == RowSense::GREATER_THAN) {
-          result.add_constraint(row >= Expression<Field>{0});
-        } else {
-          result.add_constraint(row == Expression<Field>{0});
-        }
-      } else {
-        Field upper = 0;
-        Field lower = 0;
-
-        const Field range = *state.rows[i].range;
-
-        if (state.rows[i].type == RowSense::LESS_THAN) {
-          upper = 0;
-          lower = -abs(range);
-        } else if (state.rows[i].type == RowSense::GREATER_THAN) {
-          upper = abs(range);
-          lower = 0;
-        } else if (range < 0) {
-          upper = 0;
-          lower = range;
-        } else {
-          upper = range;
-          lower = 0;
-        }
-
-        result.add_constraint(row <= Expression{upper});
-        result.add_constraint(row >= Expression{lower});
-      }
+      result.rhs_bounds[i] = get_rhs_bound(state.rows[i]);
     }
+
+    // copy implied bounds and integrality
+    result.implied_var_bounds = result.var_bounds;
+    result.implied_is_integer = result.is_integer;
 
     return result;
   }

@@ -12,8 +12,8 @@
 #include "linear/problem/MILPProblem.h"
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/FullOptimizer.h"
-#include "model/STN.h"
-#include "model/Solution.h"
+#include "schedule/model/STN.h"
+#include "schedule/model/Solution.h"
 #include "utils/Hashers.h"
 #include "utils/Variant.h"
 

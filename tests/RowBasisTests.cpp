@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "../src/linear/matrix/RowBasis.h"
-#include "Assertions.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
+#include "support/Assertions.h"
 
 TEST(RowBasisTests, UnityMatrix) {
   auto unity = Matrix<Rational>::unity(3);

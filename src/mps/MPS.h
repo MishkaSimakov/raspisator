@@ -4,12 +4,12 @@
 #include "detail/MPSParser.h"
 #include "detail/ProblemGenerator.h"
 
-#include "linear/problem/MILPProblem.h"
+#include "problem/MILP.h"
 
 namespace mps {
 
 template <typename Field>
-MILPProblem<Field> read(std::istream& is, Format format) {
+problem::MILP<Field> read(std::istream& is, Format format) {
   auto state = detail::MPSParser<Field>::parse(is, format);
 
   return detail::ProblemGenerator<Field>::generate(state);

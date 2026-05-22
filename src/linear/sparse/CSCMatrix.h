@@ -23,6 +23,8 @@ class CSCMatrix {
   size_t rows_cnt_;
 
  public:
+  CSCMatrix() : CSCMatrix(0) {}
+
   // creates (height, 0) sparse matrix
   explicit CSCMatrix(size_t height)
       : index_pointers_(1, 0), rows_cnt_(height) {}
@@ -70,9 +72,36 @@ class CSCMatrix {
     return result;
   }
 
-  std::pair<size_t, size_t> shape() const {
-    return {rows_cnt_, index_pointers_.size() - 1};
+  void resize(size_t new_rows, size_t new_cols) {
+    index_pointers_.resize(new_cols + 1, index_pointers_.back());
+
+    // resize rows count
+    if (new_rows >= rows()) {
+      rows_cnt_ = new_rows;
+      return;
+    }
+
+    size_t offset = 0;
+    for (size_t col = 0; col < new_cols; ++col) {
+      const size_t column_start = index_pointers_[col] + offset;
+
+      for (size_t i = column_start; i < index_pointers_[col + 1]; ++i) {
+        if (entries_[i].first < new_rows) {
+          entries_[i - offset] = entries_[i];
+        } else {
+          ++offset;
+        }
+      }
+
+      index_pointers_[col + 1] -= offset;
+    }
+
+    rows_cnt_ = new_rows;
   }
+
+  size_t rows() const { return rows_cnt_; }
+  size_t cols() const { return index_pointers_.size() - 1; }
+  std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 
   std::span<const std::pair<size_t, Field>> get_entries() const {
     return entries_;
@@ -110,7 +139,8 @@ class CSCMatrix {
     index_pointers_.push_back(nonzero_cnt);
   }
 
-  void add_column(std::span<const std::pair<size_t, Field>> sparse) {
+  template <std::ranges::range R>
+  void add_column(R&& sparse) {
     entries_.insert(entries_.end(), sparse.cbegin(), sparse.cend());
     index_pointers_.push_back(entries_.size());
   }

@@ -9,10 +9,10 @@
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/FullOptimizer.h"
 #include "linear/scheduling/BlomersHeuristic.h"
-#include "model/STN.h"
-#include "model/Solution.h"
-#include "problems/Blomer.h"
-#include "problems/Dwarf.h"
+#include "schedule/model/STN.h"
+#include "schedule/model/Solution.h"
+#include "schedule/problems/Blomer.h"
+#include "schedule/problems/Dwarf.h"
 
 auto test_problems() {
   std::vector<std::pair<std::string, STN<double>>> problems;

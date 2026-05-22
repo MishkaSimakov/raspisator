@@ -3,7 +3,9 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        MatrixTests.cpp
+        linalg/MatrixTests.cpp
+        linalg/SparseMatrixTests.cpp
+
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
         RowBasisTests.cpp
@@ -40,9 +42,12 @@ target_sources(tests PUBLIC
         mps/MPSTests.cpp
 
         feature/FullProblemSolvingTests.cpp
+
+        preprocessing/RemoveLinearlyDependentConstraintsTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
+target_include_directories(tests PUBLIC .)
 
 include(GoogleTest)
 gtest_discover_tests(tests)

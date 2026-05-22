@@ -1,5 +1,5 @@
 #pragma once
-#include "model/STN.h"
+#include "schedule/model/STN.h"
 
 // figure 2 in Blomer et al., 2000
 template <typename Field>

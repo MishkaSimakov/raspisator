@@ -17,7 +17,7 @@ using Field = double;
 
 int main() {
   std::unordered_set<std::string> problems = {
-      // "SHELL"
+      "SHELL"
       // "AFIRO", "ADLITTLE", "BANDM",
       // "BLEND", "PILOT"
   };
@@ -33,9 +33,9 @@ int main() {
 
     auto problem_name = path.filename().string();
 
-    // if (!problems.contains(problem_name)) {
-    // continue;
-    // }
+    if (!problems.contains(problem_name)) {
+      continue;
+    }
 
     std::ifstream is(entry);
     if (!is) {
@@ -45,7 +45,7 @@ int main() {
     std::println("{}", problem_name);
     auto problem = mps::read<Field>(is, mps::Format::FIXED);
 
-    problem = Scaling<Field>().apply(problem);
+    // problem = Scaling<Field>().apply(problem);
     problem = TransformToEqualities<Field>().apply(problem);
     problem = RemoveLinearlyDependentConstraints<Field>().apply(problem);
 
@@ -65,6 +65,7 @@ int main() {
       continue;
     }
 
+    std::println("  Found primal feasible basis, starting solving.");
     auto solution = solver.primal(matrices.bounds, *states);
 
     std::visit(Overload{

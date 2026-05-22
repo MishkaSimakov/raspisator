@@ -1,22 +1,26 @@
 #include <gtest/gtest.h>
 
-#include <format>
 #include <sstream>
 
-#include "linear/problem/VariableType.h"
 #include "mps/Format.h"
 #include "mps/MPS.h"
+#include "problem/MILP.h"
 
 using namespace mps;
-using namespace mps::detail;
 
-static MILPProblem<double> parse(std::string_view text) {
+static problem::MILP<double> parse(std::string_view text) {
   std::stringstream ss{std::string(text)};
   return read<double>(ss, Format::FREE);
 }
 
-static std::string fmt(const Constraint<double>& c) {
-  return std::format("{}", c);
+// Counts rows that are actual constraints (non-free rhs bound).
+// The objective row has a free bound {nullopt, nullopt} and is excluded.
+static size_t constraint_count(const problem::MILP<double>& p) {
+  size_t count = 0;
+  for (const auto& b : p.rhs_bounds) {
+    if (!b.is_free()) ++count;
+  }
+  return count;
 }
 
 TEST(MPSTests, MinimalProblem) {
@@ -30,9 +34,9 @@ TEST(MPSTests, MinimalProblem) {
       "   RHS obj 0\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables.size(), 1u);
-  ASSERT_EQ(problem.variables[0].name, "x1");
-  ASSERT_EQ(problem.constraints.size(), 0u);
+  ASSERT_EQ(problem.var_names.size(), 1u);
+  ASSERT_EQ(problem.var_names[0], "x1");
+  ASSERT_EQ(constraint_count(problem), 0u);
 }
 
 TEST(MPSTests, MultipleVariablesAndConstraints) {
@@ -49,8 +53,8 @@ TEST(MPSTests, MultipleVariablesAndConstraints) {
       "   RHS c1 10  c2 3\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables.size(), 2u);
-  ASSERT_EQ(problem.constraints.size(), 2u);
+  ASSERT_EQ(problem.var_names.size(), 2u);
+  ASSERT_EQ(constraint_count(problem), 2u);
 }
 
 // ---------------------------------------------------------------------------
@@ -69,8 +73,8 @@ TEST(MPSTests, LessThanConstraint) {
       "   RHS c1 5\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.constraints.size(), 1u);
-  ASSERT_EQ(fmt(problem.constraints[0]), "x1 + -5 <= 0");
+  ASSERT_EQ(constraint_count(problem), 1u);
+  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{std::nullopt, 5.0}));
 }
 
 TEST(MPSTests, GreaterThanConstraint) {
@@ -85,8 +89,8 @@ TEST(MPSTests, GreaterThanConstraint) {
       "   RHS c1 5\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.constraints.size(), 1u);
-  ASSERT_EQ(fmt(problem.constraints[0]), "-x1 + 5 <= 0");
+  ASSERT_EQ(constraint_count(problem), 1u);
+  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{5.0, std::nullopt}));
 }
 
 TEST(MPSTests, EqualityConstraint) {
@@ -101,8 +105,8 @@ TEST(MPSTests, EqualityConstraint) {
       "   RHS c1 7\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.constraints.size(), 1u);
-  ASSERT_EQ(fmt(problem.constraints[0]), "x1 + -7 == 0");
+  ASSERT_EQ(constraint_count(problem), 1u);
+  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{7.0, 7.0}));
 }
 
 TEST(MPSTests, DefaultRealBound) {
@@ -117,8 +121,8 @@ TEST(MPSTests, DefaultRealBound) {
       "   RHS obj 0\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables[0].type, VariableType::REAL);
-  ASSERT_EQ(problem.variables[0].bound, (Bound<double>{0.0, std::nullopt}));
+  ASSERT_FALSE(problem.is_integer[0]);
+  ASSERT_EQ(problem.var_bounds[0], (Bound<double>{0.0, std::nullopt}));
 }
 
 TEST(MPSTests, UpperBound) {
@@ -134,7 +138,7 @@ TEST(MPSTests, UpperBound) {
       "   UP BND x1 10\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables[0].bound, (Bound<double>{0.0, 10.0}));
+  ASSERT_EQ(problem.var_bounds[0], (Bound<double>{0.0, 10.0}));
 }
 
 TEST(MPSTests, FixedBound) {
@@ -150,7 +154,7 @@ TEST(MPSTests, FixedBound) {
       "   FX BND x1 5\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables[0].bound, (Bound<double>{5.0, 5.0}));
+  ASSERT_EQ(problem.var_bounds[0], (Bound<double>{5.0, 5.0}));
 }
 
 TEST(MPSTests, FreeBound) {
@@ -167,8 +171,7 @@ TEST(MPSTests, FreeBound) {
       "   FR BND x1\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables[0].bound,
-            (Bound<double>{std::nullopt, std::nullopt}));
+  ASSERT_EQ(problem.var_bounds[0], (Bound<double>{std::nullopt, std::nullopt}));
 }
 
 TEST(MPSTests, BinaryVariableBound) {
@@ -185,8 +188,8 @@ TEST(MPSTests, BinaryVariableBound) {
       "   BV BND x1\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables[0].type, VariableType::INTEGER);
-  ASSERT_EQ(problem.variables[0].bound, (Bound<double>{0.0, 1.0}));
+  ASSERT_TRUE(problem.is_integer[0]);
+  ASSERT_EQ(problem.var_bounds[0], (Bound<double>{0.0, 1.0}));
 }
 
 TEST(MPSTests, IntegerMarker) {
@@ -204,14 +207,13 @@ TEST(MPSTests, IntegerMarker) {
       "   RHS obj 0\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables[0].type, VariableType::REAL);
-  ASSERT_EQ(problem.variables[1].type, VariableType::INTEGER);
-  ASSERT_EQ(problem.variables[1].bound, (Bound<double>{0.0, 1.0}));
+  ASSERT_FALSE(problem.is_integer[0]);
+  ASSERT_TRUE(problem.is_integer[1]);
+  ASSERT_EQ(problem.var_bounds[1], (Bound<double>{0.0, 1.0}));
 }
 
-TEST(MPSTests, RangeConstraintProducesTwoConstraints) {
-  // A ranged L row with range r gives: rhs - |r| <= expr <= rhs,
-  // translated into two constraints in the problem.
+TEST(MPSTests, RangeConstraint) {
+  // A ranged L row with range r gives a two-sided bound: [rhs - |r|, rhs].
   const auto problem = parse(
       "NAME ranged\n"
       "ROWS\n"
@@ -225,7 +227,8 @@ TEST(MPSTests, RangeConstraintProducesTwoConstraints) {
       "   RNG c1 4\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.constraints.size(), 2u);
+  ASSERT_EQ(constraint_count(problem), 1u);
+  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{6.0, 10.0}));
 }
 
 TEST(MPSTests, FixedFormatEndToEnd) {
@@ -243,10 +246,10 @@ TEST(MPSTests, FixedFormatEndToEnd) {
   std::stringstream ss(mps);
   const auto problem = read<double>(ss, Format::FIXED);
 
-  ASSERT_EQ(problem.variables.size(), 1u);
-  ASSERT_EQ(problem.variables[0].name, "X1      ");
-  ASSERT_EQ(problem.variables[0].bound, (Bound<double>{0.0, std::nullopt}));
-  ASSERT_EQ(problem.constraints.size(), 1u);
+  ASSERT_EQ(problem.var_names.size(), 1u);
+  ASSERT_EQ(problem.var_names[0], "X1      ");
+  ASSERT_EQ(problem.var_bounds[0], (Bound<double>{0.0, std::nullopt}));
+  ASSERT_EQ(constraint_count(problem), 1u);
 }
 
 TEST(MPSTests, MultipleObjectiveRows) {
@@ -265,8 +268,8 @@ TEST(MPSTests, MultipleObjectiveRows) {
       "   RHS c1 10\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.variables.size(), 1u);
-  ASSERT_EQ(problem.constraints.size(), 1u);
+  ASSERT_EQ(problem.var_names.size(), 1u);
+  ASSERT_EQ(constraint_count(problem), 1u);
 }
 
 TEST(MPSTests, DataRowsInObjectSection) {

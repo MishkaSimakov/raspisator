@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "Assertions.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
+#include "support/Assertions.h"
 
 TEST(ProblemBuilderTests, RowBasisNumericalStability) {
   size_t N = 10;

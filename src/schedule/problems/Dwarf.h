@@ -1,6 +1,6 @@
 #pragma once
 
-#include "model/STN.h"
+#include "schedule/model/STN.h"
 
 // a miniscule problems straight out of my head
 template <typename Field>
