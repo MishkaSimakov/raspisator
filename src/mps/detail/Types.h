@@ -43,6 +43,8 @@ inline std::string section_type_to_string(SectionType type) {
       return "BOUNDS";
     case SectionType::ENDATA:
       return "ENDATA";
+    case SectionType::OBJECT:
+      return "OBJECT";
     default:
       return "<UNKNOWN>";
   }
@@ -125,4 +127,4 @@ struct MPSParsingState {
   }
 };
 
-}  // namespace mps
+}  // namespace mps::detail

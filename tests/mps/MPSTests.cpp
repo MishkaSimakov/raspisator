@@ -250,3 +250,21 @@ TEST(MPSTests, DataRowsInObjectSection) {
 
   ASSERT_ANY_THROW({ read<double>(ss, Format::FREE); });
 }
+
+TEST(MPSTests, DuplicateObjectSection) {
+  const auto mps =
+      "NAME minimal\n"
+      "ROWS\n"
+      " N obj\n"
+      "COLUMNS\n"
+      "   x1 obj 3\n"
+      "RHS\n"
+      "   RHS obj 0\n"
+      "OBJECT\n"
+      "OBJECT\n"
+      "ENDATA";
+
+  std::stringstream ss{std::string(mps)};
+
+  ASSERT_ANY_THROW({ read<double>(ss, Format::FREE); });
+}

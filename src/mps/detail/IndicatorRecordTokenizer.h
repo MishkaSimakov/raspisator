@@ -53,7 +53,7 @@ class IndicatorRecordTokenizer {
   }
 
  public:
-  // @record must point at non-empty string that starts with non-space symbol
+  // @line must point at non-empty string that starts with non-space symbol
   static IndicatorRecord parse(std::string_view line) {
     assert(!line.empty() && !str::is_space(line[0]));
 
