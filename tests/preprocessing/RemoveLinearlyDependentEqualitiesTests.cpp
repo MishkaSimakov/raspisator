@@ -4,16 +4,17 @@
 #include <set>
 
 #include "obfuscators/ShuffleRows.h"
-#include "presolve/passes/RemoveLinearlyDependentConstraints.h"
+#include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "support/Highs.h"
 #include "support/ProblemConstructors.h"
 #include "support/RandomProblem.h"
 
-template <typename Field>
-void add_linearly_dependent_constraints(problem::MILP<Field>& problem) {
+template <typename Field, typename Gen>
+  requires std::uniform_random_bit_generator<Gen>
+void add_linearly_dependent_constraints(problem::MILP<Field>& problem,
+                                        Gen& random) {
   const auto [n, d] = problem.matrix.shape();
 
-  std::default_random_engine random;
   std::uniform_int_distribution<int> elements_distribution(-5, 5);
 
   const auto multiplier = linalg::random<Field>(
@@ -33,10 +34,28 @@ void add_linearly_dependent_constraints(problem::MILP<Field>& problem) {
     }
   }
 
+  // widen rhs bounds, problem should still remain feasible
+  std::uniform_int_distribution<int> bound_widening(0, 5);
+  std::uniform_int_distribution<int> coin(0, 1);
+
+  for (size_t row = 0; row < 2 * n; ++row) {
+    if (coin(random) == 1) {
+      continue;
+    }
+
+    if (problem.rhs_bounds[row].lower) {
+      *problem.rhs_bounds[row].lower -= bound_widening(random);
+    }
+    if (problem.rhs_bounds[row].upper) {
+      *problem.rhs_bounds[row].upper += bound_widening(random);
+    }
+  }
+
   problem.row_names.resize(2 * n);
 }
 
-TEST(RemoveLinearlyDependentConstraintsTests, RemovesLinearlyDependent) {
+TEST(RemoveLinearlyDependentConstraintsTests,
+     RemovesLinearlyDependentEqualities) {
   // matrix[2] = matrix[0] - matrix[1]
   CSCMatrix<Rational> matrix = {
       {1, 2, 3, 4},
@@ -46,8 +65,15 @@ TEST(RemoveLinearlyDependentConstraintsTests, RemovesLinearlyDependent) {
 
   auto problem = feasible_from_matrix(matrix);
 
+  // ensure that all rows are equalities
+  problem.rhs_bounds = {
+      Bound<Rational>{0, 0},
+      Bound<Rational>{0, 0},
+      Bound<Rational>{0, 0},
+  };
+
   auto new_problem =
-      presolve::RemoveLinearlyDependentConstraints<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
   new_problem.validate();
 
   ASSERT_EQ(new_problem.matrix.rows(), 2);
@@ -65,9 +91,15 @@ TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
   auto problem = feasible_from_matrix(matrix);
 
   problem.row_names = {"r0", "r1", "r2"};
+  // ensure that all rows are equalities
+  problem.rhs_bounds = {
+      Bound<Rational>{0, 0},
+      Bound<Rational>{0, 0},
+      Bound<Rational>{0, 0},
+  };
 
   auto new_problem =
-      presolve::RemoveLinearlyDependentConstraints<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
 
   std::set remaining_names(new_problem.row_names.begin(),
                            new_problem.row_names.end());
@@ -77,9 +109,28 @@ TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
                remaining_names == std::set<std::string>{"r1", "r2"}));
 }
 
+TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection) {
+  CSCMatrix<Rational> matrix = {
+      {1, 2, 3},
+      {2, 4, 6},
+  };
+
+  auto problem = feasible_from_matrix(matrix);
+
+  problem.rhs_bounds = {
+      Bound<Rational>{1, 1},
+      Bound<Rational>{-3, -3},
+  };
+
+  auto new_problem =
+      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+
+  ASSERT_TRUE(new_problem.proven_infeasible);
+}
+
 TEST(RemoveLinearlyDependentConstraintsTests, RandomTests) {
   constexpr size_t kIterations = 1'000;
-  constexpr size_t kSize = 10;
+  constexpr size_t kSize = 20;
   constexpr int kElementMagnitude = 10;
 
   std::default_random_engine random;
@@ -88,15 +139,14 @@ TEST(RemoveLinearlyDependentConstraintsTests, RandomTests) {
     auto problem =
         random_feasible_problem<double>(kSize, kElementMagnitude, random);
 
-    add_linearly_dependent_constraints(problem);
-
+    add_linearly_dependent_constraints(problem, random);
     shuffle_rows(problem);
 
     // solve without preprocessing
     auto solution = highs::solve(highs::from_milp(problem));
 
     // preprocess
-    presolve::RemoveLinearlyDependentConstraints<double> pass;
+    presolve::RemoveLinearlyDependentEqualities<double> pass;
 
     auto new_problem = pass.apply(problem);
 

@@ -7,21 +7,22 @@
 #include "problem/MILP.h"
 #include "support/RandomProblem.h"
 
-template <typename Field>
-problem::MILP<Field> random_feasible_problem(
-    size_t size, int magnitude, std::default_random_engine engine) {
+template <typename Field, typename Gen>
+  requires std::uniform_random_bit_generator<Gen>
+problem::MILP<Field> random_feasible_problem(size_t size, int magnitude,
+                                             Gen& random) {
   std::uniform_int_distribution<size_t> height_distribution(1, size);
   std::uniform_int_distribution<size_t> width_increase_distribution(1, size);
   std::uniform_int_distribution<int> elements_distribution(-magnitude,
                                                            magnitude);
 
-  auto elements_generator = [&elements_distribution, &engine] -> int {
-    return elements_distribution(engine);
+  auto elements_generator = [&elements_distribution, &random] -> int {
+    return elements_distribution(random);
   };
 
   // generate an LP-problem
-  size_t n = height_distribution(engine);
-  size_t d = n + width_increase_distribution(engine);
+  size_t n = height_distribution(random);
+  size_t d = n + width_increase_distribution(random);
 
   auto A_basic = linalg::random_invertible<Field>(n, elements_generator);
   auto A_nonbasic = linalg::random<Field>(n, d - n, elements_generator);
@@ -45,7 +46,7 @@ problem::MILP<Field> random_feasible_problem(
 
     bounds[i] = Bound<Field>(first, second);
 
-    point[i, 0] = std::uniform_int_distribution<int>(first, second)(engine);
+    point[i, 0] = std::uniform_int_distribution<int>(first, second)(random);
   }
 
   auto A = linalg::hstack(A_basic, A_nonbasic);
@@ -60,9 +61,15 @@ problem::MILP<Field> random_feasible_problem(
 
   result.rhs_bounds.resize(n);
   std::uniform_int_distribution<int> bound_range(0, 10);
+  std::uniform_int_distribution<int> coin(0, 1);
+
   for (size_t i = 0; i < n; ++i) {
-    result.rhs_bounds[i] = Bound<Field>{b[i, 0] - bound_range(engine),
-                                        b[i, 0] + bound_range(engine)};
+    if (coin(random) == 1) {
+      result.rhs_bounds[i] = Bound<Field>{b[i, 0] - bound_range(random),
+                                          b[i, 0] + bound_range(random)};
+    } else {
+      result.rhs_bounds[i] = Bound<Field>{b[i, 0], b[i, 0]};
+    }
   }
 
   result.implied_var_bounds = result.var_bounds;

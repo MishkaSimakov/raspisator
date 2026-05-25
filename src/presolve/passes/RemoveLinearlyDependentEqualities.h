@@ -10,9 +10,10 @@
 namespace presolve {
 
 template <typename Field>
-class RemoveLinearlyDependentConstraints final : public Pass<Field> {
-  void gauss_elimination(Matrix<Field>& matrix,
-                         std::vector<Bound<Field>>& rhs_bounds) {
+class RemoveLinearlyDependentEqualities final : public Pass<Field> {
+  // Performs the first part of row reduction. Ignores rows with non-zero range.
+  void row_reduction(Matrix<Field>& matrix,
+                     std::vector<Bound<Field>>& rhs_bounds) {
     using std::abs;
 
     const auto [n, d] = matrix.shape();
@@ -24,7 +25,9 @@ class RemoveLinearlyDependentConstraints final : public Pass<Field> {
       ArgMaximum<Field> max_abs;
 
       for (size_t row = current_row; row < n; ++row) {
-        max_abs.record(row, abs(matrix[permutation.apply(row), col]));
+        if (rhs_bounds[row].is_fixed()) {
+          max_abs.record(row, abs(matrix[permutation.apply(row), col]));
+        }
       }
 
       if (!max_abs.has_value() ||
@@ -34,19 +37,24 @@ class RemoveLinearlyDependentConstraints final : public Pass<Field> {
 
       permutation.swap(max_abs->index, current_row);
 
-      for (size_t row = current_row + 1; row < n; ++row) {
-        const Field coef = matrix[permutation.apply(row), col];
+      const Field pivot = matrix[permutation.apply(current_row), col];
 
-        if (!FieldTraits<Field>::is_nonzero(coef)) {
+      for (size_t row = current_row + 1; row < n; ++row) {
+        if (!rhs_bounds[row].is_fixed()) {
           continue;
         }
 
-        rhs_bounds[row] -= rhs_bounds[permutation.apply(current_row)] * coef /
-                           matrix[permutation.apply(current_row), col];
+        const Field value = matrix[permutation.apply(row), col];
+
+        if (!FieldTraits<Field>::is_nonzero(value)) {
+          continue;
+        }
+
+        rhs_bounds[row] -=
+            rhs_bounds[permutation.apply(current_row)] * value / pivot;
 
         matrix[permutation.apply(row), {0, d}].sub_mul(
-            matrix[permutation.apply(current_row), {0, d}],
-            coef / matrix[permutation.apply(current_row), col]);
+            matrix[permutation.apply(current_row), {0, d}], value / pivot);
         matrix[permutation.apply(current_row), col] = 0;
       }
 
@@ -55,22 +63,27 @@ class RemoveLinearlyDependentConstraints final : public Pass<Field> {
   }
 
  public:
-  RemoveLinearlyDependentConstraints() = default;
+  RemoveLinearlyDependentEqualities() = default;
 
   problem::MILP<Field> apply(problem::MILP<Field> problem) override {
     this->register_apply();
 
     auto matrix = linalg::to_dense(problem.matrix);
-    auto bounds = problem.implied_var_bounds;
+    auto bounds = problem.rhs_bounds;
 
-    gauss_elimination(matrix, bounds);
+    row_reduction(matrix, bounds);
 
-    // find linearly dependent rows using matrix after gaussian elimination
+    // find linearly dependent rows using matrix after row reduction
     const auto [n, d] = matrix.shape();
     std::vector<size_t> rows_mapping(n, n);
     size_t new_rows = 0;
 
     for (size_t row = 0; row < n; ++row) {
+      if (!problem.rhs_bounds[row].is_fixed()) {
+        rows_mapping[row] = new_rows++;
+        continue;
+      }
+
       bool is_empty = true;
 
       for (size_t col = 0; col < d; ++col) {
@@ -81,8 +94,7 @@ class RemoveLinearlyDependentConstraints final : public Pass<Field> {
       }
 
       if (!is_empty) {
-        rows_mapping[row] = new_rows;
-        ++new_rows;
+        rows_mapping[row] = new_rows++;
         continue;
       }
 

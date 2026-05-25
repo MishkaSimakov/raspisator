@@ -43,7 +43,7 @@ target_sources(tests PUBLIC
 
         feature/FullProblemSolvingTests.cpp
 
-        preprocessing/RemoveLinearlyDependentConstraintsTests.cpp
+        preprocessing/RemoveLinearlyDependentEqualitiesTests.cpp
         preprocessing/TransformToEqualitiesTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main highs raspisator)
