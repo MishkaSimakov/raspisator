@@ -43,8 +43,8 @@ target_sources(tests PUBLIC
 
         feature/FullProblemSolvingTests.cpp
 
-        preprocessing/RemoveLinearlyDependentEqualitiesTests.cpp
-        preprocessing/TransformToEqualitiesTests.cpp
+        presolve/RemoveLinearlyDependentEqualitiesTests.cpp
+        presolve/TransformToEqualitiesTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main highs raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")

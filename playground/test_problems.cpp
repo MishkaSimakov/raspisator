@@ -3,6 +3,8 @@
 #include <print>
 #include <unordered_set>
 
+#include "linear/simplex/Settings.h"
+#include "linear/simplex/Simplex.h"
 #include "mps/MPS.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "presolve/passes/TransformToEqualities.h"
@@ -12,7 +14,7 @@ using Field = double;
 
 int main() {
   std::unordered_set<std::string> problems = {
-      // "SHELL"
+      "SHELL"
       // "AFIRO", "ADLITTLE", "BANDM",
       // "BLEND", "PILOT"
   };
@@ -28,9 +30,9 @@ int main() {
 
     auto problem_name = path.filename().string();
 
-    // if (!problems.contains(problem_name)) {
-    // continue;
-    // }
+    if (!problems.contains(problem_name)) {
+      continue;
+    }
 
     std::ifstream is(entry);
     if (!is) {
@@ -47,33 +49,46 @@ int main() {
     std::println("{}: {} x {}", problem_name, problem.matrix.rows(),
                  problem.matrix.cols());
 
-    // simplex::Settings<Field> settings{.is_strict = true};
-    // auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
-    //     CSCMatrix(matrices.A), matrices.b, matrices.c, settings);
-    //
-    // auto states = solver.get_primal_feasible(matrices.bounds);
-    //
-    // if (!states) {
-    //   std::println("  Failed to find primal feasible basis.");
-    //   continue;
-    // }
-    //
-    // std::println("  Found primal feasible basis, starting solving.");
-    // auto solution = solver.primal(matrices.bounds, *states);
-    //
-    // std::visit(Overload{
-    //                [](const FiniteLPSolution<Field>& solution) {
-    //                  std::println("  finite solution: {}", solution.value);
-    //                },
-    //                [](const NoFeasibleElements&) {
-    //                  std::println("  no feasible elements");
-    //                },
-    //                [](const ReachedIterationsLimit<Field>&) {
-    //                  std::println("  reached iterations limit");
-    //                },
-    //                [](const Unbounded&) { std::println("  unbounded"); },
-    //            },
-    //            solution.solution);
+    auto A = problem.matrix;
+    auto b = Matrix<Field>(problem.matrix.rows(), 1);
+    auto c = Matrix<Field>(1, problem.matrix.cols());
+
+    for (size_t i = 0; i < problem.matrix.rows(); ++i) {
+      b[i, 0] = *problem.rhs_bounds[i].lower;
+    }
+    for (size_t i = 0; i < problem.matrix.cols(); ++i) {
+      c[0, i] = problem.cost[i];
+    }
+
+    auto bounds = Bounds<Field>(problem.var_bounds);
+
+    simplex::Settings<Field> settings{.is_strict = true};
+    auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
+        A, b, c, settings);
+
+    auto states = solver.get_primal_feasible(bounds);
+
+    if (!states) {
+      std::println("  Failed to find primal feasible basis.");
+      continue;
+    }
+
+    std::println("  Found primal feasible basis, starting solving.");
+    auto solution = solver.primal(bounds, *states);
+
+    std::visit(Overload{
+                   [](const FiniteLPSolution<Field>& solution) {
+                     std::println("  finite solution: {}", solution.value);
+                   },
+                   [](const NoFeasibleElements&) {
+                     std::println("  no feasible elements");
+                   },
+                   [](const ReachedIterationsLimit<Field>&) {
+                     std::println("  reached iterations limit");
+                   },
+                   [](const Unbounded&) { std::println("  unbounded"); },
+               },
+               solution.solution);
   }
 
   return 0;

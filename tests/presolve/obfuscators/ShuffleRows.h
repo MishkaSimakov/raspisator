@@ -6,14 +6,14 @@
 
 #include "problem/MILP.h"
 
-template <typename Field>
-void shuffle_rows(problem::MILP<Field>& problem, size_t seed = 0) {
+template <typename Field, typename Gen>
+  requires std::uniform_random_bit_generator<Gen>
+void shuffle_rows(problem::MILP<Field>& problem, Gen& random) {
   const auto [n, d] = problem.matrix.shape();
 
   std::vector<size_t> order(n);
   std::iota(order.begin(), order.end(), 0);
 
-  std::default_random_engine random(seed);
   std::ranges::shuffle(order, random);
 
   std::vector<Bound<Field>> new_rhs_bounds(n);

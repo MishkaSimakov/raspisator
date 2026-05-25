@@ -80,6 +80,52 @@ TEST(RemoveLinearlyDependentConstraintsTests,
   ASSERT_EQ(new_problem.matrix.cols(), 4);
 }
 
+TEST(RemoveLinearlyDependentConstraintsTests, SmallTest) {
+  CSCMatrix<Rational> matrix = {
+      {1, 2, 3},
+      {2, 4, 6},
+  };
+
+  auto problem = feasible_from_matrix(matrix);
+
+  problem.rhs_bounds = {
+      Bound<Rational>{1, 1},
+      Bound<Rational>{2, 2},
+  };
+
+  auto new_problem =
+      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+
+  ASSERT_EQ(new_problem.matrix.rows(), 1);
+  ASSERT_EQ(new_problem.matrix.cols(), 3);
+
+  ASSERT_FALSE(new_problem.proven_infeasible);
+}
+
+TEST(RemoveLinearlyDependentConstraintsTests, SmallTest2) {
+  CSCMatrix<Rational> matrix = {
+      {1, 2, 3},
+      {1, 2, 3},
+      {2, 4, 6},
+  };
+
+  auto problem = feasible_from_matrix(matrix);
+
+  problem.rhs_bounds = {
+      Bound<Rational>{1, 1},
+      Bound<Rational>{1, 1},
+      Bound<Rational>{2, 2},
+  };
+
+  auto new_problem =
+      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+
+  ASSERT_EQ(new_problem.matrix.rows(), 1);
+  ASSERT_EQ(new_problem.matrix.cols(), 3);
+
+  ASSERT_FALSE(new_problem.proven_infeasible);
+}
+
 TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
   // matrix[2] = matrix[0] - matrix[1]
   CSCMatrix<Rational> matrix = {
@@ -109,7 +155,7 @@ TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
                remaining_names == std::set<std::string>{"r1", "r2"}));
 }
 
-TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection) {
+TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection1) {
   CSCMatrix<Rational> matrix = {
       {1, 2, 3},
       {2, 4, 6},
@@ -140,7 +186,7 @@ TEST(RemoveLinearlyDependentConstraintsTests, RandomTests) {
         random_feasible_problem<double>(kSize, kElementMagnitude, random);
 
     add_linearly_dependent_constraints(problem, random);
-    shuffle_rows(problem);
+    shuffle_rows(problem, random);
 
     // solve without preprocessing
     auto solution = highs::solve(highs::from_milp(problem));
@@ -149,8 +195,9 @@ TEST(RemoveLinearlyDependentConstraintsTests, RandomTests) {
     presolve::RemoveLinearlyDependentEqualities<double> pass;
 
     auto new_problem = pass.apply(problem);
-
     new_problem.validate();
+
+    ASSERT_FALSE(new_problem.proven_infeasible);
 
     // solve new problem
     auto new_solution = highs::solve(highs::from_milp(new_problem));
