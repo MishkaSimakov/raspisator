@@ -45,7 +45,7 @@ target_sources(tests PUBLIC
 
         preprocessing/RemoveLinearlyDependentConstraintsTests.cpp
 )
-target_link_libraries(tests GTest::gtest_main raspisator)
+target_link_libraries(tests GTest::gtest_main highs raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
 target_include_directories(tests PUBLIC .)
 

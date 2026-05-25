@@ -234,3 +234,44 @@ TEST(MatrixTests, SliceAssignment) {
 
   ASSERT_EQ(A, (Matrix{{123}}));
 }
+
+TEST(MatrixTests, ResizeToLarger1) {
+  Matrix<int> matrix = {{1}};
+
+  matrix.resize(5, 5);
+
+  Matrix<int> expected(5, 5, 0);
+  expected[0, 0] = 1;
+
+  ASSERT_EQ(matrix, expected);
+}
+
+TEST(MatrixTests, ResizeToLarger2) {
+  Matrix<int> matrix = {
+      {1, 2},
+      {3, 4},
+  };
+
+  matrix.resize(5, 5);
+
+  Matrix<int> expected(5, 5, 0);
+  expected[0, 0] = 1;
+  expected[0, 1] = 2;
+  expected[1, 0] = 3;
+  expected[1, 1] = 4;
+
+  ASSERT_EQ(matrix, expected);
+}
+
+TEST(MatrixTests, ResizeToSmaller1) {
+  Matrix<int> matrix = {
+      {1, 2},
+      {3, 4},
+  };
+
+  matrix.resize(1, 1);
+
+  Matrix<int> expected = {{1}};
+
+  ASSERT_EQ(matrix, expected);
+}

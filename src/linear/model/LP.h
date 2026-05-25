@@ -16,7 +16,11 @@ class Bounds {
   explicit Bounds(size_t size) : variables_bounds_(size) {}
 
   Bounds(std::initializer_list<Bound<Field>> il) : Bounds(il.size()) {
-    std::copy(il.begin(), il.end(), variables_bounds_);
+    std::copy(il.begin(), il.end(), variables_bounds_.begin());
+  }
+
+  explicit Bounds(std::vector<Bound<Field>> bounds) : Bounds(bounds.size()) {
+    std::copy(bounds.begin(), bounds.end(), variables_bounds_.begin());
   }
 
   Bounds(const std::vector<Field>& lower, const std::vector<Field>& upper)

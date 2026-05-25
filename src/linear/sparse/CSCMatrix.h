@@ -16,6 +16,9 @@
 // - Oh, don't be so dense!
 
 template <typename Field>
+using SparseVector = std::vector<std::pair<size_t, Field>>;
+
+template <typename Field>
 class CSCMatrix {
   std::vector<std::pair<size_t, Field>> entries_;
   std::vector<size_t> index_pointers_;
@@ -105,6 +108,20 @@ class CSCMatrix {
 
   std::span<const std::pair<size_t, Field>> get_entries() const {
     return entries_;
+  }
+
+  std::vector<SparseVector<Field>> get_transposed() const {
+    const auto [n, d] = shape();
+
+    std::vector<SparseVector<Field>> result(n);
+
+    for (size_t col = 0; col < d; ++col) {
+      for (auto [row, value] : get_column(col)) {
+        result[row].emplace_back(col, value);
+      }
+    }
+
+    return result;
   }
 
   std::span<std::pair<size_t, Field>> get_entries() { return entries_; }

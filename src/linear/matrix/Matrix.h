@@ -218,6 +218,7 @@ void swap(MatrixSlice<Field> lhs, MatrixSlice<Field> rhs) {
 
 template <typename Field>
 class Matrix {
+  // (row, col) is in data_[col + row * cols_count_]
   std::vector<Field> data_;
   size_t rows_count_;
   size_t cols_count_;
@@ -346,7 +347,21 @@ class Matrix {
   size_t get_width() const { return cols_count_; }
   size_t get_height() const { return rows_count_; }
 
-  std::pair<size_t, size_t> shape() const { return {rows_count_, cols_count_}; }
+  size_t rows() const { return rows_count_; }
+  size_t cols() const { return cols_count_; }
+  std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
+
+  void resize(size_t new_rows, size_t new_cols) {
+    // TODO: this may be optimized
+    Matrix<Field> result(new_cols, new_rows);
+
+    size_t common_rows = std::min(rows_count_, new_rows);
+    size_t common_cols = std::min(cols_count_, new_cols);
+    result[{0, common_rows}, {0, common_cols}] =
+        (*this)[{0, common_rows}, {0, common_cols}];
+
+    *this = std::move(result);
+  }
 
   operator MatrixSlice<Field>() {
     return MatrixSlice<Field>(data_, rows_count_, cols_count_, {0, rows_count_},
