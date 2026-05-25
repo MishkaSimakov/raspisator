@@ -112,7 +112,7 @@ HighsLp from_milp(const problem::MILP<Field>& problem) {
   return lp;
 }
 
-Solution solve(const HighsLp& problem) {
+inline Solution solve(const HighsLp& problem) {
   Highs highs;
 
   if (highs.setOptionValue("output_flag", false) != HighsStatus::kOk) {

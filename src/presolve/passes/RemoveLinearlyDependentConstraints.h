@@ -41,12 +41,13 @@ class RemoveLinearlyDependentConstraints final : public Pass<Field> {
           continue;
         }
 
-        matrix[permutation.apply(row), {0, d}].sub_mul(
-            matrix[current_row, {0, d}], coef / matrix[current_row, col]);
-        matrix[current_row, col] = 0;
+        rhs_bounds[row] -= rhs_bounds[permutation.apply(current_row)] * coef /
+                           matrix[permutation.apply(current_row), col];
 
-        rhs_bounds[row] -=
-            rhs_bounds[current_row] * coef / matrix[current_row, col];
+        matrix[permutation.apply(row), {0, d}].sub_mul(
+            matrix[permutation.apply(current_row), {0, d}],
+            coef / matrix[permutation.apply(current_row), col]);
+        matrix[permutation.apply(current_row), col] = 0;
       }
 
       ++current_row;

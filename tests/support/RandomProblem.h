@@ -59,8 +59,10 @@ problem::MILP<Field> random_feasible_problem(
   result.var_bounds = bounds;
 
   result.rhs_bounds.resize(n);
+  std::uniform_int_distribution<int> bound_range(0, 10);
   for (size_t i = 0; i < n; ++i) {
-    result.rhs_bounds[i] = Bound<Field>{b[i, 0], b[i, 0]};
+    result.rhs_bounds[i] = Bound<Field>{b[i, 0] - bound_range(engine),
+                                        b[i, 0] + bound_range(engine)};
   }
 
   result.implied_var_bounds = result.var_bounds;
