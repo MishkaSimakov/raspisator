@@ -42,10 +42,8 @@ class CSCMatrix {
 
     for (size_t col = 0; col < d; ++col) {
       for (size_t row = 0; row < n; ++row) {
-        if (FieldTraits<Field>::is_nonzero(matrix[row, col])) {
-          entries_.emplace_back(row, matrix[row, col]);
-          ++nonzero_cnt;
-        }
+        entries_.emplace_back(row, matrix[row, col]);
+        ++nonzero_cnt;
       }
 
       index_pointers_[col + 1] = nonzero_cnt;
@@ -80,6 +78,7 @@ class CSCMatrix {
 
     // resize rows count
     if (new_rows >= rows()) {
+      entries_.resize(index_pointers_.back());
       rows_cnt_ = new_rows;
       return;
     }
@@ -99,6 +98,7 @@ class CSCMatrix {
       index_pointers_[col + 1] -= offset;
     }
 
+    entries_.resize(index_pointers_.back());
     rows_cnt_ = new_rows;
   }
 

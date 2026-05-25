@@ -57,6 +57,27 @@ TEST(TransformToEqualities, GeneratesCorrectNames) {
   ASSERT_EQ(new_problem.var_names[4], "r2_range");
 }
 
+TEST(TransformToEqualities, DontTouchEqualities) {
+  CSCMatrix<Rational> matrix = {
+      {1, 2, 3, 4},
+      {0, 4, 1, 2},
+  };
+
+  auto problem = feasible_from_matrix(matrix);
+
+  problem.row_names = {"r1", "r2"};
+  problem.rhs_bounds = {
+      Bound<Rational>{1, 1},
+      Bound<Rational>{2, 2},
+  };
+
+  auto new_problem = presolve::TransformToEqualities<Rational>().apply(problem);
+  new_problem.validate();
+
+  ASSERT_EQ(new_problem.matrix.rows(), 2);
+  ASSERT_EQ(new_problem.matrix.cols(), 4);
+}
+
 TEST(TransformToEqualities, RandomTests) {
   constexpr size_t kIterations = 1'000;
   constexpr size_t kSize = 10;
