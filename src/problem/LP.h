@@ -10,6 +10,7 @@
 
 namespace problem {
 
+// LP problem representation. Objective is to MAXIMIZE cost.
 template <typename Field>
 struct LP {
   CSCMatrix<Field> matrix;

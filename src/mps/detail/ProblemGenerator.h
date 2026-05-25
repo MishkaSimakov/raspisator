@@ -103,8 +103,8 @@ class ProblemGenerator {
     result.cost_name = state.rows[objective_row_index].name;
 
     double cost_multiplier = 1;
-    if (state.objective == ObjectiveType::MAXIMIZE) {
-      std::cerr << "MPS objective is MAXIMIZE, negating objective value."
+    if (state.objective == ObjectiveType::MINIMIZE) {
+      std::cerr << "MPS objective is MINIMIZE, negating objective coefficients."
                 << std::endl;
 
       cost_multiplier = -1;
@@ -120,6 +120,7 @@ class ProblemGenerator {
     }
 
     // fill in constraints matrix
+    // TODO: exclude objective row
     result.matrix.resize(state.rows.size(), 0);
     std::vector<std::tuple<size_t, size_t, Field>> triplets;
 

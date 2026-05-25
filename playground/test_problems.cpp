@@ -15,9 +15,8 @@ using Field = double;
 int main() {
   std::unordered_set<std::string> problems = {
       "SHELL"
-      // "AFIRO", "ADLITTLE", "BANDM",
-      // "BLEND", "PILOT"
-  };
+      "AFIRO",
+      "ADLITTLE", "BANDM", "BLEND", "PILOT"};
 
   auto problems_path = paths::resource("lp_problems");
   for (auto entry : std::filesystem::directory_iterator{problems_path}) {
