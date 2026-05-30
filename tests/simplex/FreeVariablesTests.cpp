@@ -18,7 +18,10 @@ TEST(FreeVariablesTests, SmallTest) {
   bounds[0] = {std::nullopt, std::nullopt};
   bounds[1] = {1, 2};
 
-  auto simplex = simplex::Simplex(A, b, c);
+  auto simplex = simplex::Simplex(
+      A, b, c,
+      {.primal_pricing =
+           std::make_unique<simplex::PrimalMostInfeasible<Rational>>()});
 
   auto basis = simplex.get_primal_feasible(bounds);
 
@@ -47,7 +50,10 @@ TEST(FreeVariablesTests, AllFree) {
   bounds[0] = {std::nullopt, std::nullopt};
   bounds[1] = {std::nullopt, std::nullopt};
 
-  auto simplex = simplex::Simplex(A, b, c);
+  auto simplex = simplex::Simplex(
+      A, b, c,
+      {.primal_pricing =
+           std::make_unique<simplex::PrimalMostInfeasible<Rational>>()});
 
   auto basis = simplex.get_primal_feasible(bounds);
 

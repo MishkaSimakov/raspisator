@@ -13,6 +13,7 @@
 #include "Config.h"
 #include "CyclingDetector.h"
 #include "Dual.h"
+#include "Math.h"
 #include "SimplexCoreDump.h"
 #include "Tolerance.h"
 #include "linear/matrix/Matrix.h"
@@ -71,31 +72,12 @@ class Simplex {
   Config<Field> config_;
   Accountant accountant_;
 
-  static Matrix<Field> get_point(const IterationState<Field>& state) {
-    auto [n, d] = state.problem_shape();
-
-    Matrix<Field> result(d, 1, 0);
-
-    for (size_t i = 0; i < n; ++i) {
-      result[state.basic_variables[i], 0] = state.basic_point[i, 0];
-    }
-    for (size_t i = 0; i < d; ++i) {
-      if (state.variables_states[i] == VariableState::AT_LOWER) {
-        result[i, 0] = *(*state.bounds)[i].lower;
-      } else if (state.variables_states[i] == VariableState::AT_UPPER) {
-        result[i, 0] = *(*state.bounds)[i].upper;
-      } else if (state.variables_states[i] == VariableState::NONBASIC_FREE) {
-        result[i, 0] = 0;
-      }
-    }
-
-    return result;
-  }
-
   template <typename T>
   static SimplexResult<Field> construct_result(
       const IterationState<Field>& state) {
-    auto point = get_point(state);
+    auto point =
+        detail::get_point_from_basis(*state.bounds, state.variables_states,
+                                     state.basic_variables, state.basic_point);
 
     if constexpr (std::same_as<T, FiniteLPSolution<Field>>) {
       return SimplexResult<Field>{
@@ -220,46 +202,6 @@ class Simplex {
     return min_ratio->index;
   }
 
-  Matrix<Field> get_rhs(const Bounds<Field>& bounds,
-                        const std::vector<VariableState>& states) const {
-    auto [n, d] = A_.shape();
-
-    Matrix<Field> rhs(b_);
-    for (size_t col = 0; col < d; ++col) {
-      if (states[col] == VariableState::AT_LOWER) {
-        for (const auto& [row, value] : A_.get_column(col)) {
-          rhs[row, 0] -= value * *bounds[col].lower;
-        }
-      } else if (states[col] == VariableState::AT_UPPER) {
-        for (const auto& [row, value] : A_.get_column(col)) {
-          rhs[row, 0] -= value * *bounds[col].upper;
-        }
-      }
-    }
-
-    return std::move(rhs);
-  }
-
-  Field get_objective(const IterationState<Field>& state) const {
-    auto [n, d] = A_.shape();
-    KahanSum<Field> objective;
-
-    for (size_t col = 0; col < d; ++col) {
-      // TODO: change this to switch, so that new VariableStates can be handled
-      if (state.variables_states[col] == VariableState::AT_LOWER) {
-        objective.add(c_[0, col] * *(*state.bounds)[col].lower);
-      } else if (state.variables_states[col] == VariableState::AT_UPPER) {
-        objective.add(c_[0, col] * *(*state.bounds)[col].upper);
-      }
-    }
-
-    for (size_t i = 0; i < state.basic_variables.size(); ++i) {
-      objective.add(c_[0, state.basic_variables[i]] * state.basic_point[i, 0]);
-    }
-
-    return objective.sum();
-  }
-
   bool should_stop(const IterationState<Field>& state) const {
     return config_.max_iterations &&
            state.iteration_index >= config_.max_iterations;
@@ -312,10 +254,13 @@ class Simplex {
     DualLeavingVariable<Field> leaving_finder;
 
     while (true) {
-      auto rhs = get_rhs(bounds, state_.variables_states);
+      auto rhs =
+          detail::get_adjusted_rhs(A_, b_, bounds, state_.variables_states);
       state_.basic_point = state_.lupa.solve_linear(rhs);
 
-      state_.objective = get_objective(state_);
+      state_.objective =
+          detail::get_objective(c_, *state_.bounds, state_.variables_states,
+                                state_.basic_variables, state_.basic_point);
 
       if (state_.cycling.record(state_.iteration_index, state_.variables_states,
                                 state_.objective) ==
@@ -565,6 +510,11 @@ class Simplex {
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
+    std::vector<Bound<Field>> bounds_vector(d);
+    for (size_t i = 0; i < d; ++i) {
+      bounds_vector[i] = bounds[i];
+    }
+
     std::vector<IterationAction> history;
 
     initialize_state(bounds, states);
@@ -575,7 +525,8 @@ class Simplex {
     }
 
     while (true) {
-      auto rhs = get_rhs(bounds, state_.variables_states);
+      auto rhs =
+          detail::get_adjusted_rhs(A_, b_, bounds, state_.variables_states);
       state_.basic_point = state_.lupa.solve_linear(rhs);
 
       // if constexpr (std::same_as<Field, double>) {
@@ -608,7 +559,9 @@ class Simplex {
         continue;
       }
 
-      state_.objective = get_objective(state_);
+      state_.objective =
+          detail::get_objective(c_, *state_.bounds, state_.variables_states,
+                                state_.basic_variables, state_.basic_point);
 
       if (state_.cycling.record(state_.iteration_index, state_.variables_states,
                                 state_.objective) ==
@@ -634,11 +587,6 @@ class Simplex {
       std::vector<Field> basic_point(n);
       for (size_t i = 0; i < n; ++i) {
         basic_point[i] = state_.basic_point[i, 0];
-      }
-
-      std::vector<Bound<Field>> bounds_vector(d);
-      for (size_t i = 0; i < d; ++i) {
-        bounds_vector[i] = bounds[i];
       }
 
       auto entering =
@@ -786,7 +734,7 @@ class Simplex {
     }
 
     // add additional slack variable to each constraint
-    const auto rhs = get_rhs(bounds, states);
+    const auto rhs = detail::get_adjusted_rhs(A_, b_, bounds, states);
 
     auto new_A = A_;
     for (size_t i = 0; i < n; ++i) {
