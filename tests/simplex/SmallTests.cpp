@@ -5,6 +5,7 @@
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/simplex/Simplex.h"
+#include "linear/simplex/init/primal/Phase1.h"
 
 template <typename Field>
 auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
@@ -303,12 +304,11 @@ TEST(SimplexMethodTests, PrimalTest) {
 TEST(SimplexMethodTests, PrimalFeasibleFinding) {
   auto [A, b, c, bounds] = kPrimalTestProblem;
 
-  simplex::Simplex simplex(A, b, c);
-
-  auto feasible = simplex.get_primal_feasible(bounds);
+  auto feasible = simplex::primal_phase1(A, b, c, bounds);
 
   ASSERT_TRUE(feasible.has_value());
 
+  simplex::Simplex simplex(A, b, c);
   ASSERT_TRUE(simplex.is_primal_feasible(bounds, *feasible));
 }
 
@@ -328,9 +328,10 @@ TEST(SimplexMethodTests, PrimalFeasibleFindingInfeasibleProblem) {
 
   simplex::Simplex simplex(A, b, c);
 
-  auto feasible = simplex.get_primal_feasible(bounds);
+  auto feasible = simplex::primal_phase1(A, b, c, bounds);
 
   ASSERT_TRUE(!feasible.has_value());
+  ASSERT_EQ(feasible.error(), simplex::Phase1Error::INFEASIBLE);
 }
 
 TEST(SimplexMethodTests, PrimalFeasibleFinding2) {
@@ -349,10 +350,9 @@ TEST(SimplexMethodTests, PrimalFeasibleFinding2) {
   bounds[3] = {-4, 5};
   bounds[4] = {-2, 5};
 
+  auto feasible = simplex::primal_phase1(A, b, c, bounds);
+
   simplex::Simplex simplex(A, b, c);
-
-  auto feasible = simplex.get_primal_feasible(bounds);
-
   ASSERT_TRUE(feasible.has_value());
   ASSERT_TRUE(simplex.is_primal_feasible(bounds, *feasible));
 }

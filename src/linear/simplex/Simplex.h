@@ -199,7 +199,8 @@ class Simplex {
       min_ratio.record(i, ratio);
     }
 
-    return min_ratio->index;
+    return min_ratio.has_value() ? std::optional{min_ratio->index}
+                                 : std::nullopt;
   }
 
   bool should_stop(const IterationState<Field>& state) const {
@@ -705,121 +706,6 @@ class Simplex {
     return states;
   }
 
-  // Returns primal feasible basis or std::nullopt if problem is infeasible.
-  // Note: algorithm is taken from
-  // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
-  std::optional<std::vector<VariableState>> get_primal_feasible(
-      Bounds<Field> bounds) {
-    const auto [n, old_d] = A_.shape();
-    const size_t new_d = old_d + n;
-
-    std::vector<VariableState> states(new_d);
-    Bounds<Field> new_bounds(new_d);
-
-    for (size_t i = 0; i < old_d; ++i) {
-      if (bounds[i].lower) {
-        states[i] = VariableState::AT_LOWER;
-      } else if (bounds[i].upper) {
-        states[i] = VariableState::AT_UPPER;
-      } else {
-        states[i] = VariableState::NONBASIC_FREE;
-      }
-
-      new_bounds[i] = bounds[i];
-    }
-
-    for (size_t i = old_d; i < new_d; ++i) {
-      states[i] = VariableState::BASIC;
-      new_bounds[i] = {0, std::nullopt};
-    }
-
-    // add additional slack variable to each constraint
-    const auto rhs = detail::get_adjusted_rhs(A_, b_, bounds, states);
-
-    auto new_A = A_;
-    for (size_t i = 0; i < n; ++i) {
-      new_A.add_column();
-
-      if (rhs[i, 0] > 0) {
-        new_A.push_to_last_column(i, 1);
-      } else {
-        new_A.push_to_last_column(i, -1);
-      }
-    }
-
-    auto new_c = Matrix<Field>(1, new_d, 0);
-
-    for (size_t i = old_d; i < new_d; ++i) {
-      new_c[0, i] = -1;
-    }
-
-    auto helper = Simplex(
-        new_A, b_, new_c,
-        {
-            .primal_pricing = std::make_unique<PrimalMostInfeasible<Field>>(),
-        });
-    const auto result = helper.primal(new_bounds, states);
-
-    if (!result.is_feasible()) {
-      throw std::runtime_error(
-          "Something went wrong in primal implementation.");
-    }
-
-    auto solution = std::get<FiniteLPSolution<Field>>(result.solution);
-
-    // Case 1
-    if (FieldTraits<Field>::is_strictly_negative(solution.value)) {
-      // Problem is infeasible
-      // TODO: indicate infeasibility in some way
-      return std::nullopt;
-    }
-
-    // Case 2: try to eliminate artificial variables from basic variables (if
-    // there are any) using pivot operation
-    for (size_t basic_index = 0; basic_index < n; ++basic_index) {
-      const size_t i = helper.state_.basic_variables[basic_index];
-
-      if (i < old_d) {
-        continue;
-      }
-
-      const auto row = helper.state_.lupa.get_row(basic_index);
-
-      // try to find replacement for i among non-artificial variables
-      bool found = false;
-
-      for (size_t j = 0; j < old_d; ++j) {
-        if (solution.variables[j] == VariableState::BASIC) {
-          continue;
-        }
-
-        Field coef = 0;
-
-        for (const auto [index, value] : A_.get_column(j)) {
-          coef += row[index, 0] * value;
-        }
-
-        if (FieldTraits<Field>::is_nonzero(coef)) {
-          // change i -> j in basis
-          solution.variables[j] = VariableState::BASIC;
-          helper.state_.lupa.change_column(basic_index, j);
-          found = true;
-
-          break;
-        }
-      }
-
-      if (!found) {
-        // Problem contains linearly dependent rows.
-        // TODO: indicate this to user
-        return std::nullopt;
-      }
-    }
-
-    solution.variables.resize(old_d);
-    return solution.variables;
-  }
-
   // This function does not check whether matrix formed by basic columns is
   // invertible.
   bool is_dual_feasible(const Bounds<Field>& bounds,
@@ -923,6 +809,28 @@ class Simplex {
       SimplexCoreDump<Field>(A_, b_, c_).dump_state(state_);
       throw;
     }
+  }
+
+  void change_basis(size_t leaving_index, size_t entering_variable,
+                    VariableState leaving_state) {
+    state_.lupa.change_column(leaving_index, entering_variable);
+
+    state_.variables_states[entering_variable] = VariableState::BASIC;
+
+    state_.variables_states[state_.basic_variables[leaving_index]] =
+        leaving_state;
+    state_.basic_variables[leaving_index] = entering_variable;
+  }
+
+  // current basis getters
+  std::vector<size_t> get_basic_vars() const { return state_.basic_variables; }
+
+  std::vector<VariableState> get_states() const {
+    return state_.variables_states;
+  }
+
+  Matrix<Field> get_tableau_row(size_t row) const {
+    return state_.lupa.get_row(row);
   }
 };
 

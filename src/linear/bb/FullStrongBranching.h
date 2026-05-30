@@ -340,14 +340,15 @@ class FullStrongBranchingBranchAndBound {
     assert(root.has_value());
 
     // TODO: calculate states for root
-    auto feasible = lp_solver_.get_primal_feasible(root->bounds);
-
-    if (!feasible) {
-      throw std::runtime_error("Unsupported.");
-    }
-
-    auto run_result = lp_solver_.primal(root->bounds, *feasible);
-    try_push_to_waiting(std::move(*root), run_result);
+    // TODO: uncomment
+    // auto feasible = lp_solver_.get_primal_feasible(root->bounds);
+    //
+    // if (!feasible) {
+    //   throw std::runtime_error("Unsupported.");
+    // }
+    //
+    // auto run_result = lp_solver_.primal(root->bounds, *feasible);
+    // try_push_to_waiting(std::move(*root), run_result);
 
     // main branch and bound cycle
     std::optional<Node> parent;

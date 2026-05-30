@@ -7,6 +7,7 @@
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/Random.h"
 #include "linear/simplex/Simplex.h"
+#include "linear/simplex/init/primal/Phase1.h"
 
 TEST(UnboundedSimplexTests, SimpleTest1) {
   CSCMatrix<Rational> A = {
@@ -25,11 +26,11 @@ TEST(UnboundedSimplexTests, SimpleTest1) {
 
   simplex::Simplex solver(A, b, c);
 
-  auto feasible = solver.get_primal_feasible(bounds);
+  auto basis = simplex::primal_phase1(A, b, c, bounds);
 
-  ASSERT_TRUE(feasible.has_value());
+  ASSERT_TRUE(basis.has_value());
 
-  auto solution = solver.primal(bounds, *feasible).solution;
+  auto solution = solver.primal(bounds, *basis).solution;
 
   Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
 
@@ -54,7 +55,7 @@ TEST(UnboundedSimplexTests, SimpleTest2) {
 
   simplex::Simplex solver(CSCMatrix(A), b, c);
 
-  auto feasible = solver.get_primal_feasible(bounds);
+  auto feasible = simplex::primal_phase1(CSCMatrix(A), b, c, bounds);
   ASSERT_TRUE(feasible.has_value());
 
   auto solution = solver.primal(bounds, *feasible).solution;
@@ -85,7 +86,7 @@ TEST(UnboundedSimplexTests, UnboundedTest) {
 
   simplex::Simplex solver(CSCMatrix(A), b, c);
 
-  auto feasible = solver.get_primal_feasible(bounds);
+  auto feasible = simplex::primal_phase1(CSCMatrix(A), b, c, bounds);
   ASSERT_TRUE(feasible.has_value());
 
   auto solution = solver.primal(bounds, *feasible).solution;
