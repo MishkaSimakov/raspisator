@@ -18,7 +18,7 @@ enum class CyclingState { NORMAL, HAS_CYCLING };
 // It is assumed that during simplex method objective value is not increasing.
 template <typename Field>
 class CyclingDetector {
-  std::unordered_map<size_t, std::pair<size_t, Field>> visited_bases;
+  std::unordered_map<size_t, std::pair<size_t, Field>> visited_bases_;
 
   static size_t hash_states(const std::vector<VariableState>& states) {
     StreamHasher hasher;
@@ -36,12 +36,12 @@ class CyclingDetector {
                       Field objective) {
     const auto hash = hash_states(states);
     const auto [itr, was_emplaced] =
-        visited_bases.emplace(hash, std::pair{iteration, objective});
+        visited_bases_.emplace(hash, std::pair{iteration, objective});
 
     if (!was_emplaced) {
       if (FieldTraits<Field>::is_nonzero(objective - itr->second.second)) {
         // cache collision
-        visited_bases.erase(itr);
+        visited_bases_.erase(itr);
       } else {
         // std::println(
         //     "Cycling! iteration delta: {}, iteration: {}, last visited on "
@@ -57,7 +57,7 @@ class CyclingDetector {
     return CyclingState::NORMAL;
   }
 
-  void clear() { visited_bases.clear(); }
+  void clear() { visited_bases_.clear(); }
 };
 
 }  // namespace simplex

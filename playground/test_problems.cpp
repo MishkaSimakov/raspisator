@@ -3,12 +3,14 @@
 #include <print>
 #include <unordered_set>
 
-#include "linear/simplex/Settings.h"
+#include "linear/simplex/Config.h"
 #include "linear/simplex/Simplex.h"
 #include "mps/MPS.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "presolve/passes/TransformToEqualities.h"
 #include "utils/Paths.h"
+
+#include "linear/simplex/pricing/primal/MostInfeasible.h"
 
 using Field = double;
 
@@ -61,9 +63,14 @@ int main() {
 
     auto bounds = Bounds<Field>(problem.var_bounds);
 
-    simplex::Settings<Field> settings{.is_strict = true};
+    simplex::Config<Field> settings{.is_strict = true};
     auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
-        A, b, c, settings);
+        A, b, c,
+        {
+            .is_strict = true,
+            .primal_pricing =
+                std::make_unique<simplex::PrimalMostInfeasible<Field>>(),
+        });
 
     auto states = solver.get_primal_feasible(bounds);
 

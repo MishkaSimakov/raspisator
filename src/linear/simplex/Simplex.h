@@ -10,32 +10,22 @@
 #include <variant>
 
 #include "Accountant.h"
+#include "Config.h"
 #include "CyclingDetector.h"
 #include "Dual.h"
-#include "Settings.h"
 #include "SimplexCoreDump.h"
+#include "Tolerance.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/NPY.h"
 #include "linear/matrix/Norms.h"
 #include "linear/matrix/RowBasis.h"
 #include "linear/model/LP.h"
 #include "linear/sparse/LU.h"
+#include "pricing/primal/MostInfeasible.h"
 #include "utils/Accumulators.h"
 #include "utils/Variant.h"
 
 namespace simplex {
-
-template <typename Field>
-struct Tolerances {
-  Field feasibility{0};
-  Field pivot{0};
-};
-
-template <>
-struct Tolerances<double> {
-  double feasibility{1e-7};
-  double pivot{1e-7};
-};
 
 struct NoLeaving {};
 struct NoEntering {};
@@ -78,10 +68,8 @@ class Simplex {
 
   IterationState<Field> state_;
 
-  Settings<Field> settings_;
+  Config<Field> config_;
   Accountant accountant_;
-
-  Tolerances<Field> tolerances_;
 
   static Matrix<Field> get_point(const IterationState<Field>& state) {
     auto [n, d] = state.problem_shape();
@@ -273,8 +261,8 @@ class Simplex {
   }
 
   bool should_stop(const IterationState<Field>& state) const {
-    return settings_.max_iterations &&
-           state.iteration_index >= settings_.max_iterations;
+    return config_.max_iterations &&
+           state.iteration_index >= config_.max_iterations;
   }
 
   void initialize_state(const Bounds<Field>& bounds,
@@ -311,7 +299,7 @@ class Simplex {
       const Bounds<Field>& bounds, const std::vector<VariableState>& states) {
     auto [n, d] = A_.shape();
 
-    if (settings_.is_strict) {
+    if (config_.is_strict) {
       if (!is_dual_feasible(bounds, states)) {
         throw std::invalid_argument(
             "Given initial state is not dual feasible.");
@@ -368,105 +356,6 @@ class Simplex {
     Field reduced_cost;
   };
 
-  std::optional<PrimalEnteringVariable> get_primal_entering_variable(
-      const IterationState<Field>& state) {
-    using std::abs;
-
-    const auto [n, d] = state.problem_shape();
-
-    const auto reduced_costs =
-        get_reduced_costs(get_basic_costs(state.basic_variables));
-
-    // TODO: Reservoir sampling
-    // TODO: code duplication! remove it.
-    if (state.last_cycling_iteration &&
-        *state.last_cycling_iteration + 10 > state.iteration_index) {
-      // choose random among top k by reduced cost
-      std::vector<std::pair<double, size_t>> costs;
-
-      for (size_t i = 0; i < d; ++i) {
-        const Field cost = reduced_costs[i, 0];
-
-        // determine if this variable reduced cost if feasible for the problem
-        bool is_feasible;
-
-        switch (state.variables_states[i]) {
-          case VariableState::BASIC:
-            is_feasible = true;
-            break;
-          case VariableState::AT_LOWER:
-            is_feasible = cost < tolerances_.feasibility;
-            break;
-          case VariableState::AT_UPPER:
-            is_feasible = cost > -tolerances_.feasibility;
-            break;
-          case VariableState::NONBASIC_FREE:
-            is_feasible = abs(cost) < tolerances_.feasibility;
-            break;
-          default:
-            throw std::runtime_error("Unknown variable state.");
-        }
-
-        if (!is_feasible) {
-          costs.emplace_back(abs(cost), i);
-        }
-      }
-
-      if (costs.empty()) {
-        return std::nullopt;
-      }
-
-      std::ranges::sort(costs, {}, [](auto p) { return -p.first; });
-
-      const size_t count = std::min(5uz, costs.size());
-      const size_t index = rand() % count;
-
-      return PrimalEnteringVariable{
-          .index = costs[index].second,
-          .reduced_cost = reduced_costs[costs[index].second, 0],
-      };
-    }
-
-    ArgMaximum<Field> max_cost;
-
-    for (size_t i = 0; i < d; ++i) {
-      const Field cost = reduced_costs[i, 0];
-
-      // determine if this variable reduced cost if feasible for the problem
-      bool is_feasible;
-
-      switch (state.variables_states[i]) {
-        case VariableState::BASIC:
-          is_feasible = true;
-          break;
-        case VariableState::AT_LOWER:
-          is_feasible = cost <= tolerances_.feasibility;
-          break;
-        case VariableState::AT_UPPER:
-          is_feasible = cost >= -tolerances_.feasibility;
-          break;
-        case VariableState::NONBASIC_FREE:
-          is_feasible = abs(cost) <= tolerances_.feasibility;
-          break;
-        default:
-          throw std::runtime_error("Unknown variable state.");
-      }
-
-      if (!is_feasible) {
-        max_cost.record(i, abs(cost));
-      }
-    }
-
-    if (!max_cost.has_value()) {
-      return std::nullopt;
-    }
-
-    return PrimalEnteringVariable{
-        .index = max_cost->index,
-        .reduced_cost = reduced_costs[max_cost->index, 0],
-    };
-  }
-
   IterationAction get_primal_leaving_variable(
       PrimalEnteringVariable entering, const IterationState<Field>& state) {
     using std::abs;
@@ -485,7 +374,7 @@ class Simplex {
     // change = | new_value - old_value |
     const auto get_variable_theta =
         [&](const size_t i, const Field epsilon = 0) -> std::optional<Field> {
-      if (abs(column[i, 0]) < tolerances_.pivot) {
+      if (abs(column[i, 0]) < config_.tolerance.pivot) {
         return std::nullopt;
       }
 
@@ -608,7 +497,7 @@ class Simplex {
       auto value = state_.basic_point[i, 0];
       auto bound = bounds[state_.basic_variables[i]];
 
-      if (!bound.is_inside(value, tolerances_.feasibility)) {
+      if (!bound.is_inside(value, config_.tolerance.feasibility)) {
         std::println("infeasible: variable {} with value {} not in {}",
                      state_.basic_variables[i], value, bound);
         return true;
@@ -680,6 +569,11 @@ class Simplex {
 
     initialize_state(bounds, states);
 
+    if (!config_.primal_pricing) {
+      throw std::runtime_error(
+          "Primal pricing must be specified in simplex config.");
+    }
+
     while (true) {
       auto rhs = get_rhs(bounds, state_.variables_states);
       state_.basic_point = state_.lupa.solve_linear(rhs);
@@ -728,12 +622,47 @@ class Simplex {
         return construct_result<ReachedIterationsLimit<Field>>(state_);
       }
 
-      auto entering = get_primal_entering_variable(state_);
+      const auto reduced_costs_matrix =
+          get_reduced_costs(get_basic_costs(state_.basic_variables));
+
+      // temporary: transform matrix to vector
+      std::vector<Field> reduced_costs(d);
+      for (size_t i = 0; i < d; ++i) {
+        reduced_costs[i] = reduced_costs_matrix[i, 0];
+      }
+
+      std::vector<Field> basic_point(n);
+      for (size_t i = 0; i < n; ++i) {
+        basic_point[i] = state_.basic_point[i, 0];
+      }
+
+      std::vector<Bound<Field>> bounds_vector(d);
+      for (size_t i = 0; i < d; ++i) {
+        bounds_vector[i] = bounds[i];
+      }
+
+      auto entering =
+          config_.primal_pricing->get_primal_entering(detail::State<Field>{
+              .iteration = state_.iteration_index,
+              .objective = state_.objective,
+              .basic_point = basic_point,
+              .bounds = bounds_vector,
+              .reduced_cost = reduced_costs,
+              .states = state_.variables_states,
+              .basic_vars = state_.basic_variables,
+              .tolerance = config_.tolerance,
+          });
+
       if (!entering) {
         return construct_result<FiniteLPSolution<Field>>(state_);
       }
 
-      auto action = get_primal_leaving_variable(*entering, state_);
+      auto action = get_primal_leaving_variable(
+          PrimalEnteringVariable{
+              .index = *entering,
+              .reduced_cost = reduced_costs[*entering],
+          },
+          state_);
       if (std::holds_alternative<NoLeaving>(action)) {
         return construct_result<Unbounded>(state_);
       }
@@ -747,12 +676,12 @@ class Simplex {
 
  public:
   Simplex(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c,
-          Settings<Field> settings = {})
+          Config<Field> settings = {})
       : A_(std::move(A)),
         b_(std::move(b)),
         c_(std::move(c)),
         state_(A_),
-        settings_(settings) {
+        config_(std::move(settings)) {
     // check sizes
     auto [n, d] = A_.shape();
 
@@ -771,7 +700,7 @@ class Simplex {
   }
 
   void set_max_iterations(std::optional<size_t> max_iterations) {
-    settings_.max_iterations = max_iterations;
+    config_.max_iterations = max_iterations;
   }
 
   // Algorithm for finding initial dual feasible point. It is fast, but may
@@ -876,7 +805,11 @@ class Simplex {
       new_c[0, i] = -1;
     }
 
-    auto helper = Simplex(new_A, b_, new_c);
+    auto helper = Simplex(
+        new_A, b_, new_c,
+        {
+            .primal_pricing = std::make_unique<PrimalMostInfeasible<Field>>(),
+        });
     const auto result = helper.primal(new_bounds, states);
 
     if (!result.is_feasible()) {
