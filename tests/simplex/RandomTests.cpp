@@ -7,6 +7,7 @@
 #include "linear/matrix/Matrix.h"
 #include "linear/matrix/Random.h"
 #include "linear/simplex/Simplex.h"
+#include "linear/simplex/init/dual/ReducedCost.h"
 #include "linear/simplex/init/primal/Phase1.h"
 #include "support/RandomProblem.h"
 
@@ -38,7 +39,8 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
 
     // all variables have all bounds -> this method is guaranteed to find dual
     // feasible point
-    auto states = solver.try_get_dual_feasible(Bounds(problem.var_bounds));
+    auto states = simplex::try_init_dual_by_reduced_cost(
+        problem.matrix, b, c, Bounds(problem.var_bounds));
 
     ASSERT_TRUE(states.has_value());
 

@@ -106,42 +106,17 @@ class Simplex {
     }
   }
 
-  Matrix<Field> get_basic_costs(const std::vector<size_t>& basic_vars) const {
-    auto [n, d] = A_.shape();
-
-    Matrix<Field> result(n, 1);
-    for (size_t i = 0; i < n; ++i) {
-      result[i, 0] = c_[0, basic_vars[i]];
-    }
-
-    return result;
-  }
-
-  Matrix<Field> get_reduced_costs(Matrix<Field> basic_costs) const {
-    auto [n, d] = A_.shape();
-
-    basic_costs = state_.lupa.solve_linear_transposed(std::move(basic_costs));
-
-    Matrix<Field> result(d, 1);
-    for (size_t i = 0; i < d; ++i) {
-      result[i, 0] = c_[0, i];
-
-      for (const auto& [row, value] : A_.get_column(i)) {
-        result[i, 0] -= value * basic_costs[row, 0];
-      }
-    }
-
-    return result;
-  }
-
   std::optional<size_t> get_dual_entering_variable(
       LeavingVariable leaving, const IterationState<Field>& state) const {
     auto [n, d] = state.problem_shape();
 
     ArgMinimum<Field> min_ratio;
 
+    const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
+        detail::get_basic_cost(c_, state_.basic_variables));
+
     const auto reduced_costs =
-        get_reduced_costs(get_basic_costs(state.basic_variables));
+        detail::get_reduced_cost(A_, c_, simplex_multipliers);
 
     const auto inverse_row = state.lupa.get_row(leaving.index);
 
@@ -576,8 +551,11 @@ class Simplex {
         return construct_result<ReachedIterationsLimit<Field>>(state_);
       }
 
+      const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
+          detail::get_basic_cost(c_, state_.basic_variables));
+
       const auto reduced_costs_matrix =
-          get_reduced_costs(get_basic_costs(state_.basic_variables));
+          detail::get_reduced_cost(A_, c_, simplex_multipliers);
 
       // temporary: transform matrix to vector
       std::vector<Field> reduced_costs(d);
@@ -652,60 +630,6 @@ class Simplex {
     config_.max_iterations = max_iterations;
   }
 
-  // Algorithm for finding initial dual feasible point. It is fast, but may
-  // fail. It is guaranteed to work when all variables have both upper and lower
-  // bounds.
-  std::optional<std::vector<VariableState>> try_get_dual_feasible(
-      const Bounds<Field>& bounds) {
-    auto [n, d] = A_.shape();
-
-    auto basic_variables =
-        linalg::get_row_basis(linalg::transposed(linalg::to_dense(A_)));
-
-    return try_get_dual_feasible(bounds, basic_variables);
-  }
-
-  // Algorithm for finding initial dual feasible point. It is fast, but may
-  // fail. It is guaranteed to work when all variables have both upper and lower
-  // bounds.
-  std::optional<std::vector<VariableState>> try_get_dual_feasible(
-      const Bounds<Field>& bounds, const std::vector<size_t>& basic_variables) {
-    auto [n, d] = A_.shape();
-
-    if (basic_variables.size() != n) {
-      throw std::invalid_argument(std::format(
-          "Wrong basic variables count: {} != {}", basic_variables.size(), n));
-    }
-
-    std::vector<VariableState> states(d);
-
-    state_.lupa.set_columns(basic_variables);
-
-    auto reduced_costs = get_reduced_costs(get_basic_costs(basic_variables));
-
-    for (size_t i = 0; i < d; ++i) {
-      if (reduced_costs[i, 0] <= Field(0)) {
-        if (!bounds[i].lower) {
-          return std::nullopt;
-        }
-
-        states[i] = VariableState::AT_LOWER;
-      } else {
-        if (!bounds[i].upper) {
-          return std::nullopt;
-        }
-
-        states[i] = VariableState::AT_UPPER;
-      }
-    }
-
-    for (size_t basic_var : basic_variables) {
-      states[basic_var] = VariableState::BASIC;
-    }
-
-    return states;
-  }
-
   // This function does not check whether matrix formed by basic columns is
   // invertible.
   bool is_dual_feasible(const Bounds<Field>& bounds,
@@ -724,7 +648,11 @@ class Simplex {
     }
 
     state_.lupa.set_columns(basic_variables);
-    auto reduced_costs = get_reduced_costs(get_basic_costs(basic_variables));
+    const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
+        detail::get_basic_cost(c_, state_.basic_variables));
+
+    const auto reduced_costs =
+        detail::get_reduced_cost(A_, c_, simplex_multipliers);
 
     for (size_t i = 0; i < states.size(); ++i) {
       if ((states[i] == VariableState::AT_LOWER &&

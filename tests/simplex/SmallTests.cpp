@@ -5,6 +5,7 @@
 #include "linear/BigInteger.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/simplex/Simplex.h"
+#include "linear/simplex/init/dual/ReducedCost.h"
 #include "linear/simplex/init/primal/Phase1.h"
 
 template <typename Field>
@@ -15,7 +16,8 @@ auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
   simplex::Simplex solver(CSCMatrix(A), b, c);
 
   auto bounds = Bounds(lower, upper);
-  auto states = solver.try_get_dual_feasible(bounds, basic_vars);
+  auto states = simplex::try_init_dual_by_reduced_cost(CSCMatrix(A), b, c,
+                                                       bounds, basic_vars);
 
   assert(states.has_value());
 

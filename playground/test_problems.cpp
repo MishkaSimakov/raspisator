@@ -5,6 +5,7 @@
 
 #include "linear/simplex/Config.h"
 #include "linear/simplex/Simplex.h"
+#include "linear/simplex/init/primal/Phase1.h"
 #include "mps/MPS.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "presolve/passes/TransformToEqualities.h"
@@ -72,7 +73,7 @@ int main() {
                 std::make_unique<simplex::PrimalMostInfeasible<Field>>(),
         });
 
-    auto states = solver.get_primal_feasible(bounds);
+    auto states = simplex::primal_phase1(A, b, c, bounds);
 
     if (!states) {
       std::println("  Failed to find primal feasible basis.");

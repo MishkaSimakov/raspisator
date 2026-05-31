@@ -12,6 +12,7 @@
 #include "linear/problem/optimization/Substitution.h"
 #include "linear/problem/optimization/TransformToEqualities.h"
 #include "linear/simplex/Simplex.h"
+#include "linear/simplex/init/dual/ReducedCost.h"
 
 TEST(ProblemBuilderTests, RemoveConstantConstraints) {
   MILPProblem<Rational> problem;
@@ -77,7 +78,8 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
 
   auto solver = simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
 
-  auto states = solver.try_get_dual_feasible(matrices.bounds);
+  auto states = simplex::try_init_dual_by_reduced_cost(
+      CSCMatrix(matrices.A), matrices.b, matrices.c, matrices.bounds);
 
   ASSERT_TRUE(states.has_value());
 
@@ -113,7 +115,8 @@ TEST(ProblemBuilderTests, ScalingTest) {
   auto matrices = to_matrices(optimized_problem);
 
   auto solver = simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
-  auto states = solver.try_get_dual_feasible(matrices.bounds);
+  auto states = simplex::try_init_dual_by_reduced_cost(
+      CSCMatrix(matrices.A), matrices.b, matrices.c, matrices.bounds);
 
   ASSERT_TRUE(states.has_value());
 
