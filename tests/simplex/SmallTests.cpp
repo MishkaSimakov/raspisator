@@ -311,7 +311,7 @@ TEST(SimplexMethodTests, PrimalFeasibleFinding) {
   ASSERT_TRUE(feasible.has_value());
 
   simplex::Simplex simplex(A, b, c);
-  ASSERT_TRUE(simplex.is_primal_feasible(bounds, *feasible));
+  ASSERT_TRUE(simplex::is_primal_feasible(A, b, c, bounds, *feasible));
 }
 
 TEST(SimplexMethodTests, PrimalFeasibleFindingInfeasibleProblem) {
@@ -356,5 +356,5 @@ TEST(SimplexMethodTests, PrimalFeasibleFinding2) {
 
   simplex::Simplex simplex(A, b, c);
   ASSERT_TRUE(feasible.has_value());
-  ASSERT_TRUE(simplex.is_primal_feasible(bounds, *feasible));
+  ASSERT_TRUE(simplex::is_primal_feasible(A, b, c, bounds, *feasible));
 }

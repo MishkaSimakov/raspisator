@@ -13,6 +13,7 @@
 #include "Config.h"
 #include "CyclingDetector.h"
 #include "Dual.h"
+#include "Feasibility.h"
 #include "Math.h"
 #include "SimplexCoreDump.h"
 #include "Tolerance.h"
@@ -218,7 +219,7 @@ class Simplex {
     auto [n, d] = A_.shape();
 
     if (config_.is_strict) {
-      if (!is_dual_feasible(bounds, states)) {
+      if (!is_dual_feasible(A_, b_, c_, bounds, states)) {
         throw std::invalid_argument(
             "Given initial state is not dual feasible.");
       }
@@ -381,7 +382,7 @@ class Simplex {
           throw std::runtime_error("Unexpected variable state.");
       }
 
-      if (entering_bound.is_inside(new_entering_value)) {
+      if (entering_bound.contains(new_entering_value)) {
         leaving_id = max_pivot->index;
       }
     }
@@ -418,7 +419,7 @@ class Simplex {
       auto value = state_.basic_point[i, 0];
       auto bound = bounds[state_.basic_variables[i]];
 
-      if (!bound.is_inside(value, config_.tolerance.feasibility)) {
+      if (!bound.contains(value, config_.tolerance.feasibility)) {
         std::println("infeasible: variable {} with value {} not in {}",
                      state_.basic_variables[i], value, bound);
         return true;
@@ -628,93 +629,6 @@ class Simplex {
 
   void set_max_iterations(std::optional<size_t> max_iterations) {
     config_.max_iterations = max_iterations;
-  }
-
-  // This function does not check whether matrix formed by basic columns is
-  // invertible.
-  bool is_dual_feasible(const Bounds<Field>& bounds,
-                        const std::vector<VariableState>& states) {
-    auto [n, d] = A_.shape();
-
-    std::vector<size_t> basic_variables;
-    for (size_t i = 0; i < states.size(); ++i) {
-      if (states[i] == VariableState::BASIC) {
-        basic_variables.push_back(i);
-      }
-    }
-
-    if (basic_variables.size() != n) {
-      return false;
-    }
-
-    state_.lupa.set_columns(basic_variables);
-    const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
-        detail::get_basic_cost(c_, state_.basic_variables));
-
-    const auto reduced_costs =
-        detail::get_reduced_cost(A_, c_, simplex_multipliers);
-
-    for (size_t i = 0; i < states.size(); ++i) {
-      if ((states[i] == VariableState::AT_LOWER &&
-           (!bounds[i].lower ||
-            FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0]))) ||
-          (states[i] == VariableState::AT_UPPER &&
-           (!bounds[i].upper ||
-            FieldTraits<Field>::is_strictly_negative(reduced_costs[i, 0])))) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // This function does not check whether matrix formed by basic columns is
-  // invertible.
-  bool is_primal_feasible(const Bounds<Field>& bounds,
-                          const std::vector<VariableState>& states) {
-    auto [n, d] = A_.shape();
-
-    std::vector<size_t> basic_variables;
-    for (size_t i = 0; i < states.size(); ++i) {
-      if (states[i] == VariableState::BASIC) {
-        basic_variables.push_back(i);
-      }
-    }
-
-    if (basic_variables.size() != n) {
-      return false;
-    }
-
-    state_.lupa.set_columns(basic_variables);
-    Matrix<Field> b(b_);
-    for (size_t col = 0; col < d; ++col) {
-      if (states[col] == VariableState::AT_LOWER) {
-        if (!bounds[col].lower) {
-          return false;
-        }
-
-        for (const auto& [row, value] : A_.get_column(col)) {
-          b[row, 0] -= value * *bounds[col].lower;
-        }
-      } else if (states[col] == VariableState::AT_UPPER) {
-        if (!bounds[col].upper) {
-          return false;
-        }
-
-        for (const auto& [row, value] : A_.get_column(col)) {
-          b[row, 0] -= value * *bounds[col].upper;
-        }
-      }
-    }
-
-    auto point = state_.lupa.solve_linear(b);
-    for (size_t i = 0; i < n; ++i) {
-      if (!bounds[basic_variables[i]].is_inside(point[i, 0])) {
-        return false;
-      }
-    }
-
-    return true;
   }
 
   // Point associated with the given states must be dual feasible

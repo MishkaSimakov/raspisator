@@ -1,7 +1,7 @@
 #pragma once
 
-#include <sstream>
 #include <optional>
+#include <sstream>
 
 #include "linear/FieldTraits.h"
 
@@ -142,8 +142,8 @@ struct Bound {
     return 0;
   }
 
-  bool is_inside(Field value,
-                 Field tolerance = FieldTraits<Field>::tolerance) const {
+  bool contains(Field value,
+                Field tolerance = FieldTraits<Field>::tolerance) const {
     if (lower && value + tolerance < *lower) {
       return false;
     }

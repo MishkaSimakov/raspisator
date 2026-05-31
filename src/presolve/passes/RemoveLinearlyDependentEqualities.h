@@ -98,7 +98,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
         continue;
       }
 
-      if (!bounds[row].is_inside(0)) {
+      if (!bounds[row].contains(0)) {
         problem.proven_infeasible = true;
         return problem;
       }
