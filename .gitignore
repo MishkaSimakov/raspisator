@@ -1,6 +1,7 @@
 .idea
 .vscode
 .claude
+.envrc
 
 **/.DS_Store
 

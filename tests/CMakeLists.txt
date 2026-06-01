@@ -40,6 +40,9 @@ target_sources(tests PUBLIC
         mps/MPSTests.cpp
 
         feature/FullProblemSolvingTests.cpp
+
+        linalg/MatrixInitializationTests.cpp
+        linalg/MatrixResizeTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
