@@ -42,3 +42,20 @@ TEST(MatrixInitializationTests, InitializerList) {
 TEST(MatrixInitializationTests, WrongInitializerListShape) {
   ASSERT_ANY_THROW(({ Matrix<int> matrix = {{1, 2, 3}, {1, 2}}; }));
 }
+
+TEST(MatrixInitializationTests, Generate) {
+  auto generator = [](size_t i, size_t j) {
+    return 10 * i + j;
+  };
+
+  auto matrix = Matrix<int>::generate(5, 5, generator);
+
+  ASSERT_EQ(matrix.rows(), 5);
+  ASSERT_EQ(matrix.cols(), 5);
+
+  for (size_t i = 0; i < 5; ++i) {
+    for (size_t j = 0; j < 5; ++j) {
+      ASSERT_EQ((matrix[i, j]), generator(i, j));
+    }
+  }
+}

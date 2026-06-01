@@ -3,7 +3,8 @@
 #include <format>
 #include <vector>
 
-#include "Types.h"
+#include "Concepts.h"
+#include "expr/IndexedExpr.h"
 
 namespace linalg {
 
@@ -22,6 +23,8 @@ class Matrix {
       : rows_(rows), cols_(cols), data_(rows * cols, value) {}
 
  public:
+  using FieldType = Field;
+
   //
   Matrix(std::initializer_list<std::initializer_list<Field>> values)
       : Matrix(values.size(), values.begin()->size()) {
@@ -42,6 +45,23 @@ class Matrix {
 
       ++row;
       col = 0;
+    }
+  }
+
+  template <MatrixLike<Field> T>
+  Matrix(const T& other) {
+    // TODO: aliasing
+    // TODO: check size
+    rows_ = other.rows();
+    cols_ = other.cols();
+
+    data_.resize(rows_ * cols_);
+
+    // TODO: iterate over entries for better performance on sparse matrices
+    for (size_t i = 0; i < rows_; ++i) {
+      for (size_t j = 0; j < cols_; ++j) {
+        (*this)[i, j] = other[i, j];
+      }
     }
   }
 
@@ -79,12 +99,12 @@ class Matrix {
 
   template <IndicesRange RowRange, IndicesRange ColRange>
   auto operator[](const RowRange& rows, const ColRange& cols) {
-    return IndexedView<Field, Matrix, RowRange, ColRange>{*this, rows, cols};
+    return IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
   }
 
   template <IndicesRange RowRange, IndicesRange ColRange>
   auto operator[](const RowRange& rows, const ColRange& cols) const {
-    return IndexedView<Field, Matrix, RowRange, ColRange>{*this, rows, cols};
+    return IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
   }
 
   //
