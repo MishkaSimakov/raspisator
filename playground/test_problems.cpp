@@ -64,11 +64,11 @@ int main() {
 
     auto bounds = Bounds<Field>(problem.var_bounds);
 
-    simplex::Config<Field> settings{.is_strict = true};
+    simplex::Config<Field> settings{.validate_input = true};
     auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
         A, b, c,
         {
-            .is_strict = true,
+            .validate_input = true,
             .primal_pricing =
                 std::make_unique<simplex::PrimalMostInfeasible<Field>>(),
         });

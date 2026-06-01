@@ -13,9 +13,10 @@ template <typename Field>
 struct Config {
   std::optional<size_t> max_iterations;
 
-  // In strict mode simplex performs various checks of correctness. They lead to
-  // worse performance.
-  bool is_strict{false};
+  // When validate_input is true, then simplex will perform additional checks on
+  // user input. The checks may be not exhaustive.
+  // Input validation leads to worse performance.
+  bool validate_input{false};
 
   Tolerance<Field> tolerance = kDefaultTolerance<Field>;
 

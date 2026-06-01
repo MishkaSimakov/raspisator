@@ -516,6 +516,10 @@ class LUPA {
   }
 
   void change_column(size_t current_column, size_t new_column) {
+    if (columns_[current_column] == new_column) {
+      return;
+    }
+
     columns_[current_column] = new_column;
     ++changes_since_refactorization_;
     ++changes_since_purge_;

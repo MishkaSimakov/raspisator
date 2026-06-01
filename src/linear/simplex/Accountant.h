@@ -3,6 +3,28 @@
 
 namespace simplex {
 
+// TODO: log simplex action in accountant
+// struct NoLeaving {};
+// struct NoEntering {};
+//
+// struct ToggleBound {
+//   size_t variable_index;
+//   VariableState new_state;  // should be either AT_UPPER or AT_LOWER
+// };
+//
+// struct ChangeBasicVariable {
+//   size_t leaving_index;      // index of leaving variable in basic_variables
+//   size_t leaving_variable;   // index of leaving variable
+//   size_t entering_variable;  // index of entering variable
+//
+//   VariableState entering_old_state;  // should be either AT_UPPER or AT_LOWER
+//   VariableState leaving_new_state;   // should be either AT_UPPER or AT_LOWER
+// };
+//
+// using IterationAction =
+//     std::variant<NoLeaving, NoEntering, ToggleBound, ChangeBasicVariable>;
+
+//
 template <typename Field>
 class EmptyAccountant {
  public:
