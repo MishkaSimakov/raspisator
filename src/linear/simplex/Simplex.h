@@ -433,6 +433,14 @@ class Simplex {
   // Point associated with the given states must be dual feasible
   SimplexResult<Field> dual(const Bounds<Field>& bounds,
                             const std::vector<VariableState>& states) {
+    validate([&] -> std::optional<std::string> {
+      if (!is_dual_feasible(A_, b_, c_, bounds, states)) {
+        return "Initial point is not dual feasible.";
+      }
+
+      return std::nullopt;
+    });
+
     try {
       return dual_implementation(bounds, states);
     } catch (...) {
@@ -444,6 +452,14 @@ class Simplex {
   // Point associated with the given states must be primal feasible
   SimplexResult<Field> primal(const Bounds<Field>& bounds,
                               const std::vector<VariableState>& states) {
+    validate([&] -> std::optional<std::string> {
+      if (!is_primal_feasible(A_, b_, c_, bounds, states)) {
+        return "Initial point is not primal feasible.";
+      }
+
+      return std::nullopt;
+    });
+
     try {
       return primal_implementation(bounds, states);
     } catch (...) {

@@ -72,7 +72,7 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Matrix<Field>& b,
 
   linalg::LUPA<Field> lupa(A);
   lupa.set_columns(basic_variables);
-  auto basic_point = lupa.solve_linear(b);
+  auto basic_point = lupa.solve_linear(rhs);
 
   for (size_t i = 0; i < n; ++i) {
     if (!bounds[basic_variables[i]].contains(basic_point[i, 0])) {
