@@ -1,21 +1,21 @@
 #pragma once
 
+#include "All.h"
+#include "BaseView.h"
 #include "linalg/Concepts.h"
 
 namespace linalg::detail {
 
 template <ColWiseMatrixRange M, IndicesRange ColRange>
-class SubColsExpr {
-  const M& matrix_;
+class SubColsExpr : public BaseView {
+  M matrix_;
   ColRange cols_;
 
  public:
-  using FieldType = typename M::FieldType;
+  using FieldType = MatrixFieldType<M>;
 
-  SubColsExpr(const M& matrix, ColRange cols)
-      : matrix_(matrix), cols_(std::move(cols)) {
-    std::cout << "SubColsExpr()" << std::endl;
-  }
+  SubColsExpr(M matrix, ColRange cols)
+      : matrix_(std::move(matrix)), cols_(std::move(cols)) {}
 
   decltype(auto) operator[](size_t i, size_t j) const
     requires(ElementWiseMatrixRange<M>)
@@ -54,13 +54,10 @@ class SubColsExpr {
   size_t rows() const { return matrix_.rows(); }
   size_t cols() const { return std::ranges::size(cols_); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
-
-  ~SubColsExpr() {
-    std::cout << "~SubColsExpr" << std::endl;
-  }
 };
 
 template <ColWiseMatrixRange M, IndicesRange ColRange>
-SubColsExpr(M, ColRange&&) -> SubColsExpr<M, std::views::all_t<ColRange>>;
+SubColsExpr(M&&, ColRange&&)
+    -> SubColsExpr<all_t<M>, std::views::all_t<ColRange>>;
 
 }  // namespace linalg::detail

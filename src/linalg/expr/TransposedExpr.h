@@ -1,17 +1,19 @@
 #pragma once
 
+#include "All.h"
+#include "BaseView.h"
 #include "linalg/Concepts.h"
 
 namespace linalg::detail {
 
 template <MatrixRange M>
-class TransposedExpr {
-  const M& matrix_;
+class TransposedExpr : public BaseView {
+  M matrix_;
 
  public:
-  using FieldType = typename M::FieldType;
+  using FieldType = MatrixFieldType<M>;
 
-  explicit TransposedExpr(const M& matrix) : matrix_(matrix) {}
+  explicit TransposedExpr(M matrix) : matrix_(std::move(matrix)) {}
 
   //
   decltype(auto) operator[](size_t row, size_t col) const
@@ -33,7 +35,7 @@ class TransposedExpr {
   }
 
   auto entries() const {
-    return std::as_const(matrix_).entries() |
+    return matrix_.entries() |
            std::views::transform(
                [](std::tuple<size_t, size_t, FieldType> entry) {
                  auto [row, col, value] = entry;
@@ -46,5 +48,8 @@ class TransposedExpr {
   size_t cols() const { return matrix_.rows(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
+
+template <MatrixRange M>
+TransposedExpr(M) -> TransposedExpr<all_t<M>>;
 
 }  // namespace linalg::detail

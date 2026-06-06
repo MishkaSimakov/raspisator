@@ -150,7 +150,7 @@ class Matrix {
   auto row_entries(size_t row) const {
     return std::views::iota(size_t{0}, cols()) |
            std::views::transform([this, row](size_t col) {
-             return std::pair{row, (*this)[row, col]};
+             return std::pair{col, (*this)[row, col]};
            });
   }
 

@@ -99,7 +99,7 @@ TEST(UseCasesTests, GetAdjustedRHS) {
 }
 
 TEST(UseCasesTests, GetBasicCost) {
-  Vector<int> cost = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  Vector<int> cost = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
   std::vector<size_t> basic_vars = {5, 0, 2, 1};
 
@@ -117,7 +117,7 @@ TEST(UseCasesTests, GetReducedCost) {
   // 0 2
   // 1 0
   // 3 4
-  auto matrix = CSCMatrix<int>::zeros(2);
+  auto matrix = CSCMatrix<int>::zeros(3);
   matrix.add_column(std::vector<std::pair<size_t, int>>{{1, 1}, {2, 3}});
   matrix.add_column(std::vector<std::pair<size_t, int>>{{0, 2}, {2, 4}});
 

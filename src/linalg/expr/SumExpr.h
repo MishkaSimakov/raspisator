@@ -3,21 +3,24 @@
 #include <format>
 #include <ranges>
 
+#include "All.h"
+#include "BaseView.h"
 #include "JoinWithView.h"
 #include "linalg/Concepts.h"
 
 namespace linalg::detail {
 
 template <MatrixRange L, MatrixRange R>
-  requires std::same_as<typename L::FieldType, typename R::FieldType>
-class SumExpr {
-  const L& left_;
-  const R& right_;
+  requires std::same_as<MatrixFieldType<L>, MatrixFieldType<R>>
+class SumExpr : public BaseView {
+  L left_;
+  R right_;
 
  public:
-  using FieldType = typename L::FieldType;
+  using FieldType = MatrixFieldType<L>;
 
-  explicit SumExpr(const L& left, const R& right) : left_(left), right_(right) {
+  explicit SumExpr(L left, R right)
+      : left_(std::move(left)), right_(std::move(right)) {
     if (left_.shape() != right_.shape()) {
       throw std::invalid_argument(
           std::format("Sum arguments' shapes don't match: {} != {}.",
@@ -49,9 +52,12 @@ class SumExpr {
   }
 
   //
-  size_t rows() const { return left_.cols(); }
-  size_t cols() const { return left_.rows(); }
+  size_t rows() const { return left_.rows(); }
+  size_t cols() const { return left_.cols(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
+
+template <MatrixRange L, MatrixRange R>
+SumExpr(L, R) -> SumExpr<all_t<L>, all_t<R>>;
 
 }  // namespace linalg::detail

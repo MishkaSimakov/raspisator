@@ -3,22 +3,23 @@
 #include <format>
 #include <ranges>
 
+#include "All.h"
 #include "linalg/Concepts.h"
 
 namespace linalg::detail {
 
 template <MatrixRange M>
-class ScalarMulExpr {
+class ScalarMulExpr : public BaseView {
  public:
-  using FieldType = typename M::FieldType;
+  using FieldType = MatrixFieldType<M>;
 
  private:
   FieldType scalar_;
-  const M& matrix_;
+  M matrix_;
 
  public:
-  explicit ScalarMulExpr(FieldType scalar, const M& matrix)
-      : scalar_(scalar), matrix_(matrix) {}
+  explicit ScalarMulExpr(FieldType scalar, M matrix)
+      : scalar_(std::move(scalar)), matrix_(std::move(matrix)) {}
 
   //
 
@@ -60,5 +61,8 @@ class ScalarMulExpr {
   size_t cols() const { return matrix_.cols(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
+
+template <MatrixRange M>
+ScalarMulExpr(M&&) -> ScalarMulExpr<all_t<M>>;
 
 }  // namespace linalg::detail
