@@ -2,21 +2,31 @@
 
 #include "linalg/Concepts.h"
 
-namespace linalg {
+namespace linalg::detail {
 
 template <SomeMatrixLike Matrix>
 class TransposedExpr {
-  Matrix& matrix_;
+  const Matrix& matrix_;
 
  public:
   using FieldType = typename Matrix::FieldType;
+  static constexpr bool constant_time_element_access =
+      Matrix::constant_time_element_access;
 
   explicit TransposedExpr(Matrix& matrix) : matrix_(matrix) {}
 
   //
-  auto& operator[](size_t row, size_t col) { return matrix_[col, row]; }
-  const auto& operator[](size_t row, size_t col) const {
-    return matrix_[col, row];
+  decltype(auto) operator[](size_t row, size_t col) const {
+    return std::as_const(matrix_)[col, row];
+  }
+
+  auto entries() const {
+    return std::as_const(matrix_).entries() |
+           std::views::transform(
+               [](std::tuple<size_t, size_t, FieldType> entry) {
+                 auto [row, col, value] = entry;
+                 return std::tuple{col, row, value};
+               });
   }
 
   //
@@ -25,9 +35,4 @@ class TransposedExpr {
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
 
-template <SomeMatrixLike Matrix>
-auto transposed(Matrix& matrix) {
-  return TransposedExpr(matrix);
-}
-
-}  // namespace linalg
+}  // namespace linalg::detail

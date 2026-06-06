@@ -44,9 +44,7 @@ TEST(MatrixInitializationTests, WrongInitializerListShape) {
 }
 
 TEST(MatrixInitializationTests, Generate) {
-  auto generator = [](size_t i, size_t j) {
-    return 10 * i + j;
-  };
+  auto generator = [](size_t i, size_t j) { return 10 * i + j; };
 
   auto matrix = Matrix<int>::generate(5, 5, generator);
 
@@ -58,4 +56,24 @@ TEST(MatrixInitializationTests, Generate) {
       ASSERT_EQ((matrix[i, j]), generator(i, j));
     }
   }
+}
+
+TEST(MatrixInitializationTests, Entries) {
+  Matrix<int> matrix = {
+      {1, 2},
+      {3, 4},
+  };
+
+  auto entries_range = matrix.entries();
+
+  std::vector entries(entries_range.begin(), entries_range.end());
+
+  std::vector<std::tuple<size_t, size_t, int>> expected = {
+      {0, 0, 1},
+      {0, 1, 2},
+      {1, 0, 3},
+      {1, 1, 4},
+  };
+
+  ASSERT_EQ(entries, expected);
 }

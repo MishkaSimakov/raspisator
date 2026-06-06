@@ -21,18 +21,10 @@ TEST(VectorTests, Constructor) {
   }
 }
 
-TEST(VectorTests, TransposedAssignment) {
-  Vector<int> vector = {1, 2, 3, 4};
-
-  transposed(vector)[0, 1] = 123;
-
-  ASSERT_EQ(vector[1], 123);
-}
-
 TEST(VectorTests, AssignTransposedVectorToMatrix) {
   Vector<int> vector = {1, 2, 3, 4};
 
-  Matrix<int> matrix = transposed(vector);
+  Matrix<int> matrix = vector.transposed();
   Matrix<int> expected = {{1, 2, 3, 4}};
 
   ASSERT_EQ(matrix, expected);

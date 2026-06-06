@@ -5,6 +5,9 @@
 
 #include "Concepts.h"
 #include "expr/IndexedExpr.h"
+#include "expr/TransposedExpr.h"
+
+#include "Arithmetics.h"
 
 namespace linalg {
 
@@ -16,7 +19,7 @@ class Matrix {
 
   size_t get_index(size_t row, size_t col) const { return row * cols_ + col; }
 
-  explicit Matrix(size_t rows = 0, size_t cols = 0)
+  explicit Matrix(size_t rows, size_t cols)
       : rows_(rows), cols_(cols), data_(rows * cols) {}
 
   Matrix(size_t rows, size_t cols, Field value)
@@ -24,8 +27,11 @@ class Matrix {
 
  public:
   using FieldType = Field;
+  static constexpr bool constant_time_element_access = true;
 
   //
+  Matrix() : Matrix(0, 0) {}
+
   Matrix(std::initializer_list<std::initializer_list<Field>> values)
       : Matrix(values.size(), values.begin()->size()) {
     size_t row = 0;
@@ -57,11 +63,8 @@ class Matrix {
 
     data_.resize(rows_ * cols_);
 
-    // TODO: iterate over entries for better performance on sparse matrices
-    for (size_t i = 0; i < rows_; ++i) {
-      for (size_t j = 0; j < cols_; ++j) {
-        (*this)[i, j] = other[i, j];
-      }
+    for (const auto [i, j, value] : other.entries()) {
+      (*this)[i, j] = value;
     }
   }
 
@@ -97,14 +100,28 @@ class Matrix {
     return data_[get_index(row, col)];
   }
 
+  auto entries() {
+    return std::views::iota(size_t{0}, data_.size()) |
+           std::views::transform([this](size_t idx) {
+             return std::tuple{idx / cols_, idx % cols_, data_[idx]};
+           });
+  }
+
+  auto entries() const {
+    return std::views::iota(size_t{0}, data_.size()) |
+           std::views::transform([this](size_t idx) {
+             return std::tuple{idx / cols_, idx % cols_, data_[idx]};
+           });
+  }
+
   template <IndicesRange RowRange, IndicesRange ColRange>
   auto operator[](const RowRange& rows, const ColRange& cols) {
-    return IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
+    return detail::IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
   }
 
   template <IndicesRange RowRange, IndicesRange ColRange>
   auto operator[](const RowRange& rows, const ColRange& cols) const {
-    return IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
+    return detail::IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
   }
 
   //
@@ -176,6 +193,12 @@ class Matrix {
 
   //
   bool operator==(const Matrix&) const = default;
+
+  auto transposed() { return detail::TransposedExpr(*this); }
+  auto transposed() const { return detail::TransposedExpr(*this); }
 };
+
+template <SomeMatrixLike T>
+Matrix(const T&) -> Matrix<typename T::FieldType>;
 
 }  // namespace linalg

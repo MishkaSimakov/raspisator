@@ -5,7 +5,7 @@
 
 using namespace linalg;
 
-static_assert(MatrixLike<TransposedExpr<Matrix<double>>, double>);
+static_assert(MatrixLike<detail::TransposedExpr<Matrix<double>>, double>);
 
 TEST(TransposedTests, Simple) {
   Matrix<int> matrix = {
@@ -14,7 +14,7 @@ TEST(TransposedTests, Simple) {
       {5, 6},
   };
 
-  Matrix<int> tr = transposed(matrix);
+  Matrix<int> tr = matrix.transposed();
 
   Matrix<int> expected = {
       {1, 3, 5},
@@ -24,29 +24,12 @@ TEST(TransposedTests, Simple) {
   ASSERT_EQ(tr, expected);
 }
 
-TEST(TransposedTests, Assignment) {
-  Matrix<int> matrix = {
-      {1, 2},
-      {3, 4},
-  };
-
-  auto tr = transposed(matrix);
-  tr[1, 0] = 123;
-
-  Matrix<int> expected = {
-      {1, 123},
-      {3, 4},
-  };
-
-  ASSERT_EQ(matrix, expected);
-}
-
 TEST(TransposedTests, TransposedConstMatrix) {
   const Matrix<int> matrix = {
       {1, 2},
       {3, 4},
   };
 
-  auto tr = transposed(matrix);
+  auto tr = matrix.transposed();
   static_assert(std::same_as<decltype(tr[0, 0]), const int&>);
 }
