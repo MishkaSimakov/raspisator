@@ -89,6 +89,7 @@ TEST(UseCasesTests, GetAdjustedRHS) {
   matrix.add_column(std::vector<std::pair<size_t, int>>{{1, 3}, {3, 5}});
   matrix.add_column(std::vector<std::pair<size_t, int>>{{4, 6}, {1, 5}});
 
+
   result -= matrix.get_column(2) * 5;
   result -= matrix.get_column(1) * -1;
 

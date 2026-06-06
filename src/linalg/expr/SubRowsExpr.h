@@ -13,7 +13,9 @@ class SubRowsExpr {
   using FieldType = typename M::FieldType;
 
   SubRowsExpr(const M& matrix, RowRange rows)
-      : matrix_(matrix), rows_(std::move(rows)) {}
+      : matrix_(matrix), rows_(std::move(rows)) {
+    std::cout << "SubRowsExpr()" << std::endl;
+  }
 
   decltype(auto) operator[](size_t i, size_t j) const
     requires(ElementWiseMatrixRange<M>)
@@ -35,8 +37,9 @@ class SubRowsExpr {
   }
 
   auto entries() const {
-    return rows_ | std::views::transform([this](size_t row) {
-             return matrix_.row_entries(row) |
+    return std::views::iota(size_t{0}, rows()) |
+           std::views::transform([this](size_t row) {
+             return matrix_.row_entries(std::ranges::begin(rows_)[row]) |
                     std::views::transform(
                         [this, row](std::pair<size_t, FieldType> entry) {
                           return std::tuple{row, entry.first, entry.second};
@@ -49,6 +52,10 @@ class SubRowsExpr {
   size_t rows() const { return std::ranges::size(rows_); }
   size_t cols() const { return matrix_.cols(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
+
+  ~SubRowsExpr() {
+    std::cout << "~SubRowsExpr" << std::endl;
+  }
 };
 
 template <ColWiseMatrixRange M, IndicesRange RowRange>

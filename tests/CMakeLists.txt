@@ -48,7 +48,7 @@ target_sources(tests PUBLIC
         linalg/CSCMatrixTests.cpp
         linalg/UseCasesTests.cpp
 
-        linalg/expr/SubColsExpr.cpp
+        linalg/expr/SubColsExprTests.cpp
         linalg/expr/JoinWithViewTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
