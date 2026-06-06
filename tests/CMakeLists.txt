@@ -49,6 +49,7 @@ target_sources(tests PUBLIC
         linalg/UseCasesTests.cpp
 
         linalg/expr/SubColsExpr.cpp
+        linalg/expr/JoinWithViewTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")

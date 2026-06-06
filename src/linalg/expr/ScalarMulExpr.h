@@ -56,8 +56,8 @@ class ScalarMulExpr {
   }
 
   //
-  size_t rows() const { return matrix_.cols(); }
-  size_t cols() const { return matrix_.rows(); }
+  size_t rows() const { return matrix_.rows(); }
+  size_t cols() const { return matrix_.cols(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
 

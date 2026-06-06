@@ -9,6 +9,7 @@
 #include <map>
 
 #include "linalg/CSCMatrix.h"
+#include "linalg/Print.h"
 #include "linalg/Vector.h"
 
 using namespace linalg;
@@ -42,8 +43,8 @@ TEST(UseCasesTests, ProblemConstructionMatrix) {
   }
 
   Matrix<int> expected = {
-      {321, 0, 0, 0, 0}, {0, 123, 0, 0, 0}, {0, 0, 123, 0, 0},
-      {0, 0, 0, 123, 0}, {0, 0, 0, 0, 123},
+      {321, 321, 321, 321, 321}, {0, 123, 0, 0, 0}, {0, 0, 123, 0, 0},
+      {0, 0, 0, 123, 0},         {0, 0, 0, 0, 123},
   };
 
   ASSERT_EQ(expected, Matrix(matrix));

@@ -181,7 +181,10 @@ class CSCMatrix {
   auto transposed() const { return detail::TransposedExpr(*this); }
 
   void map_rows(std::span<const size_t> map) {
-    // TODO:
+    // TODO: dimensions check
+    for (auto& [row, value] : entries_) {
+      row = map[row];
+    }
   }
 };
 
