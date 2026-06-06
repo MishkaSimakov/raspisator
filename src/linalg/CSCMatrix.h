@@ -45,7 +45,6 @@ class CSCMatrix {
 
  public:
   using FieldType = Field;
-  static constexpr bool constant_time_element_access = false;
 
   CSCMatrix() : CSCMatrix(0, 0) {}
 

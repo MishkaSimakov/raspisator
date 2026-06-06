@@ -30,7 +30,6 @@ class Matrix {
 
  public:
   using FieldType = Field;
-  static constexpr bool constant_time_element_access = true;
 
   //
   Matrix() : Matrix(0, 0) {}
@@ -58,8 +57,8 @@ class Matrix {
   }
 
   template <MatrixRange T>
-    requires std::same_as<typename T::FieldType, Field>
-  Matrix(const T& other) : Matrix(other.rows(), other.cols(), 0) {
+    requires std::same_as<MatrixFieldType<T>, Field>
+  Matrix(T&& other) : Matrix(other.rows(), other.cols(), 0) {
     // TODO: check that i, j don't go outside of range
     for (const auto [i, j, value] : other.entries()) {
       (*this)[i, j] += value;
@@ -99,8 +98,8 @@ class Matrix {
   }
 
   template <MatrixRange T>
-    requires std::same_as<typename T::FieldType, Field>
-  Matrix& operator=(const T& other) {
+    requires std::same_as<MatrixFieldType<T>, Field>
+  Matrix& operator=(T&& other) {
     // TODO: aliasing
     // TODO: check that i, j don't go outside of range
     rows_ = other.rows();
@@ -279,6 +278,6 @@ class Matrix {
 };
 
 template <MatrixRange T>
-Matrix(const T&) -> Matrix<typename T::FieldType>;
+Matrix(T&&) -> Matrix<MatrixFieldType<T>>;
 
 }  // namespace linalg

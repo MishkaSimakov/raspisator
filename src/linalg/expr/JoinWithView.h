@@ -23,7 +23,8 @@ class JoinWithView : std::ranges::view_interface<JoinWithView<Left, Right>> {
   using RightIter = std::ranges::iterator_t<Right>;
 
  public:
-  JoinWithView(Left left, Right right) : left_(left), right_(right) {}
+  JoinWithView(Left left, Right right)
+      : left_(std::move(left)), right_(std::move(right)) {}
 
   Iterator<false> begin() {
     return Iterator<false>(std::variant<LeftIter, RightIter>(
@@ -79,13 +80,8 @@ class JoinWithView<Left, Right>::Iterator {
   friend JoinWithView;
 };
 
-void f() {
-  JoinWithView<std::span<int>, std::span<int>>(std::span<int>(),
-                                               std::span<int>())
-      .end();
-}
-
-// static_assert(
-    // std::ranges::range<JoinWithView<std::span<size_t>, std::span<size_t>>>);
+template <typename Left, typename Right>
+JoinWithView(Left, Right)
+    -> JoinWithView<std::views::all_t<Left>, std::views::all_t<Right>>;
 
 }  // namespace linalg::detail

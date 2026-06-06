@@ -6,6 +6,10 @@
 
 namespace linalg {
 
+template <typename T>
+concept IndicesRange = std::ranges::random_access_range<T> &&
+                       std::same_as<std::ranges::range_value_t<T>, size_t>;
+
 // Denotes entries of one particular column or row. Only one index is needed,
 // because the other one is fixed.
 template <typename T, typename Field>
@@ -14,26 +18,26 @@ concept DoublesRange =
     std::same_as<std::ranges::range_value_t<T>, std::pair<size_t, Field>>;
 
 // Denotes entries of a matrix.
+// 1. Entries may go in any order.
+// 2. For each element there may be many entries. In this case values are
+// added up.
+// 3. Some elements may be without entries. In this case they are zero.
 template <typename T, typename Field>
 concept TriplesRange =
     std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>,
                                           std::tuple<size_t, size_t, Field>>;
 
+// Note: if Matrix satisfies MatrixRange, then Matrix& and const Matrix& also
+// satisfy this concept.
 template <typename T>
 concept MatrixRange = requires(T matrix) {
-  typename T::FieldType;
+  typename std::decay_t<T>::FieldType;
 
-  // entries:
-  // 1. Entries can be in any order.
-  // 2. For each element there may be many entries. In this case values are
-  // added up.
-  // 3. Some elements may be without entries. In this case they are zero.
-  { std::as_const(matrix).entries() } -> TriplesRange<typename T::FieldType>;
+  { matrix.entries() } -> TriplesRange<typename std::decay_t<T>::FieldType>;
 
-  // dimensions getters
-  { std::as_const(matrix).shape() } -> std::same_as<std::pair<size_t, size_t>>;
-  { std::as_const(matrix).rows() } -> std::same_as<size_t>;
-  { std::as_const(matrix).cols() } -> std::same_as<size_t>;
+  { matrix.shape() } -> std::same_as<std::pair<size_t, size_t>>;
+  { matrix.rows() } -> std::same_as<size_t>;
+  { matrix.cols() } -> std::same_as<size_t>;
 };
 
 template <typename T>
@@ -52,8 +56,7 @@ concept ElementWiseMatrixRange =
       { matrix[row, col] } -> std::convertible_to<typename T::FieldType>;
     };
 
-template <typename T>
-concept IndicesRange = std::ranges::random_access_range<T> &&
-                       std::same_as<std::ranges::range_value_t<T>, size_t>;
+template <MatrixRange M>
+using MatrixFieldType = typename std::decay_t<M>::FieldType;
 
 }  // namespace linalg

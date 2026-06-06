@@ -25,6 +25,10 @@ class Vector : public Matrix<Field> {
     }
   }
 
+  template <MatrixRange T>
+    requires std::same_as<MatrixFieldType<T>, Field>
+  Vector(T&& other) : Matrix<Field>(std::forward<T>(other)) {}
+
   //
   size_t size() const { return this->rows(); }
 
@@ -38,9 +42,12 @@ class Vector : public Matrix<Field> {
   const Field& operator[](size_t row) const { return (*this)[row, 0]; }
 
   template <IndicesRange RowRange>
-  auto operator[](const RowRange& rows) const {
-    return (*this)[rows, std::views::single(size_t{0})];
+  auto operator[](RowRange&& rows) const {
+    return (*this)[std::forward<RowRange>(rows), std::views::single(size_t{0})];
   }
 };
+
+template <MatrixRange T>
+Vector(T&&) -> Vector<MatrixFieldType<T>>;
 
 }  // namespace linalg

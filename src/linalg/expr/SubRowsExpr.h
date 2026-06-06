@@ -7,13 +7,13 @@ namespace linalg::detail {
 template <RowWiseMatrixRange M, IndicesRange RowRange>
 class SubRowsExpr {
   const M& matrix_;
-  RowRange&& rows_;
+  RowRange rows_;
 
  public:
   using FieldType = typename M::FieldType;
 
-  SubRowsExpr(const M& matrix, RowRange&& rows)
-      : matrix_(matrix), rows_(std::forward<RowRange>(rows)) {}
+  SubRowsExpr(const M& matrix, RowRange rows)
+      : matrix_(matrix), rows_(std::move(rows)) {}
 
   decltype(auto) operator[](size_t i, size_t j) const
     requires(ElementWiseMatrixRange<M>)
@@ -50,5 +50,8 @@ class SubRowsExpr {
   size_t cols() const { return matrix_.cols(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
+
+template <ColWiseMatrixRange M, IndicesRange RowRange>
+SubRowsExpr(M, RowRange&&) -> SubRowsExpr<M, std::views::all_t<RowRange>>;
 
 }  // namespace linalg::detail
