@@ -8,7 +8,7 @@
 
 namespace linalg {
 
-template <SomeMatrixLike T>
+template <MatrixRange T>
 std::ostream& operator<<(std::ostream& os, const T& matrix) {
   using std::to_string;
 

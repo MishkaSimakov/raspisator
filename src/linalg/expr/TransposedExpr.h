@@ -4,20 +4,32 @@
 
 namespace linalg::detail {
 
-template <SomeMatrixLike Matrix>
+template <MatrixRange M>
 class TransposedExpr {
-  const Matrix& matrix_;
+  const M& matrix_;
 
  public:
-  using FieldType = typename Matrix::FieldType;
-  static constexpr bool constant_time_element_access =
-      Matrix::constant_time_element_access;
+  using FieldType = typename M::FieldType;
 
-  explicit TransposedExpr(Matrix& matrix) : matrix_(matrix) {}
+  explicit TransposedExpr(const M& matrix) : matrix_(matrix) {}
 
   //
-  decltype(auto) operator[](size_t row, size_t col) const {
-    return std::as_const(matrix_)[col, row];
+  decltype(auto) operator[](size_t row, size_t col) const
+    requires(ElementWiseMatrixRange<M>)
+  {
+    return matrix_[col, row];
+  }
+
+  decltype(auto) row_entries(size_t row) const
+    requires(ColWiseMatrixRange<M>)
+  {
+    return matrix_.col_entries(row);
+  }
+
+  decltype(auto) col_entries(size_t col) const
+    requires(RowWiseMatrixRange<M>)
+  {
+    return matrix_.row_entries(col);
   }
 
   auto entries() const {

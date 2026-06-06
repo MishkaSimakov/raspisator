@@ -4,7 +4,7 @@
 #include <ranges>
 #include <vector>
 
-#include "expr/CSCColumnsExpr.h"
+#include "expr/SubColsExpr.h"
 #include "expr/TransposedExpr.h"
 
 #include "Arithmetics.h"
@@ -124,20 +124,19 @@ class CSCMatrix {
 
   template <IndicesRange R>
   auto get_columns(R&& cols) const {
-    return detail::CSCColumnsExpr<Field, R>(*this, std::forward<R>(cols));
+    return detail::SubColsExpr(*this, std::forward<R>(cols));
   }
 
   auto get_column(size_t col) const {
     return get_columns(std::views::single(col));
   }
 
-  std::span<std::pair<size_t, Field>> get_column_entries(size_t col) {
+  std::span<std::pair<size_t, Field>> col_entries(size_t col) {
     return {entries_.begin() + index_pointers_[col],
             entries_.begin() + index_pointers_[col + 1]};
   }
 
-  std::span<const std::pair<size_t, Field>> get_column_entries(
-      size_t col) const {
+  std::span<const std::pair<size_t, Field>> col_entries(size_t col) const {
     return {entries_.begin() + index_pointers_[col],
             entries_.begin() + index_pointers_[col + 1]};
   }

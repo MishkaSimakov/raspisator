@@ -4,7 +4,8 @@
 #include <vector>
 
 #include "Concepts.h"
-#include "expr/IndexedExpr.h"
+#include "expr/SubColsExpr.h"
+#include "expr/SubRowsExpr.h"
 #include "expr/TransposedExpr.h"
 
 #include "Arithmetics.h"
@@ -17,6 +18,8 @@ class Matrix {
   size_t cols_;
   std::vector<Field> data_;
 
+  // protected so that Vector can access them
+ protected:
   size_t get_index(size_t row, size_t col) const { return row * cols_ + col; }
 
   explicit Matrix(size_t rows, size_t cols)
@@ -54,18 +57,22 @@ class Matrix {
     }
   }
 
-  template <MatrixLike<Field> T>
-  Matrix(const T& other) {
-    // TODO: aliasing
-    // TODO: check size
-    rows_ = other.rows();
-    cols_ = other.cols();
-
-    data_.resize(rows_ * cols_);
-
+  template <MatrixRange T>
+    requires std::same_as<typename T::FieldType, Field>
+  Matrix(const T& other) : Matrix(other.rows(), other.cols(), 0) {
+    // TODO: check that i, j don't go outside of range
     for (const auto [i, j, value] : other.entries()) {
-      (*this)[i, j] = value;
+      (*this)[i, j] += value;
     }
+  }
+
+  Matrix(const Matrix& other) = default;
+
+  Matrix(Matrix&& other)
+      : rows_(other.rows_), cols_(other.cols_), data_(std::move(other.data_)) {
+    other.rows_ = 0;
+    other.cols_ = 0;
+    other.data_.clear();
   }
 
   static Matrix uninitialized(size_t rows, size_t cols) {
@@ -91,6 +98,40 @@ class Matrix {
     return result;
   }
 
+  template <MatrixRange T>
+    requires std::same_as<typename T::FieldType, Field>
+  Matrix& operator=(const T& other) {
+    // TODO: aliasing
+    // TODO: check that i, j don't go outside of range
+    rows_ = other.rows();
+    cols_ = other.cols();
+
+    data_.resize(rows_ * cols_);
+    std::ranges::fill_n(data_, rows_ * cols_, 0);
+
+    for (const auto [i, j, value] : other.entries()) {
+      (*this)[i, j] += value;
+    }
+
+    return *this;
+  }
+
+  Matrix& operator=(const Matrix& other) {
+    if (this != &other) {
+      auto copy = other;
+      std::swap(*this, copy);
+    }
+
+    return *this;
+  }
+
+  Matrix& operator=(Matrix&& other) {
+    auto copy = std::move(other);
+    std::swap(*this, copy);
+
+    return *this;
+  }
+
   //
   Field& operator[](size_t row, size_t col) {
     return data_[get_index(row, col)];
@@ -98,6 +139,20 @@ class Matrix {
 
   const Field& operator[](size_t row, size_t col) const {
     return data_[get_index(row, col)];
+  }
+
+  auto col_entries(size_t col) const {
+    return std::views::iota(size_t{0}, rows()) |
+           std::views::transform([this, col](size_t row) {
+             return std::pair{row, (*this)[row, col]};
+           });
+  }
+
+  auto row_entries(size_t row) const {
+    return std::views::iota(size_t{0}, cols()) |
+           std::views::transform([this, row](size_t col) {
+             return std::pair{row, (*this)[row, col]};
+           });
   }
 
   auto entries() {
@@ -115,13 +170,10 @@ class Matrix {
   }
 
   template <IndicesRange RowRange, IndicesRange ColRange>
-  auto operator[](const RowRange& rows, const ColRange& cols) {
-    return detail::IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
-  }
-
-  template <IndicesRange RowRange, IndicesRange ColRange>
-  auto operator[](const RowRange& rows, const ColRange& cols) const {
-    return detail::IndexedExpr<Matrix, RowRange, ColRange>{*this, rows, cols};
+  auto operator[](RowRange&& rows, ColRange&& cols) const {
+    return detail::SubRowsExpr(
+        detail::SubColsExpr(*this, std::forward<ColRange>(cols)),
+        std::forward<RowRange>(rows));
   }
 
   //
@@ -194,11 +246,39 @@ class Matrix {
   //
   bool operator==(const Matrix&) const = default;
 
-  auto transposed() { return detail::TransposedExpr(*this); }
   auto transposed() const { return detail::TransposedExpr(*this); }
+
+  //
+  template <MatrixRange R>
+  Matrix& operator+=(const R& other) {
+    if (shape() != other.shape()) {
+      throw std::invalid_argument(std::format(
+          "Incompatible operand shape: {} != {}", shape(), other.shape()));
+    }
+
+    for (const auto [i, j, value] : other.entries()) {
+      (*this)[i, j] += value;
+    }
+
+    return *this;
+  }
+
+  template <MatrixRange R>
+  Matrix& operator-=(const R& other) {
+    if (shape() != other.shape()) {
+      throw std::invalid_argument(std::format(
+          "Incompatible operand shape: {} != {}", shape(), other.shape()));
+    }
+
+    for (const auto [i, j, value] : other.entries()) {
+      (*this)[i, j] -= value;
+    }
+
+    return *this;
+  }
 };
 
-template <SomeMatrixLike T>
+template <MatrixRange T>
 Matrix(const T&) -> Matrix<typename T::FieldType>;
 
 }  // namespace linalg

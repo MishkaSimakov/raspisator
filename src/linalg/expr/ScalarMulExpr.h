@@ -7,22 +7,43 @@
 
 namespace linalg::detail {
 
-template <SomeMatrixLike Matrix>
+template <MatrixRange M>
 class ScalarMulExpr {
  public:
-  using FieldType = typename Matrix::FieldType;
+  using FieldType = typename M::FieldType;
 
  private:
   FieldType scalar_;
-  const Matrix& matrix_;
+  const M& matrix_;
 
  public:
-  explicit ScalarMulExpr(FieldType scalar, const Matrix& matrix)
+  explicit ScalarMulExpr(FieldType scalar, const M& matrix)
       : scalar_(scalar), matrix_(matrix) {}
 
   //
-  decltype(auto) operator[](size_t i, size_t j) const {
+
+  decltype(auto) operator[](size_t i, size_t j) const
+    requires ElementWiseMatrixRange<M>
+  {
     return scalar_ * matrix_[i, j];
+  }
+
+  decltype(auto) row_entries(size_t row) const
+    requires(RowWiseMatrixRange<M>)
+  {
+    return matrix_.row_entries(row) |
+           std::views::transform([this](std::pair<size_t, FieldType> entry) {
+             return std::pair{entry.first, scalar_ * entry.second};
+           });
+  }
+
+  decltype(auto) col_entries(size_t col) const
+    requires(ColWiseMatrixRange<M>)
+  {
+    return matrix_.col_entries(col) |
+           std::views::transform([this](std::pair<size_t, FieldType> entry) {
+             return std::pair{entry.first, scalar_ * entry.second};
+           });
   }
 
   decltype(auto) entries() const {

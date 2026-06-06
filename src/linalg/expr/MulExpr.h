@@ -7,18 +7,17 @@
 
 namespace linalg::detail {
 
-template <SomeMatrixLike Left, SomeMatrixLike Right>
-  requires std::same_as<typename Left::FieldType, typename Right::FieldType>
+template <MatrixRange L, MatrixRange R>
+  requires std::same_as<typename L::FieldType, typename R::FieldType> &&
+           (RowWiseMatrixRange<R> || ColWiseMatrixRange<L>)
 class MulExpr {
-  Left& left_;
-  Right& right_;
+  const L& left_;
+  const R& right_;
 
  public:
-  using FieldType = typename Left::FieldType;
-  static constexpr bool constant_time_element_access =
-      Left::constant_time_element_access && Right::constant_time_element_access;
+  using FieldType = typename L::FieldType;
 
-  explicit MulExpr(Left& left, Right& right) : left_(left), right_(right) {
+  explicit MulExpr(const L& left, const R& right) : left_(left), right_(right) {
     if (left_.cols() != right_.rows()) {
       throw std::invalid_argument(std::format(
           "Multiplication arguments' shapes doesn't match: {} != {}.",
@@ -27,23 +26,38 @@ class MulExpr {
   }
 
   //
+  FieldType operator[](size_t i, size_t j) const
+    requires(ElementWiseMatrixRange<L> && ElementWiseMatrixRange<R>)
+  {
+    FieldType result = 0;
+
+    for (size_t k = 0; k < left_.cols(); ++k) {
+      result += left_[i, k] * right_[k, j];
+    }
+
+    return result;
+  }
+
   decltype(auto) entries() const {
     return left_.entries() |
-           std::ranges::transform(
-               [this](std::tuple<size_t, size_t, FieldType> entry) {
-                 return std::views::iota(size_t{0}, right_.cols()) |
-                        std::ranges::transform([this, entry](size_t k) {
-                          const auto [i, j, value] = entry;
+           std::views::transform(
+               [this](std::tuple<size_t, size_t, FieldType> left_entry) {
+                 const auto [i, j, value] = left_entry;
 
-                          return std::tuple{i, k, value * right_[j, k]};
-                        });
+                 return right_.row_entries(j) |
+                        std::views::transform(
+                            [this, i,
+                             value](std::pair<size_t, FieldType> right_entry) {
+                              return std::tuple{i, right_entry.first,
+                                                value * right_entry.second};
+                            });
                }) |
            std::views::join;
   }
 
   //
-  size_t rows() const { return left_.cols(); }
-  size_t cols() const { return left_.rows(); }
+  size_t rows() const { return left_.rows(); }
+  size_t cols() const { return right_.cols(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 };
 

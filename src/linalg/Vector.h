@@ -29,13 +29,18 @@ class Vector : public Matrix<Field> {
   size_t size() const { return this->rows(); }
 
   //
-  void resize(size_t new_size) { this->resize(new_size, 1); }
+  void resize(size_t new_size) { Matrix<Field>::resize(new_size, 1); }
 
   //
   using Matrix<Field>::operator[];
 
   Field& operator[](size_t row) { return (*this)[row, 0]; }
   const Field& operator[](size_t row) const { return (*this)[row, 0]; }
+
+  template <IndicesRange RowRange>
+  auto operator[](const RowRange& rows) const {
+    return (*this)[rows, std::views::single(size_t{0})];
+  }
 };
 
 }  // namespace linalg

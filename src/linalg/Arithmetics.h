@@ -6,27 +6,27 @@
 
 namespace linalg {
 
-template <SomeMatrixLike Left, SomeMatrixLike Right>
-auto operator+(const Left& left, const Right& right) {
-  return detail::SumExpr<Left, Right>(left, right);
+template <MatrixRange L, MatrixRange R>
+auto operator+(const L& left, const R& right) {
+  return detail::SumExpr<L, R>(left, right);
 }
 
-template <SomeMatrixLike Left, SomeMatrixLike Right>
-auto operator-(const Left& left, const Right& right) {
-  return left + detail::ScalarMulExpr<Right>(-1, right);
+template <MatrixRange L, MatrixRange R>
+auto operator-(const L& left, const R& right) {
+  return left + detail::ScalarMulExpr<R>(-1, right);
 }
 
-template <SomeMatrixLike Left, SomeMatrixLike Right>
-auto operator*(const Left& left, const Right& right) {
-  return detail::MulExpr<Left, Right>(left, right);
+template <MatrixRange L, MatrixRange R>
+auto operator*(const L& left, const R& right) {
+  return detail::MulExpr<L, R>(left, right);
 }
 
-template <SomeMatrixLike M>
+template <MatrixRange M>
 auto operator*(const M& matrix, typename M::FieldType scalar) {
   return detail::ScalarMulExpr<M>(scalar, matrix);
 }
 
-template <SomeMatrixLike M>
+template <MatrixRange M>
 auto operator*(typename M::FieldType scalar, const M& matrix) {
   return detail::ScalarMulExpr<M>(scalar, matrix);
 }

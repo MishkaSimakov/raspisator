@@ -5,7 +5,7 @@
 
 using namespace linalg;
 
-static_assert(MatrixLike<detail::TransposedExpr<Matrix<double>>, double>);
+static_assert(MatrixRange<detail::TransposedExpr<Matrix<double>>>);
 
 TEST(TransposedTests, Simple) {
   Matrix<int> matrix = {

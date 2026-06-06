@@ -5,7 +5,7 @@
 
 using namespace linalg;
 
-static_assert(MatrixLike<Vector<double>, double>);
+static_assert(MatrixRange<Vector<double>>);
 
 TEST(VectorTests, Constructor) {
   Vector<int> vector = {1, 2, 3, 4};
