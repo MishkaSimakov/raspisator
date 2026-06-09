@@ -22,25 +22,27 @@ class TransposedExpr : public BaseView {
     return matrix_[col, row];
   }
 
-  decltype(auto) row_entries(size_t row) const
+  template <typename F>
+  void row_entries(size_t row, F&& f) const
     requires(ColWiseMatrixRange<M>)
   {
-    return matrix_.col_entries(row);
+    matrix_.col_entries(
+        row, [&](size_t i, FieldType value) { f(i, std::move(value)); });
   }
 
-  decltype(auto) col_entries(size_t col) const
+  template <typename F>
+  void col_entries(size_t col, F&& f) const
     requires(RowWiseMatrixRange<M>)
   {
-    return matrix_.row_entries(col);
+    matrix_.row_entries(
+        col, [&](size_t i, FieldType value) { f(i, std::move(value)); });
   }
 
-  auto entries() const {
-    return matrix_.entries() |
-           std::views::transform(
-               [](std::tuple<size_t, size_t, FieldType> entry) {
-                 auto [row, col, value] = entry;
-                 return std::tuple{col, row, value};
-               });
+  template <typename F>
+  void entries(F&& f) const {
+    matrix_.entries([&](size_t i, size_t j, FieldType value) {
+      f(j, i, std::move(value));
+    });
   }
 
   //

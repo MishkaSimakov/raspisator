@@ -34,19 +34,24 @@ class OwningView : public BaseView {
     return matrix_[row, col];
   }
 
-  decltype(auto) row_entries(size_t row) const
+  template <typename F>
+  void row_entries(size_t row, F&& f) const
     requires(RowWiseMatrixRange<M>)
   {
-    return matrix_.row_entries(row);
+    matrix_.row_entries(row, f);
   }
 
-  decltype(auto) col_entries(size_t col) const
+  template <typename F>
+  void col_entries(size_t col, F&& f) const
     requires(ColWiseMatrixRange<M>)
   {
-    return matrix_.col_entries(col);
+    matrix_.col_entries(col, f);
   }
 
-  auto entries() const { return matrix_.entries(); }
+  template <typename F>
+  void entries(F&& f) const {
+    matrix_.entries(f);
+  }
 
   //
   size_t rows() const { return matrix_.rows(); }

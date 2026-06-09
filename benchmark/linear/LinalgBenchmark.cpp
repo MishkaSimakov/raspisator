@@ -5,10 +5,11 @@
 #include "linalg/CSCMatrix.h"
 #include "linalg/Matrix.h"
 #include "linalg/Transpose.h"
+#include "linalg/Vector.h"
 
 using namespace linalg;
 
-static size_t N = 1'000;
+static size_t N = 10'000;
 
 CSCMatrix<double> random_sparse(size_t N, size_t average_per_col) {
   std::default_random_engine random;
@@ -33,8 +34,10 @@ CSCMatrix<double> random_sparse(size_t N, size_t average_per_col) {
 static void NewLinalgLibrary(benchmark::State& state) {
   auto matrix = random_sparse(N, 10);
 
-  auto cost = Matrix<double>::zeros(N, 1);
-  auto pi = Matrix<double>::zeros(N, 1);
+  Vector cost =
+      Matrix<double>::generate(N, 1, [](size_t i, size_t j) { return i + j; });
+  Vector pi =
+      Matrix<double>::generate(N, 1, [](size_t i, size_t j) { return i + j; });
 
   for (auto _ : state) {
     Matrix result = cost - transpose(matrix) * pi;
@@ -56,7 +59,7 @@ static void OldWay(benchmark::State& state) {
     for (size_t i = 0; i < N; ++i) {
       result[i, 0] = cost[i, 0];
 
-      for (const auto& [row, value] : matrix.col_entries(i)) {
+      for (const auto& [row, value] : matrix.get_column(i)) {
         result[i, 0] -= value * pi[row, 0];
       }
     }

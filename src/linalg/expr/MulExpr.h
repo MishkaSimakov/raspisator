@@ -33,48 +33,41 @@ class MulExpr : BaseView {
 
   //
   FieldType operator[](size_t i, size_t j) const
-    requires(ElementWiseMatrixRange<L> && ElementWiseMatrixRange<R>)
+    requires(RowWiseMatrixRange<L> && ElementWiseMatrixRange<R> ||
+             ElementWiseMatrixRange<L> && ColWiseMatrixRange<R>)
   {
-    FieldType result = 0;
+    if constexpr (RowWiseMatrixRange<L>) {
+      FieldType result = 0;
 
-    for (size_t k = 0; k < left_.cols(); ++k) {
-      result += left_[i, k] * right_[k, j];
+      left_.row_entries(i, [&](size_t k, FieldType value) {
+        result += value * right_[k, j];
+      });
+
+      return result;
+    } else {  // ColWiseMatrixRange<R>
+      FieldType result = 0;
+
+      right_.col_entries(
+          j, [&](size_t k, FieldType value) { result += left_[i, k] * value; });
+
+      return result;
     }
-
-    return result;
   }
 
-  decltype(auto) entries() const {
+  template <typename F>
+  void entries(F&& f) const {
     if constexpr (RowWiseMatrixRange<R>) {
-      return left_.entries() |
-             std::views::transform(
-                 [this](std::tuple<size_t, size_t, FieldType> left_entry) {
-                   const auto [i, j, value] = left_entry;
-
-                   return right_.row_entries(j) |
-                          std::views::transform(
-                              [this, i, value](
-                                  std::pair<size_t, FieldType> right_entry) {
-                                return std::tuple{i, right_entry.first,
-                                                  value * right_entry.second};
-                              });
-                 }) |
-             std::views::join;
+      left_.entries([&](size_t i, size_t j, FieldType left_value) {
+        right_.row_entries(j, [&](size_t k, FieldType right_value) {
+          f(i, k, left_value * right_value);
+        });
+      });
     } else {  // ColWiseMatrixRange<L>
-      return right_.entries() |
-             std::views::transform(
-                 [this](std::tuple<size_t, size_t, FieldType> right_entry) {
-                   const auto [i, j, value] = right_entry;
-
-                   return left_.col_entries(i) |
-                          std::views::transform(
-                              [this, j,
-                               value](std::pair<size_t, FieldType> left_entry) {
-                                return std::tuple{left_entry.first, j,
-                                                  left_entry.second * value};
-                              });
-                 }) |
-             std::views::join;
+      right_.entries([&](size_t j, size_t k, FieldType right_value) {
+        left_.row_entries(j, [&](size_t i, FieldType left_value) {
+          f(i, k, left_value * right_value);
+        });
+      });
     }
   }
 

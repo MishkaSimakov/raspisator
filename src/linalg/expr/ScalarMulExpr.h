@@ -29,31 +29,26 @@ class ScalarMulExpr : public BaseView {
     return scalar_ * matrix_[i, j];
   }
 
-  decltype(auto) row_entries(size_t row) const
+  template <typename F>
+  void row_entries(size_t row, F&& f) const
     requires(RowWiseMatrixRange<M>)
   {
-    return matrix_.row_entries(row) |
-           std::views::transform([this](std::pair<size_t, FieldType> entry) {
-             return std::pair{entry.first, scalar_ * entry.second};
-           });
+    matrix_.row_entries(
+        row, [&](size_t i, FieldType value) { f(i, value * scalar_); });
   }
 
-  decltype(auto) col_entries(size_t col) const
+  template <typename F>
+  void col_entries(size_t col, F&& f) const
     requires(ColWiseMatrixRange<M>)
   {
-    return matrix_.col_entries(col) |
-           std::views::transform([this](std::pair<size_t, FieldType> entry) {
-             return std::pair{entry.first, scalar_ * entry.second};
-           });
+    matrix_.col_entries(
+        col, [&](size_t i, FieldType value) { f(i, value * scalar_); });
   }
 
-  decltype(auto) entries() const {
-    return matrix_.entries() |
-           std::views::transform(
-               [this](std::tuple<size_t, size_t, FieldType> entry) {
-                 auto [i, j, value] = entry;
-                 return std::tuple{i, j, scalar_ * value};
-               });
+  template <typename F>
+  void entries(F&& f) const {
+    matrix_.entries(
+        [&](size_t i, size_t j, FieldType value) { f(i, j, value * scalar_); });
   }
 
   //

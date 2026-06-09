@@ -54,3 +54,22 @@ TEST(SumExprTests, WrongShapes) {
 
   ASSERT_ANY_THROW({ left + right; });
 }
+
+TEST(SumExprTests, ElementAccess) {
+  Matrix left = {
+      {1, 2},
+      {3, 4},
+  };
+
+  Matrix right = {
+      {-5, -10},
+      {-20, -30},
+  };
+
+  auto sum = left + right;
+
+  ASSERT_EQ(sum[0, 0], -4);
+  ASSERT_EQ(sum[0, 1], -8);
+  ASSERT_EQ(sum[1, 0], -17);
+  ASSERT_EQ(sum[1, 1], -26);
+}

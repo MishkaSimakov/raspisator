@@ -59,8 +59,17 @@ class Matrix {
     requires std::same_as<MatrixFieldType<T>, Field>
   Matrix(T&& other) : Matrix(other.rows(), other.cols(), 0) {
     // TODO: check that i, j don't go outside of range
-    for (const auto [i, j, value] : other.entries()) {
-      (*this)[i, j] += value;
+    other.entries(
+        [this](size_t i, size_t j, Field value) { (*this)[i, j] += value; });
+  }
+
+  template <ElementWiseMatrixRange T>
+    requires std::same_as<MatrixFieldType<T>, Field>
+  Matrix(T&& other) : Matrix(other.rows(), other.cols()) {
+    for (size_t row = 0; row < rows(); ++row) {
+      for (size_t col = 0; col < cols(); ++col) {
+        (*this)[row, col] = other[row, col];
+      }
     }
   }
 
@@ -107,9 +116,8 @@ class Matrix {
     data_.resize(rows_ * cols_);
     std::ranges::fill_n(data_, rows_ * cols_, 0);
 
-    for (const auto [i, j, value] : other.entries()) {
-      (*this)[i, j] += value;
-    }
+    other.entries(
+        [this](size_t i, size_t j, Field value) { (*this)[i, j] += value; });
 
     return *this;
   }
@@ -139,32 +147,27 @@ class Matrix {
     return data_[get_index(row, col)];
   }
 
-  auto col_entries(size_t col) const {
-    return std::views::iota(size_t{0}, rows()) |
-           std::views::transform([this, col](size_t row) {
-             return std::pair{row, (*this)[row, col]};
-           });
+  template <typename F>
+  void col_entries(size_t col, F&& f) const {
+    for (size_t row = 0; row < rows(); ++row) {
+      f(row, (*this)[row, col]);
+    }
   }
 
-  auto row_entries(size_t row) const {
-    return std::views::iota(size_t{0}, cols()) |
-           std::views::transform([this, row](size_t col) {
-             return std::pair{col, (*this)[row, col]};
-           });
+  template <typename F>
+  void row_entries(size_t row, F&& f) const {
+    for (size_t col = 0; col < cols(); ++col) {
+      f(col, (*this)[row, col]);
+    }
   }
 
-  auto entries() {
-    return std::views::iota(size_t{0}, data_.size()) |
-           std::views::transform([this](size_t idx) {
-             return std::tuple{idx / cols_, idx % cols_, data_[idx]};
-           });
-  }
-
-  auto entries() const {
-    return std::views::iota(size_t{0}, data_.size()) |
-           std::views::transform([this](size_t idx) {
-             return std::tuple{idx / cols_, idx % cols_, data_[idx]};
-           });
+  template <typename F>
+  void entries(F&& f) const {
+    for (size_t row = 0; row < rows(); ++row) {
+      for (size_t col = 0; col < cols(); ++col) {
+        f(row, col, (*this)[row, col]);
+      }
+    }
   }
 
   template <IndicesRange RowRange, IndicesRange ColRange>
@@ -252,9 +255,8 @@ class Matrix {
           "Incompatible operand shape: {} != {}", shape(), other.shape()));
     }
 
-    for (const auto [i, j, value] : other.entries()) {
-      (*this)[i, j] += value;
-    }
+    other.entries(
+        [&](size_t i, size_t j, Field value) { (*this)[i, j] += value; });
 
     return *this;
   }
@@ -266,9 +268,8 @@ class Matrix {
           "Incompatible operand shape: {} != {}", shape(), other.shape()));
     }
 
-    for (const auto [i, j, value] : other.entries()) {
-      (*this)[i, j] -= value;
-    }
+    other.entries(
+        [&](size_t i, size_t j, Field value) { (*this)[i, j] -= value; });
 
     return *this;
   }

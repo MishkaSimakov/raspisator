@@ -35,20 +35,26 @@ class SumExpr : public BaseView {
     return left_[col, row] + right_[col, row];
   }
 
-  decltype(auto) row_entries(size_t row) const
+  template <typename F>
+  void row_entries(size_t row, F&& f) const
     requires(RowWiseMatrixRange<L> && RowWiseMatrixRange<R>)
   {
-    return JoinWithView(left_.row_entries(row), right_.row_entries(row));
+    left_.row_entries(row, f);
+    right_.row_entries(row, f);
   }
 
-  decltype(auto) col_entries(size_t col) const
+  template <typename F>
+  void col_entries(size_t col, F&& f) const
     requires(ColWiseMatrixRange<L> && ColWiseMatrixRange<R>)
   {
-    return JoinWithView(left_.col_entries(col), right_.col_entries(col));
+    left_.col_entries(col, f);
+    right_.col_entries(col, f);
   }
 
-  auto entries() const {
-    return JoinWithView(left_.entries(), right_.entries());
+  template <typename F>
+  void entries(F&& f) const {
+    left_.entries(f);
+    right_.entries(f);
   }
 
   //

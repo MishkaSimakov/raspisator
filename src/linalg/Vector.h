@@ -45,6 +45,18 @@ class Vector : public Matrix<Field> {
   auto operator[](RowRange&& rows) const {
     return (*this)[std::forward<RowRange>(rows), std::views::single(size_t{0})];
   }
+
+  template <typename F>
+  void row_entries(size_t row, F&& f) const {
+    f(0, (*this)[row, 0]);
+  }
+
+  template <typename F>
+  void entries(F&& f) const {
+    for (size_t row = 0; row < this->rows(); ++row) {
+      f(row, 0, (*this)[row, 0]);
+    }
+  }
 };
 
 template <MatrixRange T>

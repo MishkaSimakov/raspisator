@@ -74,38 +74,33 @@ class CSCMatrix {
   }
 
   //
-  auto entries() const {
-    return std::views::iota(size_t{0}, index_pointers_.size() - 1) |
-           std::views::transform([this](size_t col) {
-             auto begin = index_pointers_[col];
-             auto end = index_pointers_[col + 1];
-
-             return std::views::iota(begin, end) |
-                    std::views::transform([this, col](size_t idx) {
-                      const auto [row, value] = entries_[idx];
-                      return std::tuple{row, col, value};
-                    });
-           }) |
-           std::views::join;
+  template <typename F>
+  void col_entries(size_t col, F&& f) const {
+    for (size_t i = index_pointers_[col]; i < index_pointers_[col + 1]; ++i) {
+      const auto [row, value] = entries_[i];
+      f(row, value);
+    }
   }
 
-  template <IndicesRange R>
-  auto get_columns(R&& cols) const {
-    return detail::SubColsExpr(*this, std::forward<R>(cols));
+  template <typename F>
+  void entries(F&& f) const {
+    for (size_t col = 0; col < cols(); ++col) {
+      for (size_t i = index_pointers_[col]; i < index_pointers_[col + 1]; ++i) {
+        const auto [row, value] = entries_[i];
+
+        f(row, col, value);
+      }
+    }
   }
 
-  auto get_column(size_t col) const {
-    return get_columns(std::views::single(col));
+  std::span<std::pair<size_t, Field>> get_column(size_t col) {
+    return std::span{entries_.begin() + index_pointers_[col],
+                     entries_.begin() + index_pointers_[col + 1]};
   }
 
-  std::span<std::pair<size_t, Field>> col_entries(size_t col) {
-    return {entries_.begin() + index_pointers_[col],
-            entries_.begin() + index_pointers_[col + 1]};
-  }
-
-  std::span<const std::pair<size_t, Field>> col_entries(size_t col) const {
-    return {entries_.begin() + index_pointers_[col],
-            entries_.begin() + index_pointers_[col + 1]};
+  std::span<std::pair<size_t, Field>> get_column(size_t col) const {
+    return std::span{entries_.begin() + index_pointers_[col],
+                     entries_.begin() + index_pointers_[col + 1]};
   }
 
   //

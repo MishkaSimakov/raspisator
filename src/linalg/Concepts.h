@@ -41,25 +41,33 @@ using TriplesRangeFieldType =
 // Note: if Matrix satisfies MatrixRange, then Matrix& and const Matrix& also
 // satisfy this concept.
 template <typename T>
-concept MatrixRange = requires(T matrix) {
-  typename std::decay_t<T>::FieldType;
+concept MatrixRange =
+    requires(T matrix, void (*f)(size_t row, size_t col,
+                                 typename std::decay_t<T>::FieldType value)) {
+      typename std::decay_t<T>::FieldType;
 
-  { matrix.entries() } -> TriplesRange<typename std::decay_t<T>::FieldType>;
+      matrix.entries(f);
 
-  { matrix.shape() } -> std::same_as<std::pair<size_t, size_t>>;
-  { matrix.rows() } -> std::same_as<size_t>;
-  { matrix.cols() } -> std::same_as<size_t>;
-};
-
-template <typename T>
-concept RowWiseMatrixRange = MatrixRange<T> && requires(T matrix, size_t row) {
-  { matrix.row_entries(row) } -> DoublesRange<typename T::FieldType>;
-};
+      { matrix.shape() } -> std::same_as<std::pair<size_t, size_t>>;
+      { matrix.rows() } -> std::same_as<size_t>;
+      { matrix.cols() } -> std::same_as<size_t>;
+    };
 
 template <typename T>
-concept ColWiseMatrixRange = MatrixRange<T> && requires(T matrix, size_t col) {
-  { matrix.col_entries(col) } -> DoublesRange<typename T::FieldType>;
-};
+concept RowWiseMatrixRange =
+    MatrixRange<T> &&
+    requires(T matrix, size_t row,
+             void (*f)(size_t col, typename std::decay_t<T>::FieldType value)) {
+      matrix.row_entries(row, f);
+    };
+
+template <typename T>
+concept ColWiseMatrixRange =
+    MatrixRange<T> &&
+    requires(T matrix, size_t col,
+             void (*f)(size_t row, typename std::decay_t<T>::FieldType value)) {
+      matrix.col_entries(col, f);
+    };
 
 template <typename T>
 concept ElementWiseMatrixRange =
