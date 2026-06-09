@@ -47,9 +47,20 @@ class TransposedExpr : public BaseView {
   size_t rows() const { return matrix_.cols(); }
   size_t cols() const { return matrix_.rows(); }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
+
+  //
+  M& nested() { return matrix_; }
+  const M& nested() const { return matrix_; }
 };
 
 template <MatrixRange M>
-TransposedExpr(M) -> TransposedExpr<all_t<M>>;
+TransposedExpr(M&&) -> TransposedExpr<all_t<M>>;
+
+// TODO: think about copy elision
+// copy elision turns TransposedExpr(TransposedExpr(Matrix)) into
+// TransposedExpr(Matrix). The following Deduction Guide solves this problem
+// but potentially creates new problems...
+// template<MatrixRange M>
+// TransposedExpr(TransposedExpr<M>) -> TransposedExpr<TransposedExpr<M>>;
 
 }  // namespace linalg::detail

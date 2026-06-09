@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "linalg/Transpose.h"
 #include "linalg/Vector.h"
 #include "linalg/expr/TransposedExpr.h"
 
@@ -24,7 +25,7 @@ TEST(VectorTests, Constructor) {
 TEST(VectorTests, AssignTransposedVectorToMatrix) {
   Vector<int> vector = {1, 2, 3, 4};
 
-  Matrix<int> matrix = vector.transposed();
+  Matrix<int> matrix = transpose(vector);
   Matrix<int> expected = {{1, 2, 3, 4}};
 
   ASSERT_EQ(matrix, expected);

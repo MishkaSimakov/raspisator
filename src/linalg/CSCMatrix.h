@@ -5,12 +5,18 @@
 #include <vector>
 
 #include "expr/SubColsExpr.h"
-#include "expr/TransposedExpr.h"
 
 #include "Arithmetics.h"
 
 namespace linalg {
 
+// Stores sparse matrix in Compacted Sparse Column form. For each column it
+// stores a list of entries (row + value) as a contiguous subrange in entries_.
+// In one column entries are:
+// 1. Unordered
+// 2. Possibly duplicated (same row may appear twice). In this case values are
+// added up.
+// 3. Bounded by matrix height (row >= rows() is invalid).
 template <typename Field>
 class CSCMatrix {
   std::vector<std::pair<size_t, Field>> entries_;
@@ -20,28 +26,6 @@ class CSCMatrix {
 
   explicit CSCMatrix(size_t rows, size_t cols)
       : index_pointers_(cols + 1, 0), rows_cnt_(rows) {}
-
-  // performs binary search on entries_
-  std::optional<size_t> get_entry_index(size_t row, size_t col) const {
-    size_t left = index_pointers_[col];
-    size_t right = index_pointers_[col + 1];
-
-    while (left + 1 < right) {
-      const size_t middle = (left + right) / 2;
-
-      if (entries_[middle].first == row) {
-        return middle;
-      }
-
-      if (entries_[middle].first < row) {
-        left = middle;
-      } else {
-        right = middle;
-      }
-    }
-
-    return entries_[left].first == row ? std::optional{left} : std::nullopt;
-  }
 
  public:
   using FieldType = Field;
@@ -64,10 +48,6 @@ class CSCMatrix {
     const size_t begin = index_pointers_[index_pointers_.size() - 2];
     const size_t end = index_pointers_[index_pointers_.size() - 1];
 
-    if (begin == end) {
-      return;
-    }
-
     for (size_t i = begin; i < end; ++i) {
       if (entries_[i].first >= rows()) {
         throw std::invalid_argument(
@@ -75,37 +55,25 @@ class CSCMatrix {
                         entries_[i].first, rows()));
       }
     }
-
-    std::ranges::sort(
-        entries_.begin() + begin, entries_.begin() + end, {},
-        [](const std::pair<size_t, Field>& entry) { return entry.first; });
-
-    size_t shift = 0;
-    size_t row = entries_[begin].first;
-
-    for (size_t i = begin + 1; i < end; ++i) {
-      if (entries_[i].first == row) {
-        ++shift;
-        entries_[i - shift].second += entries_[i].second;
-      } else {
-        entries_[i - shift] = entries_[i];
-        row = entries_[i].first;
-      }
-    }
-
-    entries_.resize(entries_.size() - shift);
-    index_pointers_.back() -= shift;
   }
 
   void add_column() { index_pointers_.push_back(index_pointers_.back()); }
 
-  //
-  Field operator[](size_t row, size_t col) const {
-    const auto index = get_entry_index(row, col);
+  void push_to_last_column(size_t row, Field value) {
+    if (row >= rows()) {
+      throw std::out_of_range(std::format(
+          "Row index {} is invalid for matrix with height {}.", row, rows()));
+    }
+    if (cols() == 0) {
+      throw std::out_of_range(
+          "Can't push to last column because there are no columns.");
+    }
 
-    return index ? entries_[*index].second : 0;
+    entries_.emplace_back(row, value);
+    ++index_pointers_.back();
   }
 
+  //
   auto entries() const {
     return std::views::iota(size_t{0}, index_pointers_.size() - 1) |
            std::views::transform([this](size_t col) {
@@ -176,9 +144,6 @@ class CSCMatrix {
     entries_.resize(index_pointers_.back());
     rows_cnt_ = new_rows;
   }
-
-  auto transposed() { return detail::TransposedExpr(*this); }
-  auto transposed() const { return detail::TransposedExpr(*this); }
 
   void map_rows(std::span<const size_t> map) {
     // TODO: dimensions check

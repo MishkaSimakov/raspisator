@@ -44,15 +44,20 @@ target_sources(tests PUBLIC
         linalg/MatrixInitializationTests.cpp
         linalg/MatrixResizeTests.cpp
         linalg/VectorTests.cpp
-        linalg/TransposedTests.cpp
         linalg/CSCMatrixTests.cpp
         linalg/UseCasesTests.cpp
 
+        linalg/expr/AllTests.cpp
         linalg/expr/SubColsExprTests.cpp
+        linalg/expr/OwningViewTests.cpp
+        linalg/expr/MulExprTests.cpp
+        linalg/expr/SumExprTests.cpp
         linalg/expr/JoinWithViewTests.cpp
+        linalg/expr/TransposedExprTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
+target_include_directories(tests PRIVATE .)
 
 include(GoogleTest)
 gtest_discover_tests(tests)

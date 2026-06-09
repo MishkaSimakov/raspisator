@@ -6,7 +6,6 @@
 #include "Concepts.h"
 #include "expr/SubColsExpr.h"
 #include "expr/SubRowsExpr.h"
-#include "expr/TransposedExpr.h"
 
 #include "Arithmetics.h"
 
@@ -244,8 +243,6 @@ class Matrix {
 
   //
   bool operator==(const Matrix&) const = default;
-
-  auto transposed() const { return detail::TransposedExpr(*this); }
 
   //
   template <MatrixRange R>

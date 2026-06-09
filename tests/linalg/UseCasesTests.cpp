@@ -10,6 +10,7 @@
 
 #include "linalg/CSCMatrix.h"
 #include "linalg/Print.h"
+#include "linalg/Transpose.h"
 #include "linalg/Vector.h"
 
 using namespace linalg;
@@ -89,7 +90,6 @@ TEST(UseCasesTests, GetAdjustedRHS) {
   matrix.add_column(std::vector<std::pair<size_t, int>>{{1, 3}, {3, 5}});
   matrix.add_column(std::vector<std::pair<size_t, int>>{{4, 6}, {1, 5}});
 
-
   result -= matrix.get_column(2) * 5;
   result -= matrix.get_column(1) * -1;
 
@@ -123,7 +123,7 @@ TEST(UseCasesTests, GetReducedCost) {
 
   Vector<int> pi = {1, 2, 3};
 
-  Vector result = cost - matrix.transposed() * pi;
+  Vector result = cost - transpose(matrix) * pi;
   Vector<int> expected = {-12, -15};
 
   ASSERT_EQ(result, expected);

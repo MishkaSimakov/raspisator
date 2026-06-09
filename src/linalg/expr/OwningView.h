@@ -13,7 +13,19 @@ class OwningView : public BaseView {
  public:
   using FieldType = MatrixFieldType<M>;
 
-  explicit OwningView(M matrix) : matrix_(std::move(matrix)) {}
+  // Constructors are intentionally implicit, so that Matrix views may be
+  // converted into OwningView when passed into other Matrix views.
+
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  OwningView(M matrix) : matrix_(std::move(matrix)) {}
+
+  // non-copyable
+  OwningView(const OwningView&) = delete;
+  OwningView& operator=(const OwningView&) = delete;
+
+  // movable
+  OwningView(OwningView&&) = default;
+  OwningView& operator=(OwningView&&) = default;
 
   //
   decltype(auto) operator[](size_t row, size_t col) const

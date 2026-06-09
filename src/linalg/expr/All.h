@@ -10,14 +10,12 @@ namespace linalg::detail {
 
 template <MatrixRange M>
 auto all(M&& matrix) {
-  constexpr bool ref_suitable = requires(M matrix) { RefView(matrix); };
-
   if constexpr (std::is_base_of_v<BaseView, std::decay_t<M>>) {
     return std::forward<M>(matrix);
-  } else if constexpr (ref_suitable) {
-    return RefView(matrix);
+  } else if constexpr (std::is_reference_v<M>) {
+    return RefView(std::forward<M>(matrix));
   } else {
-    return OwningView(matrix);
+    return OwningView(std::forward<M>(matrix));
   }
 }
 

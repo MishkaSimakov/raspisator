@@ -19,6 +19,9 @@ class MulExpr : BaseView {
  public:
   using FieldType = MatrixFieldType<L>;
 
+  using LeftType = L;
+  using RightType = R;
+
   explicit MulExpr(L left, R right)
       : left_(std::move(left)), right_(std::move(right)) {
     if (left_.cols() != right_.rows()) {
@@ -42,20 +45,37 @@ class MulExpr : BaseView {
   }
 
   decltype(auto) entries() const {
-    return left_.entries() |
-           std::views::transform(
-               [this](std::tuple<size_t, size_t, FieldType> left_entry) {
-                 const auto [i, j, value] = left_entry;
+    if constexpr (RowWiseMatrixRange<R>) {
+      return left_.entries() |
+             std::views::transform(
+                 [this](std::tuple<size_t, size_t, FieldType> left_entry) {
+                   const auto [i, j, value] = left_entry;
 
-                 return right_.row_entries(j) |
-                        std::views::transform(
-                            [this, i,
-                             value](std::pair<size_t, FieldType> right_entry) {
-                              return std::tuple{i, right_entry.first,
-                                                value * right_entry.second};
-                            });
-               }) |
-           std::views::join;
+                   return right_.row_entries(j) |
+                          std::views::transform(
+                              [this, i, value](
+                                  std::pair<size_t, FieldType> right_entry) {
+                                return std::tuple{i, right_entry.first,
+                                                  value * right_entry.second};
+                              });
+                 }) |
+             std::views::join;
+    } else {  // ColWiseMatrixRange<L>
+      return right_.entries() |
+             std::views::transform(
+                 [this](std::tuple<size_t, size_t, FieldType> right_entry) {
+                   const auto [i, j, value] = right_entry;
+
+                   return left_.col_entries(i) |
+                          std::views::transform(
+                              [this, j,
+                               value](std::pair<size_t, FieldType> left_entry) {
+                                return std::tuple{left_entry.first, j,
+                                                  left_entry.second * value};
+                              });
+                 }) |
+             std::views::join;
+    }
   }
 
   //
@@ -65,6 +85,6 @@ class MulExpr : BaseView {
 };
 
 template <MatrixRange L, MatrixRange R>
-MulExpr(L, R) -> MulExpr<all_t<L>, all_t<R>>;
+MulExpr(L&&, R&&) -> MulExpr<all_t<L>, all_t<R>>;
 
 }  // namespace linalg::detail

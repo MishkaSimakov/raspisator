@@ -7,28 +7,29 @@
 namespace linalg {
 
 template <MatrixRange L, MatrixRange R>
-auto operator+(const L& left, const R& right) {
-  return detail::SumExpr<L, R>(left, right);
+auto operator+(L&& left, R&& right) {
+  return detail::SumExpr(std::forward<L>(left), std::forward<R>(right));
 }
 
 template <MatrixRange L, MatrixRange R>
-auto operator-(const L& left, const R& right) {
-  return left + detail::ScalarMulExpr<R>(-1, right);
+auto operator-(L&& left, R&& right) {
+  return std::forward<L>(left) +
+         detail::ScalarMulExpr(-1, std::forward<R>(right));
 }
 
 template <MatrixRange L, MatrixRange R>
-auto operator*(const L& left, const R& right) {
-  return detail::MulExpr<L, R>(left, right);
+auto operator*(L&& left, R&& right) {
+  return detail::MulExpr(std::forward<L>(left), std::forward<R>(right));
 }
 
 template <MatrixRange M>
-auto operator*(const M& matrix, typename M::FieldType scalar) {
-  return detail::ScalarMulExpr<M>(scalar, matrix);
+auto operator*(M&& matrix, MatrixFieldType<M> scalar) {
+  return detail::ScalarMulExpr(std::move(scalar), std::forward<M>(matrix));
 }
 
 template <MatrixRange M>
-auto operator*(typename M::FieldType scalar, const M& matrix) {
-  return detail::ScalarMulExpr<M>(scalar, matrix);
+auto operator*(MatrixFieldType<M> scalar, M&& matrix) {
+  return detail::ScalarMulExpr(std::move(scalar), std::forward<M>(matrix));
 }
 
 }  // namespace linalg

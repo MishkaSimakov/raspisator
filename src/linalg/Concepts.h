@@ -8,7 +8,8 @@ namespace linalg {
 
 template <typename T>
 concept IndicesRange = std::ranges::random_access_range<T> &&
-                       std::same_as<std::ranges::range_value_t<T>, size_t>;
+                       std::same_as<std::ranges::range_value_t<T>, size_t> &&
+                       std::ranges::sized_range<T>;
 
 // Denotes entries of one particular column or row. Only one index is needed,
 // because the other one is fixed.
@@ -16,6 +17,11 @@ template <typename T, typename Field>
 concept DoublesRange =
     std::ranges::range<T> &&
     std::same_as<std::ranges::range_value_t<T>, std::pair<size_t, Field>>;
+
+// T must be DoublesRange for some Field
+template <typename T>
+using DoublesRangeFieldType =
+    typename std::ranges::range_value_t<T>::second_type;
 
 // Denotes entries of a matrix.
 // 1. Entries may go in any order.
@@ -26,6 +32,11 @@ template <typename T, typename Field>
 concept TriplesRange =
     std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>,
                                           std::tuple<size_t, size_t, Field>>;
+
+// T must be TriplesRange for some Field
+template <typename T>
+using TriplesRangeFieldType =
+    std::tuple_element_t<2, std::ranges::range_value_t<T>>;
 
 // Note: if Matrix satisfies MatrixRange, then Matrix& and const Matrix& also
 // satisfy this concept.

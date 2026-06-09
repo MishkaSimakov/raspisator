@@ -13,6 +13,10 @@ class RefView : public BaseView {
  public:
   using FieldType = MatrixFieldType<M>;
 
+  // Constructors are intentionally implicit, so that Matrix views may be
+  // converted into RefView when passed into other Matrix views.
+
+  // NOLINTNEXTLINE(google-explicit-constructor)
   RefView(const M& matrix) : matrix_(std::addressof(matrix)) {}
 
   //
