@@ -52,7 +52,6 @@ target_sources(tests PUBLIC
         linalg/expr/OwningViewTests.cpp
         linalg/expr/MulExprTests.cpp
         linalg/expr/SumExprTests.cpp
-        linalg/expr/JoinWithViewTests.cpp
         linalg/expr/TransposedExprTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)

@@ -90,8 +90,8 @@ TEST(UseCasesTests, GetAdjustedRHS) {
   matrix.add_column(std::vector<std::pair<size_t, int>>{{1, 3}, {3, 5}});
   matrix.add_column(std::vector<std::pair<size_t, int>>{{4, 6}, {1, 5}});
 
-  result -= matrix.get_column(2) * 5;
-  result -= matrix.get_column(1) * -1;
+  result -= matrix.get_column_as_matrix(2) * 5;
+  result -= matrix.get_column_as_matrix(1) * -1;
 
   Vector<int> expected = {0, -22, 0, 5, -30};
 

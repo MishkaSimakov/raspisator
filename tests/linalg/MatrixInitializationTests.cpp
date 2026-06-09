@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "Assertions.h"
 #include "linalg/Matrix.h"
 
 using namespace linalg;
@@ -64,10 +65,6 @@ TEST(MatrixInitializationTests, Entries) {
       {3, 4},
   };
 
-  auto entries_range = matrix.entries();
-
-  std::vector entries(entries_range.begin(), entries_range.end());
-
   std::vector<std::tuple<size_t, size_t, int>> expected = {
       {0, 0, 1},
       {0, 1, 2},
@@ -75,5 +72,5 @@ TEST(MatrixInitializationTests, Entries) {
       {1, 1, 4},
   };
 
-  ASSERT_EQ(entries, expected);
+  ASSERT_ENTRIES_EQ(matrix, expected);
 }

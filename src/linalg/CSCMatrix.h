@@ -103,6 +103,10 @@ class CSCMatrix {
                      entries_.begin() + index_pointers_[col + 1]};
   }
 
+  auto get_column_as_matrix(size_t col) const {
+    return detail::SubColsExpr(*this, std::ranges::single_view{col});
+  }
+
   //
   size_t rows() const { return rows_cnt_; }
   size_t cols() const { return index_pointers_.size() - 1; }

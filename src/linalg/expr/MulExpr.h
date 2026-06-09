@@ -1,7 +1,6 @@
 #pragma once
 
 #include <format>
-#include <ranges>
 
 #include "All.h"
 #include "BaseView.h"
@@ -36,7 +35,7 @@ class MulExpr : BaseView {
     requires(RowWiseMatrixRange<L> && ElementWiseMatrixRange<R> ||
              ElementWiseMatrixRange<L> && ColWiseMatrixRange<R>)
   {
-    if constexpr (RowWiseMatrixRange<L>) {
+    if constexpr (RowWiseMatrixRange<L> && ElementWiseMatrixRange<R>) {
       FieldType result = 0;
 
       left_.row_entries(i, [&](size_t k, FieldType value) {
@@ -44,7 +43,7 @@ class MulExpr : BaseView {
       });
 
       return result;
-    } else {  // ColWiseMatrixRange<R>
+    } else {  // ElementWiseMatrixRange<L> && ColWiseMatrixRange<R>
       FieldType result = 0;
 
       right_.col_entries(

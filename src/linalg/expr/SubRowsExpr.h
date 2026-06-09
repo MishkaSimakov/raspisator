@@ -23,29 +23,27 @@ class SubRowsExpr : public BaseView {
     return matrix_[std::ranges::begin(rows_)[i], j];
   }
 
-  decltype(auto) row_entries(size_t row) const {
-    return matrix_.row_entries(std::ranges::begin(rows_)[row]);
+  template <typename F>
+  void row_entries(size_t row, F&& f) const {
+    matrix_.row_entries(std::ranges::begin(rows_)[row], std::forward<F>(f));
   }
 
-  decltype(auto) col_entries(size_t col) const
+  template <typename F>
+  void col_entries(size_t col, F&& f) const
     requires(ElementWiseMatrixRange<M>)
   {
-    return std::views::iota(size_t{0}, rows()) |
-           std::views::transform([this, col](size_t row) {
-             return std::pair{row, (*this)[row, col]};
-           });
+    for (size_t row = 0; row < rows(); ++row) {
+      f(row, col, (*this)[row, col]);
+    }
   }
 
-  auto entries() const {
-    return std::views::iota(size_t{0}, rows()) |
-           std::views::transform([this](size_t row) {
-             return matrix_.row_entries(std::ranges::begin(rows_)[row]) |
-                    std::views::transform(
-                        [this, row](std::pair<size_t, FieldType> entry) {
-                          return std::tuple{row, entry.first, entry.second};
-                        });
-           }) |
-           std::views::join;
+  template <typename F>
+  void entries(F&& f) const {
+    for (size_t row = 0; row < rows(); ++row) {
+      matrix_.row_entries(
+          std::ranges::begin(rows_)[row],
+          [&](size_t col, FieldType value) { f(row, col, std::move(value)); });
+    }
   }
 
   //

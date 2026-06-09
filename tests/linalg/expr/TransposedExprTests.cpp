@@ -28,6 +28,23 @@ TEST(TransposedExprTests, Simple) {
   ASSERT_EQ(tr, expected);
 }
 
+TEST(TransposedExprTests, ElementWiseAccess) {
+  Matrix<int> matrix = {
+      {1, 2},
+      {3, 4},
+      {5, 6},
+  };
+
+  auto tr = transpose(matrix);
+
+  ASSERT_EQ((tr[0, 0]), 1);
+  ASSERT_EQ((tr[0, 1]), 3);
+  ASSERT_EQ((tr[0, 2]), 5);
+  ASSERT_EQ((tr[1, 0]), 2);
+  ASSERT_EQ((tr[1, 1]), 4);
+  ASSERT_EQ((tr[1, 2]), 6);
+}
+
 TEST(TransposedExprTests, ColWiseMatrix) {
   auto matrix = sparse({
       {0, 1, 2},
@@ -39,10 +56,10 @@ TEST(TransposedExprTests, ColWiseMatrix) {
   static_assert(RowWiseMatrixRange<decltype(tr)>);
 
   std::vector<std::pair<size_t, int>> expected_row1 = {{0, 1}};
-  ASSERT_DOUBLES_RANGES_EQ(tr.row_entries(1), expected_row1);
+  ASSERT_ROW_ENTRIES_EQ(tr, 1, expected_row1);
 
   std::vector<std::pair<size_t, int>> expected_row2 = {{0, 2}, {1, 3}};
-  ASSERT_DOUBLES_RANGES_EQ(tr.row_entries(2), expected_row2);
+  ASSERT_ROW_ENTRIES_EQ(tr, 2, expected_row2);
 }
 
 TEST(TransposedExprTests, RowWiseMatrixRange) {
@@ -58,10 +75,10 @@ TEST(TransposedExprTests, RowWiseMatrixRange) {
   static_assert(ColWiseMatrixRange<decltype(tr)>);
 
   std::vector<std::pair<size_t, int>> expected_col1 = {{0, 1}};
-  ASSERT_DOUBLES_RANGES_EQ(tr.col_entries(1), expected_col1);
+  ASSERT_COL_ENTRIES_EQ(tr, 1, expected_col1);
 
   std::vector<std::pair<size_t, int>> expected_col2 = {{0, 2}, {1, 3}};
-  ASSERT_DOUBLES_RANGES_EQ(tr.col_entries(2), expected_col2);
+  ASSERT_COL_ENTRIES_EQ(tr, 2, expected_col2);
 }
 
 TEST(TransposedExprTests, TransposeFunctionDoesntCopy) {

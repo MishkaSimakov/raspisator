@@ -11,6 +11,7 @@ namespace linalg {
 template <MatrixRange T>
 std::ostream& operator<<(std::ostream& os, T&& matrix) {
   using std::to_string;
+  using Field = MatrixFieldType<T>;
 
   auto [n, m] = matrix.shape();
 
@@ -19,15 +20,15 @@ std::ostream& operator<<(std::ostream& os, T&& matrix) {
   Maximum<size_t> max_length;
   max_length.record(1);
 
-  for (const auto [row, col, value] : matrix.entries()) {
-    if constexpr (std::is_convertible_v<MatrixFieldType<T>, std::string>) {
+  matrix.entries([&](size_t row, size_t col, Field value) {
+    if constexpr (std::is_convertible_v<Field, std::string>) {
       result[row * m + col] = value;
     } else {
       result[row * m + col] = to_string(value);
     }
 
     max_length.record(result[row * m + col].size());
-  }
+  });
 
   for (size_t i = 0; i < n; ++i) {
     os << "{";

@@ -34,17 +34,14 @@ class MatrixSpy {
     move_assignment_calls = 0;
   }
 
-  auto entries() const {
-    return std::ranges::empty_view<std::tuple<size_t, size_t, int>>{};
-  }
+  template <typename F>
+  void entries(F&& f) const {}
 
-  auto row_entries(size_t row) const {
-    return std::ranges::empty_view<std::pair<size_t, int>>{};
-  }
+  template <typename F>
+  void row_entries(size_t row, F&& f) const {}
 
-  auto col_entries(size_t col) const {
-    return std::ranges::empty_view<std::pair<size_t, int>>{};
-  }
+  template <typename F>
+  void col_entries(size_t col, F&& f) const {}
 
   int operator[](size_t i, size_t j) const { return 0; }
 

@@ -42,7 +42,7 @@ TEST(SumExprTests, SparseSum) {
   std::vector<std::tuple<size_t, size_t, int>> expected = {{0, 1, 6},
                                                            {1, 0, 10}};
 
-  ASSERT_TRIPLES_RANGES_EQ(result.entries(), expected);
+  ASSERT_ENTRIES_EQ(result, expected);
 }
 
 TEST(SumExprTests, WrongShapes) {
@@ -68,8 +68,8 @@ TEST(SumExprTests, ElementAccess) {
 
   auto sum = left + right;
 
-  ASSERT_EQ(sum[0, 0], -4);
-  ASSERT_EQ(sum[0, 1], -8);
-  ASSERT_EQ(sum[1, 0], -17);
-  ASSERT_EQ(sum[1, 1], -26);
+  ASSERT_EQ((sum[0, 0]), -4);
+  ASSERT_EQ((sum[0, 1]), -8);
+  ASSERT_EQ((sum[1, 0]), -17);
+  ASSERT_EQ((sum[1, 1]), -26);
 }

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <format>
-#include <ranges>
-
 #include "All.h"
 #include "linalg/Concepts.h"
 

@@ -36,7 +36,7 @@ TEST(SubColsExprTests, GetColumn) {
   auto range = detail::SubColsExpr(matrix, std::vector<size_t>{2});
 
   std::vector<std::pair<size_t, int>> expected = {{0, 3}, {2, 1}};
-  ASSERT_DOUBLES_RANGES_EQ(range.col_entries(0), expected);
+  ASSERT_COL_ENTRIES_EQ(range, 0, expected);
 }
 
 TEST(SubColsExprTests, GetElement) {
@@ -53,13 +53,12 @@ TEST(SubColsExprTests, GetElement) {
   ASSERT_EQ((range[2, 0]), 1);
 }
 
-
 TEST(SubColsExprTests, GetElementManyColumns) {
   const auto matrix = Matrix<int>{
-        {1, 2, 3},
-        {1, 0, 0},
-        {2, 0, 1},
-    };
+      {1, 2, 3},
+      {1, 0, 0},
+      {2, 0, 1},
+  };
 
   auto range = detail::SubColsExpr(matrix, std::vector<size_t>{2, 0});
 

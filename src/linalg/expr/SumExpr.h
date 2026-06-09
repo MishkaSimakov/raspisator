@@ -1,11 +1,9 @@
 #pragma once
 
 #include <format>
-#include <ranges>
 
 #include "All.h"
 #include "BaseView.h"
-#include "JoinWithView.h"
 #include "linalg/Concepts.h"
 
 namespace linalg::detail {
@@ -32,7 +30,7 @@ class SumExpr : public BaseView {
   decltype(auto) operator[](size_t row, size_t col) const
     requires(ElementWiseMatrixRange<L> && ElementWiseMatrixRange<R>)
   {
-    return left_[col, row] + right_[col, row];
+    return left_[row, col] + right_[row, col];
   }
 
   template <typename F>
