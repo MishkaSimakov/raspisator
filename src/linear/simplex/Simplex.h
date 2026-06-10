@@ -220,6 +220,16 @@ class Simplex {
     // initialize simplex state
     initialize_state(bounds, states);
 
+    std::vector<Bound<Field>> bounds_vector(d);
+    for (size_t i = 0; i < d; ++i) {
+      bounds_vector[i] = bounds[i];
+    }
+
+    if (!config_.dual_pricing) {
+      throw std::runtime_error(
+          "Dual pricing must be specified in simplex config.");
+    }
+
     DualLeavingVariable<Field> leaving_finder;
 
     while (true) {
@@ -243,7 +253,17 @@ class Simplex {
         return construct_result<ReachedIterationsLimit<Field>>(state_);
       }
 
-      auto leaving = leaving_finder.get(state_);
+      auto leaving =
+          config_.dual_pricing->get_dual_leaving(detail::State<Field>{
+              .iteration = state_.iteration_index,
+              .objective = state_.objective,
+              .basic_point = state_.basic_point,
+              .bounds = bounds_vector,
+              .reduced_cost = state_.reduced_cost,
+              .states = state_.variables_states,
+              .basic_vars = state_.basic_variables,
+              .tolerance = config_.tolerance,
+          });
       if (!leaving) {
         return construct_result<FiniteLPSolution<Field>>(state_);
       }
@@ -347,25 +367,14 @@ class Simplex {
       const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
           detail::get_basic_cost(c_, state_.basic_variables));
 
-      const auto reduced_costs_matrix =
+      const auto reduced_costs =
           detail::get_reduced_cost(A_, c_, simplex_multipliers);
-
-      // temporary: transform matrix to vector
-      std::vector<Field> reduced_costs(d);
-      for (size_t i = 0; i < d; ++i) {
-        reduced_costs[i] = reduced_costs_matrix[i, 0];
-      }
-
-      std::vector<Field> basic_point(n);
-      for (size_t i = 0; i < n; ++i) {
-        basic_point[i] = state_.basic_point[i, 0];
-      }
 
       auto entering =
           config_.primal_pricing->get_primal_entering(detail::State<Field>{
               .iteration = state_.iteration_index,
               .objective = state_.objective,
-              .basic_point = basic_point,
+              .basic_point = state_.basic_point,
               .bounds = bounds_vector,
               .reduced_cost = reduced_costs,
               .states = state_.variables_states,

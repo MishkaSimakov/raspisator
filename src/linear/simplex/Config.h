@@ -6,6 +6,8 @@
 #include "Tolerance.h"
 #include "linear/simplex/pricing/dual/Pricing.h"
 #include "linear/simplex/pricing/primal/Pricing.h"
+#include "pricing/dual/Dantzig.h"
+#include "pricing/primal/MostInfeasible.h"
 
 namespace simplex {
 
@@ -22,6 +24,10 @@ struct Config {
 
   std::unique_ptr<PrimalPricing<Field>> primal_pricing;
   std::unique_ptr<DualPricing<Field>> dual_pricing;
+
+  Config()
+      : primal_pricing(std::make_unique<PrimalMostInfeasible<Field>>()),
+        dual_pricing(std::make_unique<DualDantzigPricing<Field>>()) {}
 };
 
 }  // namespace simplex

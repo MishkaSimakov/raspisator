@@ -65,11 +65,7 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     new_c[i] = -1;
   }
 
-  auto helper = Simplex(
-      new_A, b, new_c,
-      {
-          .primal_pricing = std::make_unique<PrimalMostInfeasible<Field>>(),
-      });
+  auto helper = Simplex(new_A, b, new_c);
   const auto result = helper.primal(new_bounds, states);
 
   if (!result.is_feasible()) {

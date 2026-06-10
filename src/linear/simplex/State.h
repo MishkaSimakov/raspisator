@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "linalg/Linalg.h"
 #include "linear/model/Bound.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Tolerance.h"
@@ -15,9 +16,9 @@ struct State {
 
   Field objective;
 
-  const std::vector<Field>& basic_point;
+  const Vector<Field>& basic_point;
   const std::vector<Bound<Field>>& bounds;
-  const std::vector<Field>& reduced_cost;
+  const Vector<Field>& reduced_cost;
   const std::vector<VariableState>& states;
   const std::vector<size_t>& basic_vars;
 

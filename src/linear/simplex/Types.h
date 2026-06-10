@@ -1,9 +1,7 @@
 #pragma once
 
 #include "CyclingDetector.h"
-#include "linalg/CSCMatrix.h"
-#include "linalg/Matrix.h"
-#include "linalg/Vector.h"
+#include "linalg/Linalg.h"
 #include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
 
@@ -29,9 +27,9 @@ struct IterationState {
 
   // Current values of basic variables.
   // basic_point[i, 0] is the value of basic_variables[i]
-  linalg::Vector<Field> basic_point;
+  Vector<Field> basic_point;
 
-  linalg::Matrix<Field> reduced_cost;
+  Vector<Field> reduced_cost;
 
   // During simplex iterations it is guaranteed that this pointer is valid.
   const Bounds<Field>* bounds;
