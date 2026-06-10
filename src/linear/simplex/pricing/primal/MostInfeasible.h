@@ -35,17 +35,18 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
     }
   }
 
-  std::optional<size_t> random_pricing(detail::State<Field> simplex) {
+  std::optional<size_t> random_pricing(detail::StateView<Field> simplex,
+                                       const Vector<Field>& reduced_cost) {
     using std::abs;
 
     // TODO: Reservoir sampling
     // choose random among top k by reduced cost
     std::vector<std::pair<double, size_t>> costs;
 
-    for (size_t i = 0; i < simplex.reduced_cost.size(); ++i) {
-      if (!is_feasible(simplex.states[i], simplex.reduced_cost[i],
+    for (size_t i = 0; i < reduced_cost.size(); ++i) {
+      if (!is_feasible(simplex.states[i], reduced_cost[i],
                        simplex.tolerance.feasibility)) {
-        costs.emplace_back(abs(simplex.reduced_cost[i]), i);
+        costs.emplace_back(abs(reduced_cost[i]), i);
       }
     }
 
@@ -61,13 +62,14 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
     return costs[index].second;
   }
 
-  std::optional<size_t> most_infeasible_pricing(detail::State<Field> simplex) {
+  std::optional<size_t> most_infeasible_pricing(
+      detail::StateView<Field> simplex, const Vector<Field>& reduced_cost) {
     ArgMaximum<Field> max_cost;
 
-    for (size_t i = 0; i < simplex.reduced_cost.size(); ++i) {
-      if (!is_feasible(simplex.states[i], simplex.reduced_cost[i],
+    for (size_t i = 0; i < reduced_cost.size(); ++i) {
+      if (!is_feasible(simplex.states[i], reduced_cost[i],
                        simplex.tolerance.feasibility)) {
-        max_cost.record(i, abs(simplex.reduced_cost[i]));
+        max_cost.record(i, abs(reduced_cost[i]));
       }
     }
 
@@ -76,13 +78,14 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
 
  public:
   std::optional<size_t> get_primal_entering(
-      detail::State<Field> simplex) override {
+      detail::StateView<Field> simplex,
+      const Vector<Field>& reduced_cost) override {
     if (cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
         CyclingState::HAS_CYCLING) {
-      return random_pricing(simplex);
+      return random_pricing(simplex, reduced_cost);
     }
 
-    return most_infeasible_pricing(simplex);
+    return most_infeasible_pricing(simplex, reduced_cost);
   }
 };
 

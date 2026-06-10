@@ -5,7 +5,7 @@
 
 #include "Pricing.h"
 #include "linear/simplex/CyclingDetector.h"
-#include "linear/simplex/State.h"
+#include "linear/simplex/StateView.h"
 #include "utils/Accumulators.h"
 
 namespace simplex {
@@ -16,7 +16,8 @@ class DualDantzigPricing final : public DualPricing<Field> {
 
   std::default_random_engine random_;
 
-  std::optional<LeavingVariable> dantzig_pricing(detail::State<Field> simplex) {
+  std::optional<LeavingVariable> dantzig_pricing(
+      detail::StateView<Field> simplex) {
     ArgMaximum<BoundViolation<Field>> max_violation;
 
     for (size_t i = 0; i < simplex.basic_vars.size(); ++i) {
@@ -44,7 +45,7 @@ class DualDantzigPricing final : public DualPricing<Field> {
   // Select a random boundary violating variable. This strategy is used when
   // potential cycling is detected.
   std::optional<LeavingVariable> random_pricing(
-      const detail::State<Field>& state) {
+      const detail::StateView<Field>& state) {
     std::vector<LeavingVariable> result;
 
     for (size_t i = 0; i < state.basic_vars.size(); ++i) {
@@ -67,7 +68,7 @@ class DualDantzigPricing final : public DualPricing<Field> {
 
  public:
   std::optional<LeavingVariable> get_dual_leaving(
-      detail::State<Field> simplex) override {
+      detail::StateView<Field> simplex) override {
     if (cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
         CyclingState::HAS_CYCLING) {
       return random_pricing(simplex);

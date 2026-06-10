@@ -3,91 +3,91 @@
 #include <chrono>
 #include <fstream>
 
-#include "linalg/Linalg.h"
 #include "linear/model/LP.h"
-#include "linear/simplex/Types.h"
 #include "utils/String.h"
 
 namespace simplex {
 
+namespace detail {
+
+static size_t get_dump_id() {
+  return std::chrono::system_clock::now().time_since_epoch() /
+         std::chrono::milliseconds(1);
+}
+
+}  // namespace detail
+
 template <typename Field>
-class SimplexCoreDump {
-  const CSCMatrix<Field>& A_;
-  const Vector<Field>& b_;
-  const Vector<Field>& c_;
+void dump_state(const problem::StandardLP<Field>& problem,
+                const std::vector<VariableState>& var_states) {
+  const size_t dump_id = detail::get_dump_id();
+  std::string dump_name = std::format("simplex_core_dump_{}.h", dump_id);
 
-  static size_t get_dump_id() {
-    return std::chrono::system_clock::now().time_since_epoch() /
-           std::chrono::milliseconds(1);
+  std::ofstream os(dump_name);
+
+  if (!os) {
+    throw std::runtime_error("Failed to open file for simplex core dump");
   }
 
- public:
-  SimplexCoreDump(const CSCMatrix<Field>& a, const Vector<Field>& b,
-                  const Vector<Field>& c)
-      : A_(a), b_(b), c_(c) {}
+  os << "namespace SimplexDump_" << dump_id << " {\n";
 
-  void dump_state(const IterationState<Field>& state) {
-    size_t dump_id = get_dump_id();
-    std::string dump_name = std::format("simplex_core_dump_{}.h", dump_id);
+  os << "Matrix<Field> A = {" << problem->matrix << "};\n";
+  os << "Matrix<Field> b = {" << problem->rhs << "};\n";
+  os << "Matrix<Field> c = {" << problem->cost << "};\n";
 
-    std::ofstream os(dump_name);
+  std::vector<std::string> string_bounds(problem.var_bounds.size());
+  for (size_t i = 0; i < problem.var_bounds.size(); ++i) {
+    std::string bound = "std::pair{";
 
-    if (!os) {
-      throw std::runtime_error("Failed to open file for simplex core dump");
+    if (problem.var_bounds[i].lower) {
+      bound += std::format("{}", *problem.var_bounds[i].lower);
+    } else {
+      bound += "std::nullopt";
     }
 
-    os << "namespace SimplexDump_" << dump_id << " {\n";
+    bound += ",";
 
-    os << "Matrix<Field> A = {" << A_ << "};\n";
-    os << "Matrix<Field> b = {" << b_ << "};\n";
-    os << "Matrix<Field> c = {" << c_ << "};\n";
-
-    std::vector<std::string> string_bounds(state.bounds->size());
-    for (size_t i = 0; i < state.bounds->size(); ++i) {
-      std::string bound = "std::pair{";
-
-      if ((*state.bounds)[i].lower) {
-        bound += std::format("{}", *(*state.bounds)[i].lower);
-      } else {
-        bound += "std::nullopt";
-      }
-
-      bound += ",";
-
-      if ((*state.bounds)[i].upper) {
-        bound += std::format("{}", *(*state.bounds)[i].upper);
-      } else {
-        bound += "std::nullopt";
-      }
-
-      bound += "}";
-
-      string_bounds[i] = bound;
+    if (problem.var_bounds[i].upper) {
+      bound += std::format("{}", problem.var_bounds[i].upper);
+    } else {
+      bound += "std::nullopt";
     }
 
-    os << "Bounds<Field> bounds = {" << str::join(string_bounds, ", ")
-       << "};\n";
+    bound += "}";
 
-    os << "std::vector<VariableState> last_states = {";
-    for (auto var : state.variables_states) {
-      if (var == VariableState::BASIC) {
+    string_bounds[i] = bound;
+  }
+
+  os << "Bounds<Field> bounds = {" << str::join(string_bounds, ", ") << "};\n";
+
+  os << "std::vector<VariableState> last_states = {";
+  for (auto var : var_states) {
+    switch (var) {
+      case VariableState::BASIC:
         os << "VariableState::BASIC, ";
-      } else if (var == VariableState::AT_LOWER) {
+        break;
+      case VariableState::AT_LOWER:
         os << "VariableState::AT_LOWER, ";
-      } else {
+        break;
+      case VariableState::AT_UPPER:
         os << "VariableState::AT_UPPER, ";
-      }
+        break;
+      case VariableState::NONBASIC_FREE:
+        os << "VariableState::NONBASIC_FREE, ";
+        break;
+      default:
+        throw std::runtime_error("Unknown variable state.");
     }
-    os << "};\n";
-
-    os << "};";
-
-    os << "}\n";
-
-    os << std::flush;
-
-    std::println("Registered failed simplex run into {}.", dump_name);
   }
-};
+  os << "};\n";
+
+  os << "};";
+
+  os << "}\n";
+
+  os << std::flush;
+
+  std::println("Registered failed simplex run into {}.", dump_name);
+}
 
 }  // namespace simplex

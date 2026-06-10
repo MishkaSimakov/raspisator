@@ -5,26 +5,25 @@
 #include "linalg/Linalg.h"
 #include "linear/model/Bound.h"
 #include "linear/model/LP.h"
+#include "problem/StandardLP.h"
 
 namespace simplex::detail {
 
 template <typename Field>
-Matrix<Field> get_adjusted_rhs(const CSCMatrix<Field>& matrix,
-                               const Vector<Field>& rhs,
-                               const Bounds<Field>& bounds,
+Vector<Field> get_adjusted_rhs(const problem::StandardLP<Field>& problem,
                                const std::vector<VariableState>& states) {
-  auto [n, d] = matrix.shape();
+  auto [n, d] = problem.matrix.shape();
 
-  Vector<Field> result(rhs);
+  Vector<Field> result = problem.rhs;
 
   for (size_t col = 0; col < d; ++col) {
     if (states[col] == VariableState::AT_LOWER) {
-      for (const auto& [row, value] : matrix.get_column(col)) {
-        result[row] -= value * *bounds[col].lower;
+      for (const auto& [row, value] : problem.matrix.get_column(col)) {
+        result[row] -= value * *problem.var_bounds[col].lower;
       }
     } else if (states[col] == VariableState::AT_UPPER) {
-      for (const auto& [row, value] : matrix.get_column(col)) {
-        result[row] -= value * *bounds[col].upper;
+      for (const auto& [row, value] : problem.matrix.get_column(col)) {
+        result[row] -= value * *problem.var_bounds[col].upper;
       }
     }
   }
@@ -55,7 +54,8 @@ static Vector<Field> get_point_from_basis(
 }
 
 template <typename Field>
-Field get_objective(const Vector<Field>& cost, const Bounds<Field>& bounds,
+Field get_objective(const Vector<Field>& cost,
+                    const std::vector<Bound<Field>>& bounds,
                     const std::vector<VariableState>& states,
                     const std::vector<size_t>& basic_vars,
                     const Vector<Field>& basic_point) {

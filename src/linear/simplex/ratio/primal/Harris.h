@@ -21,35 +21,30 @@ struct Unbounded {};
 
 template <typename Field>
 std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
-    const CSCMatrix<Field>& A, size_t entering_var, Field entering_reduced_cost,
-    const IterationState<Field>& state, Field pivot_tolerance) {
+    const problem::StandardLP<Field>& problem, const StateView<Field>& simplex,
+    size_t entering_var, Field entering_reduced_cost,
+    const Vector<Field>& entering_col) {
   using std::abs;
 
-  const auto [n, d] = A.shape();
-
-  Matrix<Field> column(n, 1, 0);
-  for (auto [row, value] : A.get_column(entering_var)) {
-    column[row, 0] = value;
-  }
-
-  column = state.lupa.solve_linear(std::move(column));
+  const auto [n, d] = problem.matrix.shape();
 
   // theta is maximum entering variable change so that the point would not
   // become primal infeasible for variable i,
   // change = | new_value - old_value |
   const auto get_variable_theta =
       [&](const size_t i, const Field epsilon = 0) -> std::optional<Field> {
-    if (abs(column[i, 0]) < pivot_tolerance) {
+    if (abs(entering_col[i]) < simplex.tolerance.pivot) {
       return std::nullopt;
     }
 
     // x_i = \alpha + s \beta x_j, where
     // x_j is entering variable,
     // s = -sign(entering reduced cost)
-    const Field alpha = state.basic_point[i, 0];
-    const Field beta = entering_reduced_cost > 0 ? -column[i, 0] : column[i, 0];
+    const Field alpha = simplex.basic_point[i];
+    const Field beta =
+        entering_reduced_cost > 0 ? -entering_col[i] : entering_col[i];
 
-    const auto bound = (*state.bounds)[state.basic_variables[i]];
+    const auto bound = problem.var_bounds[simplex.basic_vars[i]];
 
     if (beta > 0 && bound.upper) {
       if (alpha > *bound.upper) {
@@ -82,8 +77,8 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
 
   std::optional<size_t> leaving_id = std::nullopt;
 
-  const auto entering_state = state.variables_states[entering_var];
-  const auto entering_bound = (*state.bounds)[entering_var];
+  const auto entering_state = simplex.states[entering_var];
+  const auto entering_bound = problem.var_bounds[entering_var];
 
   if (min_theta_bound.has_value()) {
     const Field theta_max = *min_theta_bound;
@@ -95,7 +90,7 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
       auto current_theta = get_variable_theta(i);
 
       if (current_theta && *current_theta <= theta_max) {
-        max_pivot.record(i, abs(column[i, 0]));
+        max_pivot.record(i, abs(entering_col[i]));
       }
     }
 
@@ -140,9 +135,10 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
     return Unbounded{};
   }
 
-  const auto leaving_state = entering_reduced_cost * column[*leaving_id, 0] < 0
-                                 ? VariableState::AT_UPPER
-                                 : VariableState::AT_LOWER;
+  const auto leaving_state =
+      entering_reduced_cost * entering_col[*leaving_id] < 0
+          ? VariableState::AT_UPPER
+          : VariableState::AT_LOWER;
 
   return ChangeBasis{entering_var, *leaving_id, leaving_state};
 }

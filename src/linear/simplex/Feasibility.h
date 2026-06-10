@@ -4,6 +4,7 @@
 #include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Math.h"
+#include "problem/StandardLP.h"
 
 namespace simplex {
 
@@ -46,6 +47,13 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
   return true;
 }
 
+template <typename Field>
+bool is_dual_feasible(const problem::StandardLP<Field>& problem,
+                      const std::vector<VariableState>& states) {
+  return is_dual_feasible(problem.matrix, problem.rhs, problem.cost,
+                          problem.var_bounds, states);
+}
+
 // This function does not check whether matrix formed by basic columns is
 // invertible.
 template <typename Field>
@@ -78,6 +86,13 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
   }
 
   return true;
+}
+
+template <typename Field>
+bool is_primal_feasible(const problem::StandardLP<Field>& problem,
+                        const std::vector<VariableState>& states) {
+  return is_primal_feasible(problem.matrix, problem.rhs, problem.cost,
+                            problem.var_bounds, states);
 }
 
 }  // namespace simplex

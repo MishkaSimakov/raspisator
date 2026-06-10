@@ -141,6 +141,12 @@ class LUPA {
     return UpdateResult::SUCCESS;
   }
 
+  void guard_columns_set() const {
+    if (columns_.size() != A_.rows()) {
+      throw std::logic_error("Columns are not set.");
+    }
+  }
+
  public:
   explicit LUPA(const CSCMatrix<Field>& A, LUPAConfig config = {})
       : A_(A),
@@ -152,13 +158,20 @@ class LUPA {
         config_(config) {}
 
   void set_columns(const std::vector<size_t>& columns) {
-    assert(columns.size() == A_.shape().first);
+    if (columns.size() != A_.rows()) {
+      throw std::invalid_argument(
+          std::format("Number of selected columns doesn't match the number of "
+                      "rows: {} != {}",
+                      columns.size(), A_.rows()));
+    }
 
     columns_ = columns;
     refactorize();
   }
 
   void change_column(size_t current_column, size_t new_column) {
+    guard_columns_set();
+
     columns_[current_column] = new_column;
     ++changes_since_refactorization_;
     ++changes_since_purge_;
@@ -181,6 +194,8 @@ class LUPA {
   }
 
   void refactorize() {
+    guard_columns_set();
+
     factorizer_.get(A_, columns_, P_, Q_, ls_, us_);
 
     changes_since_refactorization_ = 0;
@@ -189,17 +204,21 @@ class LUPA {
 
   // solves Ax = b
   Vector<Field> solve_linear(Vector<Field> b) const {
+    guard_columns_set();
+
     return linalg::solve_linear(std::move(b), P_, Q_, ls_, us_);
   }
 
   Vector<Field> solve_linear_transposed(Vector<Field> b) const {
+    guard_columns_set();
+
     return linalg::solve_linear_transposed(std::move(b), P_, Q_, ls_, us_);
   }
 
   Vector<Field> get_row(size_t row_index) const {
-    size_t n = columns_.size();
+    guard_columns_set();
 
-    Vector<Field> e(n);
+    Vector<Field> e(columns_.size());
     e[row_index] = 1;
 
     return solve_linear_transposed(e);
@@ -208,6 +227,8 @@ class LUPA {
   // Returns inverse of the current matrix, reconstructed from LU-decomposition.
   // Note: This method is for testing, it is not optimized in any way.
   Matrix<Field> get_inverse() const {
+    guard_columns_set();
+
     auto result = Matrix<Field>::identity(A_.rows());
 
     result = P_.apply(std::move(result));
@@ -228,6 +249,8 @@ class LUPA {
   // Returns current matrix, reconstructed from LU-decomposition.
   // Note: This method is for testing, it is not optimized in any way
   Matrix<Field> get_matrix() const {
+    guard_columns_set();
+
     auto result = Matrix<Field>::identity(A_.rows());
 
     result = Q_.apply_transposed(std::move(result));

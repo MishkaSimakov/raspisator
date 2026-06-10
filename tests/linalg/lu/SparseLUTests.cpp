@@ -231,3 +231,20 @@ TEST(SparseLUTests, ChangeColumnsAndPurgeRandomTest) {
     ASSERT_EQ(matrix, core);
   }
 }
+
+TEST(SparseLUTests, AccessWithoutSetColumnsThrowsOnFreshLupa) {
+  const auto A = sparse<Rational>({
+      {1, 2},
+      {3, 4},
+  });
+
+  auto lupa = linalg::LUPA(A);  // set_columns never called
+
+  const Vector<Rational> b = {1, 0};
+
+  ASSERT_ANY_THROW(lupa.solve_linear(b));
+  ASSERT_ANY_THROW(lupa.solve_linear_transposed(b));
+  ASSERT_ANY_THROW(lupa.get_row(0));
+  ASSERT_ANY_THROW(lupa.get_matrix());
+  ASSERT_ANY_THROW(lupa.get_inverse());
+}

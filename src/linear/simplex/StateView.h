@@ -11,14 +11,13 @@ namespace simplex::detail {
 
 // Simplex state DTO used for pricing and ratio tests
 template <typename Field>
-struct State {
+struct StateView {
   size_t iteration;
 
   Field objective;
 
   const Vector<Field>& basic_point;
   const std::vector<Bound<Field>>& bounds;
-  const Vector<Field>& reduced_cost;
   const std::vector<VariableState>& states;
   const std::vector<size_t>& basic_vars;
 

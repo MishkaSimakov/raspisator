@@ -2,7 +2,7 @@
 
 #include <optional>
 
-#include "linear/simplex/State.h"
+#include "linear/simplex/StateView.h"
 
 namespace simplex {
 
@@ -12,7 +12,7 @@ template <typename Field>
 class PrimalPricing {
  public:
   virtual std::optional<size_t> get_primal_entering(
-      detail::State<Field> simplex) = 0;
+      detail::StateView<Field> simplex, const Vector<Field>& reduced_cost) = 0;
 
   virtual ~PrimalPricing() = default;
 };
