@@ -31,11 +31,8 @@ std::optional<std::vector<VariableState>> try_init_dual_by_reduced_cost(
   linalg::LUPA<Field> lupa(A);
   lupa.set_columns(basic_variables);
 
-  const auto simplex_multipliers =
-      lupa.solve_linear_transposed(detail::get_basic_cost(c, basic_variables));
-
-  const auto reduced_costs =
-      detail::get_reduced_cost(A, c, simplex_multipliers);
+  const Vector pi = lupa.solve_linear_transposed(Vector(c[basic_variables]));
+  const Vector reduced_costs = c - linalg::transpose(A) * pi;
 
   for (size_t i = 0; i < d; ++i) {
     if (reduced_costs[i] <= Field(0)) {

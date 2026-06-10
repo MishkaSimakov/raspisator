@@ -77,37 +77,4 @@ Field get_objective(const Vector<Field>& cost, const Bounds<Field>& bounds,
   return objective.sum();
 }
 
-template <typename Field>
-Vector<Field> get_basic_cost(const Vector<Field>& cost,
-                             const std::vector<size_t>& basic_vars) {
-  Vector<Field> result(basic_vars.size());
-
-  for (size_t i = 0; i < basic_vars.size(); ++i) {
-    result[i] = cost[basic_vars[i]];
-  }
-
-  return result;
-}
-
-// TODO: this can be simplified if I implement sparse matrix arithmetics
-// (c - A.transposed() * pi, where .transposed is expression template)
-// @simplex_multipliers is pi = A_B^-1 c_B
-template <typename Field>
-Vector<Field> get_reduced_cost(const CSCMatrix<Field>& A,
-                               const Vector<Field>& c,
-                               const Vector<Field>& simplex_multipliers) {
-  auto [n, d] = A.shape();
-
-  Vector<Field> result(d);
-  for (size_t i = 0; i < d; ++i) {
-    result[i] = c[i];
-
-    for (const auto& [row, value] : A.get_column(i)) {
-      result[i] -= value * simplex_multipliers[row];
-    }
-  }
-
-  return result;
-}
-
 }  // namespace simplex::detail

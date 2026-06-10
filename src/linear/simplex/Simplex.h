@@ -105,11 +105,9 @@ class Simplex {
 
     ArgMinimum<Field> min_ratio;
 
-    const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
-        detail::get_basic_cost(c_, state_.basic_variables));
-
-    const auto reduced_costs =
-        detail::get_reduced_cost(A_, c_, simplex_multipliers);
+    const Vector pi =
+        state_.lupa.solve_linear_transposed(Vector(c_[state_.basic_variables]));
+    const Vector reduced_costs = c_ - linalg::transpose(A_) * pi;
 
     const auto inverse_row = state.lupa.get_row(leaving.index);
 
@@ -350,11 +348,10 @@ class Simplex {
         return construct_result<ReachedIterationsLimit<Field>>(state_);
       }
 
-      const auto simplex_multipliers = state_.lupa.solve_linear_transposed(
-          detail::get_basic_cost(c_, state_.basic_variables));
+      const auto pi = state_.lupa.solve_linear_transposed(
+          Vector(c_[state_.basic_variables]));
 
-      const auto reduced_costs =
-          detail::get_reduced_cost(A_, c_, simplex_multipliers);
+      const Vector reduced_costs = c_ - linalg::transpose(A_) * pi;
 
       auto entering =
           config_.primal_pricing->get_primal_entering(detail::State<Field>{
