@@ -2,15 +2,16 @@
 
 #include <variant>
 
+#include "ConstructSparse.h"
+#include "linalg/Matrix.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
 #include "linear/simplex/Simplex.h"
 #include "linear/simplex/init/dual/ReducedCost.h"
 #include "linear/simplex/init/primal/Phase1.h"
 
 template <typename Field>
-auto run_simplex(const Matrix<Field>& A, const Matrix<Field>& b,
-                 const Matrix<Field>& c, const std::vector<Field>& lower,
+auto run_simplex(const Matrix<Field>& A, const Vector<Field>& b,
+                 const Vector<Field>& c, const std::vector<Field>& lower,
                  const std::vector<Field>& upper,
                  const std::vector<size_t>& basic_vars) {
   simplex::Simplex solver(CSCMatrix(A), b, c);
@@ -30,15 +31,15 @@ TEST(SimplexMethodTests, SimplexMethodStartingInSolution) {
       {2, 1, 0, 1},
   };
 
-  Matrix<Rational> b = {{1}, {3}};
-  Matrix<Rational> c = {{2, 1, 1, -1}};
+  Vector<Rational> b = {1, 3};
+  Vector<Rational> c = {2, 1, 1, -1};
 
   std::vector<Rational> lower = {0, 0, 0, 0};
   std::vector<Rational> upper = {10, 10, 10, 10};
 
   auto solution = run_simplex(A, b, c, lower, upper, {1, 2});
 
-  Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
+  Vector<Rational> expected = {0, 3, 4, 0};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
@@ -50,15 +51,15 @@ TEST(SimplexMethodTests, FullSimple1) {
       {2, 1, 0, 1},
   };
 
-  Matrix<Rational> b = {{1}, {3}};
-  Matrix<Rational> c = {{2, 1, 1, -1}};
+  Vector<Rational> b = {1, 3};
+  Vector<Rational> c = {2, 1, 1, -1};
 
   std::vector<Rational> lower = {0, 0, 0, 0};
   std::vector<Rational> upper = {10, 10, 10, 10};
 
   auto solution = run_simplex(A, b, c, lower, upper, {2, 3});
 
-  Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
+  Vector<Rational> expected = {0, 3, 4, 0};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
@@ -70,15 +71,15 @@ TEST(SimplexMethodTests, FullSimple2) {
       {1, 14, 10, -10},
   };
 
-  Matrix<Rational> b = {{2}, {24}};
-  Matrix<Rational> c = {{1, 2, 3, -4}};
+  Vector<Rational> b = {2, 24};
+  Vector<Rational> c = {1, 2, 3, -4};
 
   std::vector<Rational> lower = {0, 0, 0, 0};
   std::vector<Rational> upper = {10, 10, 10, 10};
 
   auto solution = run_simplex(A, b, c, lower, upper, {1, 3});
 
-  Matrix<Rational> expected = {{4}, {0}, {2}, {0}};
+  Vector<Rational> expected = {4, 0, 2, 0};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 10);
@@ -86,15 +87,15 @@ TEST(SimplexMethodTests, FullSimple2) {
 
 TEST(SimplexMethodTests, FullSimple3) {
   Matrix<Rational> A = {{1, 1}};
-  Matrix<Rational> b = {{1}};
-  Matrix<Rational> c = {{1, 2}};
+  Vector<Rational> b = {1};
+  Vector<Rational> c = {1, 2};
 
   std::vector<Rational> lower = {0, 0};
   std::vector<Rational> upper = {10, 10};
 
   auto solution = run_simplex(A, b, c, lower, upper, {0});
 
-  Matrix<Rational> expected = {{0}, {1}};
+  Vector<Rational> expected = {0, 1};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 2);
@@ -102,15 +103,15 @@ TEST(SimplexMethodTests, FullSimple3) {
 
 TEST(SimplexMethodTests, FullSimple4) {
   Matrix<Rational> A = {{1, 1}};
-  Matrix<Rational> b = {{1}};
-  Matrix<Rational> c = {{2, 1}};
+  Vector<Rational> b = {1};
+  Vector<Rational> c = {2, 1};
 
   std::vector<Rational> lower = {0, 0};
   std::vector<Rational> upper = {10, 10};
 
   auto solution = run_simplex(A, b, c, lower, upper, {1});
 
-  Matrix<Rational> expected = {{1}, {0}};
+  Vector<Rational> expected = {1, 0};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 2);
@@ -223,14 +224,14 @@ TEST(SimplexMethodTests, NonTrivialBounds) {
       {2, 1, 0, 1},
   };
 
-  Matrix<Rational> b = {{1}, {3}};
-  Matrix<Rational> c = {{2, 1, 1, -1}};
+  Vector<Rational> b = {1, 3};
+  Vector<Rational> c = {2, 1, 1, -1};
 
   Matrix<Rational> point = {{0}, {0}, {1}, {3}};
   std::vector<Rational> lower = {0, 0, 1, 0};
   std::vector<Rational> upper = {1, 3, 10, 10};
 
-  Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
+  Vector<Rational> expected = {0, 3, 4, 0};
 
   {
     auto solution = run_simplex(A, b, c, lower, upper, {2, 3});
@@ -250,28 +251,28 @@ TEST(SimplexMethodTests, NonTrivialBounds) {
 TEST(SimplexMethodTests, NonTrivialBounds2) {
   Matrix<Rational> A = {{1, 1, 1, 0, 0, 0}};
 
-  Matrix<Rational> b = {{1}};
-  Matrix<Rational> c = {{1, 0, 0, 1, 1, 1}};
+  Vector<Rational> b = {1};
+  Vector<Rational> c = {1, 0, 0, 1, 1, 1};
 
   std::vector<Rational> lower = {0, 0, 0, 0, 0, 0};
   std::vector<Rational> upper = {1, 1, 1, 1, 1, 1};
 
   auto solution = run_simplex(A, b, c, lower, upper, {2});
 
-  Matrix<Rational> expected = {{1}, {0}, {0}, {1}, {1}, {1}};
+  Vector<Rational> expected = {1, 0, 0, 1, 1, 1};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 4);
 }
 
 const auto kPrimalTestProblem = [] {
-  CSCMatrix<Rational> A = {
+  auto A = sparse<Rational>({
       {2, -1, 2, 1, 0, 0},
       {2, -3, 1, 0, 1, 0},
       {-1, 1, -2, 0, 0, 1},
-  };
-  Matrix<Rational> b = {{4}, {-5}, {-1}};
-  Matrix<Rational> c = {{1, -1, 1, 0, 0, 0}};
+  });
+  Vector<Rational> b = {4, -5, -1};
+  Vector<Rational> c = {1, -1, 1, 0, 0, 0};
 
   Bounds<Rational> bounds(6);
   for (size_t i = 0; i < 6; ++i) {
@@ -315,13 +316,13 @@ TEST(SimplexMethodTests, PrimalFeasibleFinding) {
 }
 
 TEST(SimplexMethodTests, PrimalFeasibleFindingInfeasibleProblem) {
-  CSCMatrix<Rational> A = {
+  auto A = sparse<Rational>({
       {2, -1, -2, 1, 0, 0},
       {2, -3, -1, 0, 1, 0},
       {-1, 1, 1, 0, 0, 1},
-  };
-  Matrix<Rational> b = {{4}, {-5}, {-1}};
-  Matrix<Rational> c = {{1, -1, 1, 0, 0, 0}};
+  });
+  Vector<Rational> b = {4, -5, -1};
+  Vector<Rational> c = {1, -1, 1, 0, 0, 0};
 
   Bounds<Rational> bounds(6);
   for (size_t i = 0; i < 6; ++i) {
@@ -337,13 +338,13 @@ TEST(SimplexMethodTests, PrimalFeasibleFindingInfeasibleProblem) {
 }
 
 TEST(SimplexMethodTests, PrimalFeasibleFinding2) {
-  CSCMatrix<Rational> A = {
+  auto A = sparse<Rational>({
       {-5, 6, -8, -2, -8},
       {6, -8, -8, -2, 7},
       {4, 0, 2, 4, 4},
-  };
-  Matrix<Rational> b = {{61}, {113}, {-36}};
-  Matrix<Rational> c = {{-7, -10, -7, 9, 9}};
+  });
+  Vector<Rational> b = {61, 113, -36};
+  Vector<Rational> c = {-7, -10, -7, 9, 9};
 
   Bounds<Rational> bounds(6);
   bounds[0] = {-6, 8};

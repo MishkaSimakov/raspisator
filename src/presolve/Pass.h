@@ -25,7 +25,7 @@ class Pass {
   virtual problem::MILP<Field> apply(problem::MILP<Field> problem) = 0;
 
   // may be called many times
-  virtual std::vector<Field> inverse(std::vector<Field> solution) const = 0;
+  virtual Vector<Field> inverse(Vector<Field> solution) const = 0;
 
   virtual ~Pass() = default;
 };

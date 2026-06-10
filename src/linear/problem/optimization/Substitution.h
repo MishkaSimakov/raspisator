@@ -113,21 +113,21 @@ class Substitution final : public BaseOptimizer<Field> {
     return problem;
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override {
-    size_t d = point.get_height();
+  Vector<Field> inverse(const Vector<Field>& point) override {
+    size_t d = point.size();
 
-    Matrix<Field> result(d + substitutions_.size(), 1);
+    Vector<Field> result(d + substitutions_.size());
 
     size_t j = 0;
     for (size_t i = 0; i < d + substitutions_.size(); ++i) {
       if (!was_substituted(i)) {
-        result[i, 0] = point[j, 0];
+        result[i] = point[j];
         ++j;
       }
     }
 
     for (auto [x, y, alpha, beta] : substitutions_ | std::views::reverse) {
-      result[x, 0] = result[y, 0] * alpha + beta;
+      result[x] = result[y] * alpha + beta;
     }
 
     return result;

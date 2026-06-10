@@ -17,12 +17,12 @@
 #include "Math.h"
 #include "SimplexCoreDump.h"
 #include "Tolerance.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/NPY.h"
-#include "linear/matrix/Norms.h"
-#include "linear/matrix/RowBasis.h"
+#include "linalg/Matrix.h"
+#include "linalg/NPY.h"
+#include "linalg/Norm.h"
+#include "linalg/RowBasis.h"
+#include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
-#include "linear/sparse/LU.h"
 #include "pricing/primal/MostInfeasible.h"
 #include "ratio/primal/Harris.h"
 #include "utils/Accumulators.h"
@@ -46,8 +46,8 @@ namespace simplex {
 template <typename Field, typename Accountant = EmptyAccountant<Field>>
 class Simplex {
   const CSCMatrix<Field> A_;
-  const Matrix<Field> b_;
-  const Matrix<Field> c_;
+  const Vector<Field> b_;
+  const Vector<Field> c_;
 
   IterationState<Field> state_;
 
@@ -402,7 +402,7 @@ class Simplex {
   }
 
  public:
-  Simplex(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c,
+  Simplex(CSCMatrix<Field> A, Vector<Field> b, Vector<Field> c,
           Config<Field> settings = {})
       : A_(std::move(A)),
         b_(std::move(b)),
@@ -417,12 +417,12 @@ class Simplex {
           "Solve a system of linear equations instead.");
     }
 
-    if (b_.shape() != std::pair{n, 1}) {
-      throw std::invalid_argument("Matrix b has wrong dimensions.");
+    if (b_.size() != n) {
+      throw std::invalid_argument("Vector b has wrong dimensions.");
     }
 
-    if (c_.shape() != std::pair{1, d}) {
-      throw std::invalid_argument("Matrix c has wrong dimensions.");
+    if (c_.size() != d) {
+      throw std::invalid_argument("Vector c has wrong dimensions.");
     }
   }
 
@@ -511,7 +511,7 @@ class Simplex {
     return state_.variables_states;
   }
 
-  Matrix<Field> get_tableau_row(size_t row) const {
+  Vector<Field> get_tableau_row(size_t row) const {
     return state_.lupa.get_row(row);
   }
 };

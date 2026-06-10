@@ -3,9 +3,9 @@
 #include <random>
 
 #include "Assertions.h"
+#include "linalg/Matrix.h"
+#include "linalg/Random.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/Random.h"
 #include "linear/simplex/Simplex.h"
 #include "linear/simplex/init/dual/ReducedCost.h"
 #include "linear/simplex/init/primal/Phase1.h"
@@ -25,22 +25,17 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
         random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
 
     // calculate solution
-    Matrix<Rational> b(problem.matrix.rows(), 1);
+    Vector<Rational> b(problem.matrix.rows());
     for (size_t i = 0; i < problem.matrix.rows(); ++i) {
-      b[i, 0] = *problem.rhs_bounds[i].lower;
+      b[i] = *problem.rhs_bounds[i].lower;
     }
 
-    Matrix<Rational> c(1, problem.matrix.cols());
-    for (size_t i = 0; i < problem.matrix.cols(); ++i) {
-      c[0, i] = problem.cost[i];
-    }
-
-    auto solver = simplex::Simplex(problem.matrix, b, c);
+    auto solver = simplex::Simplex(problem.matrix, b, problem.cost);
 
     // all variables have all bounds -> this method is guaranteed to find dual
     // feasible point
     auto states = simplex::try_init_dual_by_reduced_cost(
-        problem.matrix, b, c, Bounds(problem.var_bounds));
+        problem.matrix, b, problem.cost, Bounds(problem.var_bounds));
 
     ASSERT_TRUE(states.has_value());
 
@@ -53,7 +48,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
         std::get<FiniteLPSolution<Rational>>(run_result.solution);
 
     ASSERT_NO_FATAL_FAILURE(
-        validate_simplex_solution(linalg::to_dense(problem.matrix), b, c,
+        validate_simplex_solution(Matrix(problem.matrix), b, problem.cost,
                                   Bounds(problem.var_bounds), finite_solution));
   }
 }
@@ -72,21 +67,16 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
         random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
 
     // calculate solution
-    Matrix<Rational> b(problem.matrix.rows(), 1);
+    Vector<Rational> b(problem.matrix.rows());
     for (size_t i = 0; i < problem.matrix.rows(); ++i) {
-      b[i, 0] = *problem.rhs_bounds[i].lower;
+      b[i] = *problem.rhs_bounds[i].lower;
     }
 
-    Matrix<Rational> c(1, problem.matrix.cols());
-    for (size_t i = 0; i < problem.matrix.cols(); ++i) {
-      c[0, i] = problem.cost[i];
-    }
-
-    auto solver = simplex::Simplex(problem.matrix, b, c);
+    auto solver = simplex::Simplex(problem.matrix, b, problem.cost);
 
     // all variables have all bounds -> this method is guaranteed to find dual
     // feasible point
-    auto states = simplex::primal_phase1(problem.matrix, b, c,
+    auto states = simplex::primal_phase1(problem.matrix, b, problem.cost,
                                          Bounds(problem.var_bounds));
 
     ASSERT_TRUE(states.has_value());
@@ -100,7 +90,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
         std::get<FiniteLPSolution<Rational>>(run_result.solution);
 
     ASSERT_NO_FATAL_FAILURE(
-        validate_simplex_solution(linalg::to_dense(problem.matrix), b, c,
+        validate_simplex_solution(Matrix(problem.matrix), b, problem.cost,
                                   Bounds(problem.var_bounds), finite_solution));
   }
 }

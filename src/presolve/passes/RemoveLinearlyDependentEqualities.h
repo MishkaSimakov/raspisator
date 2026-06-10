@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "linear/matrix/Elimination.h"
-#include "linear/sparse/Permutation.h"
+#include "linalg/Matrix.h"
+#include "linalg/Permutation.h"
 #include "presolve/Pass.h"
 #include "utils/Accumulators.h"
 
@@ -12,7 +12,7 @@ namespace presolve {
 template <typename Field>
 class RemoveLinearlyDependentEqualities final : public Pass<Field> {
   // Performs the first part of row reduction. Ignores rows with non-zero range.
-  void row_reduction(Matrix<Field>& matrix,
+  void row_reduction(linalg::Matrix<Field>& matrix,
                      std::vector<Bound<Field>>& rhs_bounds) {
     using std::abs;
 
@@ -53,8 +53,10 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
         rhs_bounds[permutation.apply(row)] -=
             rhs_bounds[permutation.apply(current_row)] * value / pivot;
 
-        matrix[permutation.apply(row), {0, d}].sub_mul(
-            matrix[permutation.apply(current_row), {0, d}], value / pivot);
+        for (size_t j = 0; j < d; ++j) {
+          matrix[permutation.apply(row), j] -=
+              matrix[permutation.apply(current_row), j] * value / pivot;
+        }
         matrix[permutation.apply(row), col] = 0;
       }
 
@@ -68,7 +70,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
   problem::MILP<Field> apply(problem::MILP<Field> problem) override {
     this->register_apply();
 
-    auto matrix = linalg::to_dense(problem.matrix);
+    auto matrix = linalg::Matrix(problem.matrix);
     auto bounds = problem.rhs_bounds;
 
     row_reduction(matrix, bounds);
@@ -125,7 +127,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
     return problem;
   }
 
-  std::vector<Field> inverse(std::vector<Field> solution) const override {
+  Vector<Field> inverse(Vector<Field> solution) const override {
     return solution;
   }
 };

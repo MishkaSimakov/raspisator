@@ -3,10 +3,10 @@
 #include <expected>
 #include <vector>
 
+#include "linalg/CSCMatrix.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Math.h"
 #include "linear/simplex/pricing/primal/MostInfeasible.h"
-#include "linear/sparse/CSCMatrix.h"
 
 namespace simplex {
 
@@ -20,7 +20,7 @@ enum class Phase1Error {
 // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
 template <typename Field>
 std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
-    const CSCMatrix<Field>& A, const Matrix<Field>& b, const Matrix<Field>& c,
+    const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
     const Bounds<Field>& bounds) {
   const auto [n, old_d] = A.shape();
   const size_t new_d = old_d + n;
@@ -59,10 +59,10 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     }
   }
 
-  auto new_c = Matrix<Field>(1, new_d, 0);
+  auto new_c = Vector<Field>(new_d);
 
   for (size_t i = old_d; i < new_d; ++i) {
-    new_c[0, i] = -1;
+    new_c[i] = -1;
   }
 
   auto helper = Simplex(
@@ -105,7 +105,7 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
       Field coef = 0;
 
       for (const auto [index, value] : A.get_column(j)) {
-        coef += row[index, 0] * value;
+        coef += row[index] * value;
       }
 
       if (FieldTraits<Field>::is_nonzero(coef)) {

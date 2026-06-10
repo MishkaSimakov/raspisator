@@ -4,7 +4,8 @@
 #include <vector>
 
 #include "Bound.h"
-#include "linear/matrix/Matrix.h"
+#include "linalg/Matrix.h"
+#include "linalg/Vector.h"
 
 enum class VariableState { AT_LOWER, AT_UPPER, NONBASIC_FREE, BASIC };
 
@@ -44,7 +45,7 @@ class Bounds {
 
 template <typename Field>
 struct FiniteLPSolution {
-  Matrix<Field> point;
+  linalg::Vector<Field> point;
   Field value;
 
   std::vector<VariableState> variables;

@@ -8,7 +8,7 @@ problem::MILP<Field> feasible_from_matrix(CSCMatrix<Field> matrix) {
 
   problem::MILP<Field> problem;
 
-  problem.cost = std::vector<Field>(d, 0);
+  problem.cost = Vector<Field>(d);
   if (n > 0) {
     problem.cost[0] = 1;
   }
@@ -16,19 +16,19 @@ problem::MILP<Field> feasible_from_matrix(CSCMatrix<Field> matrix) {
   problem.cost_offset = 0;
 
   // generate feasible point and construct bounds from it
-  Matrix<Field> feasible_point(d, 1, 1);
+  const auto feasible_point = Vector<Field>::ones(d);
 
-  auto rhs = linalg::to_dense(matrix) * feasible_point;
+  Vector rhs = matrix * feasible_point;
 
   problem.var_bounds.resize(d);
   for (size_t i = 0; i < d; ++i) {
     problem.var_bounds[i] =
-        Bound<Field>{feasible_point[i, 0] - 1, feasible_point[i, 0] + 1};
+        Bound<Field>{feasible_point[i] - 1, feasible_point[i] + 1};
   }
 
   problem.rhs_bounds.resize(n);
   for (size_t i = 0; i < n; ++i) {
-    problem.rhs_bounds[i] = Bound<Field>{rhs[i, 0] - 1, rhs[i, 0] + 1};
+    problem.rhs_bounds[i] = Bound<Field>{rhs[i] - 1, rhs[i] + 1};
   }
 
   problem.implied_var_bounds = problem.var_bounds;

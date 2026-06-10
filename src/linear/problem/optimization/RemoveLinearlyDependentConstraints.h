@@ -3,8 +3,9 @@
 #include <algorithm>
 
 #include "BaseOptimizer.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/RowBasis.h"
+#include "linalg/Matrix.h"
+#include "linalg/RowBasis.h"
+#include "linalg/Stack.h"
 #include "linear/problem/MILPProblem.h"
 
 template <typename Field>
@@ -83,5 +84,5 @@ class RemoveLinearlyDependentConstraints final : public BaseOptimizer<Field> {
     return problem;
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override { return point; }
+  Vector<Field> inverse(const Vector<Field>& point) override { return point; }
 };

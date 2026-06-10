@@ -3,19 +3,22 @@
 #include <chrono>
 #include <fstream>
 
-#include "linear/matrix/Matrix.h"
+#include "linalg/CSCMatrix.h"
+#include "linalg/Matrix.h"
+#include "linalg/Print.h"
 #include "linear/model/LP.h"
-#include "linear/simplex/Simplex.h"
-#include "linear/sparse/CSCMatrix.h"
+#include "linear/simplex/Types.h"
 #include "utils/String.h"
+
+using linalg::Matrix, linalg::CSCMatrix, linalg::Vector;
 
 namespace simplex {
 
 template <typename Field>
 class SimplexCoreDump {
   const CSCMatrix<Field>& A_;
-  const Matrix<Field>& b_;
-  const Matrix<Field>& c_;
+  const Vector<Field>& b_;
+  const Vector<Field>& c_;
 
   static size_t get_dump_id() {
     return std::chrono::system_clock::now().time_since_epoch() /
@@ -23,8 +26,8 @@ class SimplexCoreDump {
   }
 
  public:
-  SimplexCoreDump(const CSCMatrix<Field>& a, const Matrix<Field>& b,
-                  const Matrix<Field>& c)
+  SimplexCoreDump(const CSCMatrix<Field>& a, const Vector<Field>& b,
+                  const Vector<Field>& c)
       : A_(a), b_(b), c_(c) {}
 
   void dump_state(const IterationState<Field>& state) {
@@ -39,7 +42,7 @@ class SimplexCoreDump {
 
     os << "namespace SimplexDump_" << dump_id << " {\n";
 
-    os << "Matrix<Field> A = {" << linalg::to_dense(A_) << "};\n";
+    os << "Matrix<Field> A = {" << A_ << "};\n";
     os << "Matrix<Field> b = {" << b_ << "};\n";
     os << "Matrix<Field> c = {" << c_ << "};\n";
 

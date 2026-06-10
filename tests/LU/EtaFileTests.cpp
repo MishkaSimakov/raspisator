@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "linalg/lu/EtaFile.h"
 #include "linear/BigInteger.h"
-#include "linear/sparse/EtaFile.h"
 
 TEST(EtaFileTests, ApplyInverseTest1) {
   linalg::EtaFile<Rational> file;

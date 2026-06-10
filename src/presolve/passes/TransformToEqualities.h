@@ -2,8 +2,6 @@
 
 #include <vector>
 
-#include "linear/matrix/Elimination.h"
-#include "linear/sparse/Permutation.h"
 #include "presolve/Pass.h"
 #include "utils/Accumulators.h"
 
@@ -44,12 +42,12 @@ class TransformToEqualities final : public Pass<Field> {
 
     problem.is_integer.resize(d + added_slack_count_, false);
     problem.implied_is_integer.resize(d + added_slack_count_, false);
-    problem.cost.resize(d + added_slack_count_, 0);
+    problem.cost.resize(d + added_slack_count_);
 
     return problem;
   }
 
-  std::vector<Field> inverse(std::vector<Field> solution) const override {
+  Vector<Field> inverse(Vector<Field> solution) const override {
     if (solution.size() != initial_var_count_ + added_slack_count_) {
       throw std::invalid_argument("Wrong solution size in inverse.");
     }

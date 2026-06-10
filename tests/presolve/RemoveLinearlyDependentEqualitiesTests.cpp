@@ -3,6 +3,7 @@
 #include <random>
 #include <set>
 
+#include "ConstructSparse.h"
 #include "obfuscators/ShuffleRows.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "support/Highs.h"
@@ -15,13 +16,13 @@ void add_linearly_dependent_constraints(problem::MILP<Field>& problem,
                                         Gen& random) {
   const auto [n, d] = problem.matrix.shape();
 
-  std::uniform_int_distribution<int> elements_distribution(-5, 5);
+  std::uniform_int_distribution<int> value_distribution(-5, 5);
 
-  const auto multiplier = linalg::random<Field>(
-      n, n, [&] { return elements_distribution(random); });
+  const auto multiplier =
+      linalg::random::dense<Field>(n, n, random, value_distribution);
 
   // add linearly dependent constraints and their bounds
-  auto new_matrix = linalg::to_dense(problem.matrix);
+  auto new_matrix = Matrix(problem.matrix);
   new_matrix = linalg::vstack(new_matrix, multiplier * new_matrix);
   problem.matrix = CSCMatrix(new_matrix);
 
@@ -57,11 +58,11 @@ void add_linearly_dependent_constraints(problem::MILP<Field>& problem,
 TEST(RemoveLinearlyDependentConstraintsTests,
      RemovesLinearlyDependentEqualities) {
   // matrix[2] = matrix[0] - matrix[1]
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
       {1, -2, 2, 2},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 
@@ -81,10 +82,10 @@ TEST(RemoveLinearlyDependentConstraintsTests,
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, SmallTest) {
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3},
       {2, 4, 6},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 
@@ -103,11 +104,11 @@ TEST(RemoveLinearlyDependentConstraintsTests, SmallTest) {
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, SmallTest2) {
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3},
       {1, 2, 3},
       {2, 4, 6},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 
@@ -128,11 +129,11 @@ TEST(RemoveLinearlyDependentConstraintsTests, SmallTest2) {
 
 TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
   // matrix[2] = matrix[0] - matrix[1]
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
       {1, -2, 2, 2},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 
@@ -156,10 +157,10 @@ TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection1) {
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3},
       {2, 4, 6},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 

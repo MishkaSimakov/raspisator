@@ -3,17 +3,18 @@
 #include <random>
 #include <set>
 
+#include "ConstructSparse.h"
 #include "presolve/passes/TransformToEqualities.h"
 #include "support/Highs.h"
 #include "support/ProblemConstructors.h"
 #include "support/RandomProblem.h"
 
 TEST(TransformToEqualities, AddsSlackForInequalities) {
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
       {1, -2, 2, 2},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 
@@ -35,10 +36,10 @@ TEST(TransformToEqualities, AddsSlackForInequalities) {
 }
 
 TEST(TransformToEqualities, GeneratesCorrectNames) {
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 
@@ -58,10 +59,10 @@ TEST(TransformToEqualities, GeneratesCorrectNames) {
 }
 
 TEST(TransformToEqualities, DontTouchEqualities) {
-  CSCMatrix<Rational> matrix = {
+  auto matrix = sparse<Rational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
-  };
+  });
 
   auto problem = feasible_from_matrix(matrix);
 

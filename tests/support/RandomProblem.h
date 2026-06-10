@@ -1,8 +1,9 @@
 #pragma once
 
+#include "linalg/Matrix.h"
+#include "linalg/Random.h"
+#include "linalg/Stack.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/Random.h"
 #include "linear/simplex/Simplex.h"
 #include "problem/MILP.h"
 #include "support/RandomProblem.h"
@@ -13,32 +14,29 @@ problem::MILP<Field> random_feasible_problem(size_t size, int magnitude,
                                              Gen& random) {
   std::uniform_int_distribution<size_t> height_distribution(1, size);
   std::uniform_int_distribution<size_t> width_increase_distribution(1, size);
-  std::uniform_int_distribution<int> elements_distribution(-magnitude,
-                                                           magnitude);
-
-  auto elements_generator = [&elements_distribution, &random] -> int {
-    return elements_distribution(random);
-  };
+  std::uniform_int_distribution<int> value_distribution(-magnitude, magnitude);
 
   // generate an LP-problem
   size_t n = height_distribution(random);
   size_t d = n + width_increase_distribution(random);
 
-  auto A_basic = linalg::random_invertible<Field>(n, elements_generator);
-  auto A_nonbasic = linalg::random<Field>(n, d - n, elements_generator);
+  auto A_basic =
+      linalg::random::dense_invertible<Field>(n, random, value_distribution);
+  auto A_nonbasic =
+      linalg::random::dense<Field>(n, d - n, random, value_distribution);
 
-  std::vector<Field> c(d);
+  Vector<Field> c(d);
   for (size_t i = 0; i < d; ++i) {
-    c[i] = elements_generator();
+    c[i] = value_distribution(random);
   }
 
-  Matrix<Field> point(d, 1);
+  Vector<Field> point(d);
 
   std::vector<Bound<Field>> bounds(d);
 
   for (size_t i = 0; i < d; ++i) {
-    int first = elements_generator();
-    int second = elements_generator();
+    int first = value_distribution(random);
+    int second = value_distribution(random);
 
     if (first > second) {
       std::swap(first, second);
@@ -46,11 +44,11 @@ problem::MILP<Field> random_feasible_problem(size_t size, int magnitude,
 
     bounds[i] = Bound<Field>(first, second);
 
-    point[i, 0] = std::uniform_int_distribution<int>(first, second)(random);
+    point[i] = std::uniform_int_distribution<int>(first, second)(random);
   }
 
   auto A = linalg::hstack(A_basic, A_nonbasic);
-  auto b = A * point;
+  Vector b = A * point;
 
   problem::MILP<Field> result;
 
@@ -65,10 +63,10 @@ problem::MILP<Field> random_feasible_problem(size_t size, int magnitude,
 
   for (size_t i = 0; i < n; ++i) {
     if (coin(random) == 1) {
-      result.rhs_bounds[i] = Bound<Field>{b[i, 0] - bound_range(random),
-                                          b[i, 0] + bound_range(random)};
+      result.rhs_bounds[i] =
+          Bound<Field>{b[i] - bound_range(random), b[i] + bound_range(random)};
     } else {
-      result.rhs_bounds[i] = Bound<Field>{b[i, 0], b[i, 0]};
+      result.rhs_bounds[i] = Bound<Field>{b[i], b[i]};
     }
   }
 

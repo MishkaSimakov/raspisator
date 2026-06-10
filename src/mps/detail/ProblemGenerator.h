@@ -110,7 +110,7 @@ class ProblemGenerator {
       cost_multiplier = -1;
     }
 
-    result.cost.resize(state.cols.size(), 0);
+    result.cost.resize(state.cols.size());
     for (size_t i = 0; i < state.cols.size(); ++i) {
       auto itr = state.cols[i].values.find(objective_row_index);
 

@@ -1,12 +1,12 @@
 #include <iostream>
 
+#include "../src/linalg/lu/LU.h"
 #include "linear/problem/MPS.h"
 #include "linear/problem/optimization/RemoveLinearlyDependentConstraints.h"
 #include "linear/problem/optimization/Scaling.h"
 #include "linear/problem/optimization/TransformToEqualities.h"
 #include "linear/simplex/Simplex.h"
 #include "linear/sparse/CSCMatrix.h"
-#include "linear/sparse/LU.h"
 #include "linear/sparse/Norms.h"
 
 MILPProblem<double> get_problem(const std::filesystem::path& path) {

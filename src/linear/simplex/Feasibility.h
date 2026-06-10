@@ -1,17 +1,17 @@
 #pragma once
 
+#include "linalg/CSCMatrix.h"
+#include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Math.h"
-#include "linear/sparse/CSCMatrix.h"
-#include "linear/sparse/LU.h"
 
 namespace simplex {
 
 // This function does not check whether matrix formed by basic columns is
 // invertible.
 template <typename Field>
-bool is_dual_feasible(const CSCMatrix<Field>& A, const Matrix<Field>& b,
-                      const Matrix<Field>& c, const Bounds<Field>& bounds,
+bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
+                      const Vector<Field>& c, const Bounds<Field>& bounds,
                       const std::vector<VariableState>& states) {
   auto [n, d] = A.shape();
 
@@ -38,10 +38,10 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Matrix<Field>& b,
   for (size_t i = 0; i < states.size(); ++i) {
     if ((states[i] == VariableState::AT_LOWER &&
          (!bounds[i].lower ||
-          FieldTraits<Field>::is_strictly_positive(reduced_costs[i, 0]))) ||
+          FieldTraits<Field>::is_strictly_positive(reduced_costs[i]))) ||
         (states[i] == VariableState::AT_UPPER &&
          (!bounds[i].upper ||
-          FieldTraits<Field>::is_strictly_negative(reduced_costs[i, 0])))) {
+          FieldTraits<Field>::is_strictly_negative(reduced_costs[i])))) {
       return false;
     }
   }
@@ -52,8 +52,8 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Matrix<Field>& b,
 // This function does not check whether matrix formed by basic columns is
 // invertible.
 template <typename Field>
-bool is_primal_feasible(const CSCMatrix<Field>& A, const Matrix<Field>& b,
-                        const Matrix<Field>& c, const Bounds<Field>& bounds,
+bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
+                        const Vector<Field>& c, const Bounds<Field>& bounds,
                         const std::vector<VariableState>& states) {
   auto [n, d] = A.shape();
 
@@ -75,7 +75,7 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Matrix<Field>& b,
   auto basic_point = lupa.solve_linear(rhs);
 
   for (size_t i = 0; i < n; ++i) {
-    if (!bounds[basic_variables[i]].contains(basic_point[i, 0])) {
+    if (!bounds[basic_variables[i]].contains(basic_point[i])) {
       return false;
     }
   }

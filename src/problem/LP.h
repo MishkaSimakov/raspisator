@@ -5,8 +5,11 @@
 #include <string>
 #include <vector>
 
+#include "linalg/CSCMatrix.h"
+#include "linalg/Vector.h"
 #include "linear/model/Bound.h"
-#include "linear/sparse/CSCMatrix.h"
+
+using linalg::Vector, linalg::Matrix, linalg::CSCMatrix;
 
 namespace problem {
 
@@ -14,7 +17,7 @@ namespace problem {
 template <typename Field>
 struct LP {
   CSCMatrix<Field> matrix;
-  std::vector<Field> cost;
+  Vector<Field> cost;
 
   Field cost_offset{0};
 
@@ -65,7 +68,8 @@ struct LP {
 namespace detail {
 
 template <typename Field>
-void print_sparse_row(std::ostream& os, const SparseVector<Field>& row,
+void print_sparse_row(std::ostream& os,
+                      const std::vector<std::pair<size_t, Field>>& row,
                       const std::vector<std::string>& names) {
   for (size_t i = 0; i < row.size(); ++i) {
     if (i != 0 && row[i].second >= 0) {
@@ -86,23 +90,32 @@ void print_sparse_row(std::ostream& os, const SparseVector<Field>& row,
 
 template <typename Field>
 std::ostream& operator<<(std::ostream& os, const LP<Field>& problem) {
+  using std::abs;
+
   std::println(os, "Problem: {}", problem.name);
   std::println(os, "  Status: proven_infeasible = {}, proven_unbounded = {}",
                problem.proven_infeasible, problem.proven_unbounded);
 
-  SparseVector<Field> sparse_cost;
+  os << "  min " << problem.cost_name << " = ";
+
+  std::vector<std::pair<size_t, Field>> sparse_cost;
   for (size_t i = 0; i < problem.cost.size(); ++i) {
-    if (FieldTraits<Field>::is_nonzero(problem.cost[i])) {
+    if (abs(problem.cost[i]) > FieldTraits<Field>::tolerance) {
       sparse_cost.emplace_back(i, problem.cost[i]);
     }
   }
-
-  os << "  min " << problem.cost_name << " = ";
   detail::print_sparse_row(os, sparse_cost, problem.var_names);
   os << " + " << problem.cost_offset << "\n";
 
-  const auto transposed = problem.matrix.get_transposed();
-  for (size_t i = 0; i < transposed.size(); ++i) {
+  std::vector<std::vector<std::pair<size_t, Field>>> transposed(
+      problem.matrix.rows());
+  for (size_t col = 0; col < problem.matrix.cols(); ++col) {
+    for (const auto [row, value] : problem.matrix.get_column(col)) {
+      transposed[row].emplace_back(col, value);
+    }
+  }
+
+  for (size_t i = 0; i < problem.matrix.rows(); ++i) {
     auto row_name = problem.row_names[i].empty() ? "r" + std::to_string(i)
                                                  : problem.row_names[i];
 

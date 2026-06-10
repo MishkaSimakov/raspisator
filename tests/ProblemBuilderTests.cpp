@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
 #include "linear/model/LP.h"
 #include "linear/problem/MILPProblem.h"
 #include "linear/problem/ToMatrices.h"
@@ -13,6 +12,8 @@
 #include "linear/problem/optimization/TransformToEqualities.h"
 #include "linear/simplex/Simplex.h"
 #include "linear/simplex/init/dual/ReducedCost.h"
+
+using namespace linalg;
 
 TEST(ProblemBuilderTests, RemoveConstantConstraints) {
   MILPProblem<Rational> problem;
@@ -74,7 +75,7 @@ TEST(ProblemBuilderTests, WithSimplexMethod) {
   auto optimized_problem = optimizer.apply(builder);
 
   auto matrices = to_matrices(optimized_problem);
-  auto basic_vars = linalg::get_row_basis(linalg::transposed(matrices.A));
+  auto basic_vars = get_row_basis(Matrix(transpose(matrices.A)));
 
   auto solver = simplex::Simplex(CSCMatrix(matrices.A), matrices.b, matrices.c);
 

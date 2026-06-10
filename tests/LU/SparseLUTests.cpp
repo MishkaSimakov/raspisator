@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "../../src/linalg/lu/LU.h"
 #include "TestMatrices.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/Elimination.h"
 #include "linear/matrix/Random.h"
 #include "linear/sparse/CSCMatrix.h"
-#include "linear/sparse/LU.h"
 
 TEST(SparseLUTests, SolvesLinearSystem) {
   for (size_t N = 10; N < 1000; N *= 2) {
