@@ -1,50 +1,30 @@
 #pragma once
 
-#include <iostream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-
-#include "CoreLP.h"
-#include "linalg/Linalg.h"
-#include "linear/model/Bound.h"
-#include "detail/ExpressionPrinter.h"
+#include "StandardLP.h"
 
 namespace problem {
 
-// LP problem representation suitable for presolve.
 template <typename Field>
-struct LP : CoreLP<Field> {
-  std::vector<Bound<Field>> rhs_bounds;
-
-  std::vector<Bound<Field>> implied_var_bounds;
-
-  bool proven_infeasible{false};
-  bool proven_unbounded{false};
+struct StandardMILP : StandardLP<Field> {
+  std::vector<bool> is_integer;
 
   // for debugging purposes, throws if problem is not correct
   void validate() const {
-    CoreLP<Field>::validate();
+    StandardLP<Field>::validate();
 
     const auto [n, d] = this->matrix.shape();
 
-    if (rhs_bounds.size() != n) {
-      throw std::runtime_error("Wrong RHS bounds vector size.");
-    }
-
-    if (implied_var_bounds.size() != d) {
-      throw std::runtime_error("Wrong implied variable bounds vector size.");
+    if (is_integer.size() != d) {
+      throw std::runtime_error("Wrong integrality vector size.");
     }
   }
 };
 
 template <typename Field>
-std::ostream& operator<<(std::ostream& os, const LP<Field>& problem) {
+std::ostream& operator<<(std::ostream& os, const StandardMILP<Field>& problem) {
   using std::abs;
 
   std::println(os, "Problem: {}", problem.name);
-  std::println(os, "  Status: proven_infeasible = {}, proven_unbounded = {}",
-               problem.proven_infeasible, problem.proven_unbounded);
 
   // print cost
   {
@@ -76,7 +56,7 @@ std::ostream& operator<<(std::ostream& os, const LP<Field>& problem) {
       }
     }
 
-    os << " in " << problem.rhs_bounds[row] << "\n";
+    os << " = " << problem.rhs[row] << "\n";
   }
 
   // print variables
@@ -85,6 +65,10 @@ std::ostream& operator<<(std::ostream& os, const LP<Field>& problem) {
 
     if (problem.implied_var_bounds[i] != problem.var_bounds[i]) {
       os << "(implied bound: " << problem.implied_var_bounds[i] << ")";
+    }
+
+    if (problem.is_integer[i]) {
+      os << " and integer";
     }
 
     os << "\n";

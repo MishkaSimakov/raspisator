@@ -6,21 +6,15 @@
 #include <vector>
 
 #include "CoreLP.h"
-#include "linalg/Linalg.h"
-#include "linear/model/Bound.h"
 #include "detail/ExpressionPrinter.h"
+#include "linalg/Linalg.h"
 
 namespace problem {
 
-// LP problem representation suitable for presolve.
+// LP problem representation suitable for solving.
 template <typename Field>
-struct LP : CoreLP<Field> {
-  std::vector<Bound<Field>> rhs_bounds;
-
-  std::vector<Bound<Field>> implied_var_bounds;
-
-  bool proven_infeasible{false};
-  bool proven_unbounded{false};
+struct StandardLP : CoreLP<Field> {
+  Vector<Field> rhs;
 
   // for debugging purposes, throws if problem is not correct
   void validate() const {
@@ -28,23 +22,17 @@ struct LP : CoreLP<Field> {
 
     const auto [n, d] = this->matrix.shape();
 
-    if (rhs_bounds.size() != n) {
-      throw std::runtime_error("Wrong RHS bounds vector size.");
-    }
-
-    if (implied_var_bounds.size() != d) {
-      throw std::runtime_error("Wrong implied variable bounds vector size.");
+    if (rhs.size() != n) {
+      throw std::runtime_error("Wrong RHS vector size.");
     }
   }
 };
 
 template <typename Field>
-std::ostream& operator<<(std::ostream& os, const LP<Field>& problem) {
+std::ostream& operator<<(std::ostream& os, const StandardLP<Field>& problem) {
   using std::abs;
 
   std::println(os, "Problem: {}", problem.name);
-  std::println(os, "  Status: proven_infeasible = {}, proven_unbounded = {}",
-               problem.proven_infeasible, problem.proven_unbounded);
 
   // print cost
   {
@@ -76,18 +64,12 @@ std::ostream& operator<<(std::ostream& os, const LP<Field>& problem) {
       }
     }
 
-    os << " in " << problem.rhs_bounds[row] << "\n";
+    os << " = " << problem.rhs[row] << "\n";
   }
 
   // print variables
   for (size_t i = 0; i < problem.matrix.cols(); ++i) {
-    os << problem.var_name(i) << " in " << problem.var_bounds[i];
-
-    if (problem.implied_var_bounds[i] != problem.var_bounds[i]) {
-      os << "(implied bound: " << problem.implied_var_bounds[i] << ")";
-    }
-
-    os << "\n";
+    os << problem.var_name(i) << " in " << problem.var_bounds[i] << "\n";
   }
 
   return os;

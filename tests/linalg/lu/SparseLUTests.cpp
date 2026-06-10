@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "../../ConstructSparse.h"
-#include "linalg/CSCMatrix.h"
+#include "ConstructSparse.h"
+#include "linalg/Linalg.h"
 #include "linalg/Random.h"
 #include "linalg/Stack.h"
 #include "linalg/lu/LUPA.h"

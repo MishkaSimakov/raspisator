@@ -6,7 +6,6 @@
 
 #include "expr/SubColsExpr.h"
 
-#include "Arithmetics.h"
 #include "linear/FieldTraits.h"
 
 namespace linalg {

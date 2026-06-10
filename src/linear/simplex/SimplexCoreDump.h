@@ -3,14 +3,10 @@
 #include <chrono>
 #include <fstream>
 
-#include "linalg/CSCMatrix.h"
-#include "linalg/Matrix.h"
-#include "linalg/Print.h"
+#include "linalg/Linalg.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Types.h"
 #include "utils/String.h"
-
-using linalg::Matrix, linalg::CSCMatrix, linalg::Vector;
 
 namespace simplex {
 

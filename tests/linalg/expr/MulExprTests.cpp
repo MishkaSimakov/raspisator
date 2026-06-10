@@ -1,12 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "../../ConstructSparse.h"
-#include "linalg/CSCMatrix.h"
-#include "linalg/Matrix.h"
+#include "ConstructSparse.h"
+#include "linalg/Linalg.h"
 #include "linalg/MatrixSpy.h"
-#include "linalg/Print.h"
-#include "linalg/Transpose.h"
-#include "linalg/Vector.h"
 
 using namespace linalg;
 

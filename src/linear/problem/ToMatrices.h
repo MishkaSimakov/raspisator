@@ -3,11 +3,8 @@
 #include <vector>
 
 #include "MILPProblem.h"
-#include "linalg/Matrix.h"
-#include "linalg/Vector.h"
+#include "linalg/Linalg.h"
 #include "linear/model/LP.h"
-
-using linalg::Matrix, linalg::Vector;
 
 template <typename Field>
 struct MILPProblemAsMatrices {

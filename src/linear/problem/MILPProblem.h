@@ -9,11 +9,9 @@
 #include "grammar/Constraint.h"
 #include "grammar/Expression.h"
 #include "grammar/Variable.h"
-#include "linalg/Matrix.h"
+#include "linalg/Linalg.h"
 #include "linear/model/LP.h"
 #include "utils/Accumulators.h"
-
-using linalg::Matrix;
 
 template <typename Field>
 struct VariableInfo {

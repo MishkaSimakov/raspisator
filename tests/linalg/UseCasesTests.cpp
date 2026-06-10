@@ -8,10 +8,7 @@
 
 #include <map>
 
-#include "linalg/CSCMatrix.h"
-#include "linalg/Print.h"
-#include "linalg/Transpose.h"
-#include "linalg/Vector.h"
+#include "linalg/Linalg.h"
 
 using namespace linalg;
 

@@ -7,8 +7,6 @@
 #include "expr/SubColsExpr.h"
 #include "expr/SubRowsExpr.h"
 
-#include "Arithmetics.h"
-
 namespace linalg {
 
 template <typename Field>

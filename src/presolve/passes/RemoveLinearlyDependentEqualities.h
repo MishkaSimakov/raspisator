@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "linalg/Matrix.h"
+#include "linalg/Linalg.h"
 #include "linalg/Permutation.h"
 #include "presolve/Pass.h"
 #include "utils/Accumulators.h"
@@ -70,7 +70,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
   problem::MILP<Field> apply(problem::MILP<Field> problem) override {
     this->register_apply();
 
-    auto matrix = linalg::Matrix(problem.matrix);
+    auto matrix = Matrix(problem.matrix);
     auto bounds = problem.rhs_bounds;
 
     row_reduction(matrix, bounds);

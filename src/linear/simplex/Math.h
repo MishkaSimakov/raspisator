@@ -2,12 +2,9 @@
 
 #include <vector>
 
-#include "linalg/CSCMatrix.h"
-#include "linalg/Matrix.h"
+#include "linalg/Linalg.h"
 #include "linear/model/Bound.h"
 #include "linear/model/LP.h"
-
-using linalg::Matrix, linalg::Vector, linalg::CSCMatrix;
 
 namespace simplex::detail {
 

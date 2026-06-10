@@ -2,8 +2,6 @@
 
 #include "Matrix.h"
 
-#include "Arithmetics.h"
-
 namespace linalg {
 
 template <typename Field>
