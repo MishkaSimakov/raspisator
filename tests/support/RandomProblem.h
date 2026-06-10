@@ -1,6 +1,5 @@
 #pragma once
 
-#include "linalg/Matrix.h"
 #include "linalg/Random.h"
 #include "linalg/Stack.h"
 #include "linear/BigInteger.h"

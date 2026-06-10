@@ -12,6 +12,7 @@ target_sources(tests PUBLIC
         BoundsTests.cpp
 
         simplex/FreeVariablesTests.cpp
+        simplex/Phase1Tests.cpp
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
         simplex/UnboundedSimplexTests.cpp

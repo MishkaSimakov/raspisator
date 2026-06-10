@@ -6,7 +6,7 @@
 #include "linalg/CSCMatrix.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Math.h"
-#include "linear/simplex/pricing/primal/MostInfeasible.h"
+#include "linear/simplex/Simplex.h"
 
 namespace simplex {
 

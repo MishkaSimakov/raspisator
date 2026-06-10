@@ -130,6 +130,21 @@ class CSCMatrix {
     return detail::SubColsExpr(*this, std::forward<R>(cols));
   }
 
+  // Has O(n) complexity, where n is the entries count in the column.
+  std::optional<Field> at(size_t row, size_t col) const {
+    Field sum = 0;
+    bool found = false;
+
+    for (const auto [other_row, value] : get_column(col)) {
+      if (row == other_row) {
+        sum += value;
+        found = true;
+      }
+    }
+
+    return found ? std::optional{sum} : std::nullopt;
+  }
+
   //
   size_t rows() const { return rows_cnt_; }
   size_t cols() const { return index_pointers_.size() - 1; }

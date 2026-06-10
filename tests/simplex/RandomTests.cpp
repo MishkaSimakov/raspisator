@@ -9,6 +9,8 @@
 #include "linear/simplex/Simplex.h"
 #include "linear/simplex/init/dual/ReducedCost.h"
 #include "linear/simplex/init/primal/Phase1.h"
+#include "presolve/passes/TransformToEqualities.h"
+#include "support/Highs.h"
 #include "support/RandomProblem.h"
 
 TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
@@ -21,8 +23,9 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
   for (size_t iteration = 0; iteration < kIterations; ++iteration) {
     std::cout << "#" << iteration << std::endl;
 
-    const auto problem =
+    auto problem =
         random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+    problem = presolve::TransformToEqualities<Rational>().apply(problem);
 
     // calculate solution
     Vector<Rational> b(problem.matrix.rows());
@@ -63,8 +66,9 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
   for (size_t iteration = 0; iteration < kIterations; ++iteration) {
     std::cout << "#" << iteration << std::endl;
 
-    const auto problem =
+    auto problem =
         random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+    problem = presolve::TransformToEqualities<Rational>().apply(problem);
 
     // calculate solution
     Vector<Rational> b(problem.matrix.rows());
@@ -74,8 +78,6 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
 
     auto solver = simplex::Simplex(problem.matrix, b, problem.cost);
 
-    // all variables have all bounds -> this method is guaranteed to find dual
-    // feasible point
     auto states = simplex::primal_phase1(problem.matrix, b, problem.cost,
                                          Bounds(problem.var_bounds));
 

@@ -181,7 +181,6 @@ class Simplex {
     auto [n, d] = A_.shape();
 
     state_.iteration_index = 0;
-    state_.last_cycling_iteration = std::nullopt;
 
     state_.basic_variables.clear();
     state_.variables_states = states;
@@ -202,7 +201,6 @@ class Simplex {
       throw std::invalid_argument("Wrong number of basic variables.");
     }
 
-    state_.cycling.clear();
     state_.lupa.set_columns(state_.basic_variables);
   }
 
@@ -240,12 +238,6 @@ class Simplex {
       state_.objective =
           detail::get_objective(c_, *state_.bounds, state_.variables_states,
                                 state_.basic_variables, state_.basic_point);
-
-      if (state_.cycling.record(state_.iteration_index, state_.variables_states,
-                                state_.objective) ==
-          CyclingState::HAS_CYCLING) {
-        state_.last_cycling_iteration = state_.iteration_index;
-      }
 
       accountant_.iteration(state_);
 
@@ -351,12 +343,6 @@ class Simplex {
       state_.objective =
           detail::get_objective(c_, *state_.bounds, state_.variables_states,
                                 state_.basic_variables, state_.basic_point);
-
-      if (state_.cycling.record(state_.iteration_index, state_.variables_states,
-                                state_.objective) ==
-          CyclingState::HAS_CYCLING) {
-        state_.last_cycling_iteration = state_.iteration_index;
-      }
 
       accountant_.iteration(state_);
 

@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& os, const MILP<Field>& problem) {
 
     for (size_t col = 0; col < problem.matrix.cols(); ++col) {
       if (auto value = problem.matrix.at(row, col)) {
-        printer.print(value, problem.var_name(col));
+        printer.print(*value, problem.var_name(col));
       }
     }
 

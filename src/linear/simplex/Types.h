@@ -12,10 +12,6 @@ struct IterationState {
   // Current iteration index
   size_t iteration_index;
 
-  // Last iteration when cycling was detected, std::nullopt if cycling was not
-  // detected yet.
-  std::optional<size_t> last_cycling_iteration;
-
   // Current objective value
   Field objective;
 
@@ -37,8 +33,6 @@ struct IterationState {
   // This LUPA instance stores the inverse of the matrix formed by taking basic
   // columns from A.
   linalg::LUPA<Field> lupa;
-
-  CyclingDetector<Field> cycling;
 
   explicit IterationState(const linalg::CSCMatrix<Field>& A)
       : basic_variables(A.rows()),
