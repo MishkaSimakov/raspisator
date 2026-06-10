@@ -41,7 +41,9 @@ class TransformToEqualities final : public BaseOptimizer<Field> {
     return problem;
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override {
-    return point[{0, point.get_height() - slack_count_}, 0];
+  Vector<Field> inverse(const Vector<Field>& point) override {
+    auto copy = point;
+    copy.resize(point.size() - slack_count_);
+    return copy;
   }
 };

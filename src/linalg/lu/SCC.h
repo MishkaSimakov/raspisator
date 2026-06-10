@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "CSCMatrix.h"
+#include "linalg/CSCMatrix.h"
 
 // Block triangular form is very useful for LU decomposition. It is closely
 // related with strongly connected components (SCC) of a sparsity graph S(A).

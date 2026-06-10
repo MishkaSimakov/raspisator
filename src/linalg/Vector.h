@@ -27,10 +27,23 @@ class Vector : public Matrix<Field> {
 
   template <MatrixRange T>
     requires std::same_as<MatrixFieldType<T>, Field>
-  Vector(T&& other) : Matrix<Field>(std::forward<T>(other)) {}
+  Vector(T&& other) : Matrix<Field>(std::forward<T>(other)) {
+    if (this->cols_ != 1) {
+      throw std::invalid_argument(std::format(
+          "Can't initialize vector from matrix range with {} columns.",
+          this->cols_));
+    }
+  }
+
+  static Vector zeros(size_t rows) { return Matrix<Field>(rows, 1, 0); }
+  static Vector ones(size_t rows) { return Matrix<Field>(rows, 1, 1); }
 
   //
-  size_t size() const { return this->rows(); }
+  size_t size() const { return this->rows_; }
+  size_t rows() const { return this->rows_; }
+  static constexpr size_t cols() { return 1; }
+
+  std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 
   //
   void resize(size_t new_size) { Matrix<Field>::resize(new_size, 1); }
@@ -53,7 +66,7 @@ class Vector : public Matrix<Field> {
 
   template <typename F>
   void entries(F&& f) const {
-    for (size_t row = 0; row < this->rows(); ++row) {
+    for (size_t row = 0; row < this->rows_; ++row) {
       f(row, 0, (*this)[row, 0]);
     }
   }

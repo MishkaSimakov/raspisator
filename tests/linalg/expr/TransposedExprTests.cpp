@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "linalg/Assertions.h"
-#include "linalg/ConstructSparse.h"
+#include "../../ConstructSparse.h"
 #include "linalg/Matrix.h"
+#include "linalg/MatrixAssertions.h"
 #include "linalg/MatrixSpy.h"
 #include "linalg/Transpose.h"
 #include "linalg/expr/TransposedExpr.h"

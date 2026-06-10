@@ -7,6 +7,7 @@
 #include "expr/SubColsExpr.h"
 
 #include "Arithmetics.h"
+#include "linear/FieldTraits.h"
 
 namespace linalg {
 
@@ -34,6 +35,24 @@ class CSCMatrix {
 
   static CSCMatrix zeros(size_t rows = 0, size_t cols = 0) {
     return CSCMatrix(rows, cols);
+  }
+
+  template <ElementWiseMatrixRange R>
+    requires std::same_as<MatrixFieldType<R>, Field>
+  explicit CSCMatrix(R&& matrix,
+                     Field drop_tolerance = FieldTraits<Field>::tolerance)
+      : CSCMatrix(matrix.rows(), 0) {
+    using std::abs;
+
+    for (size_t col = 0; col < matrix.cols(); ++col) {
+      add_column();
+
+      for (size_t row = 0; row < matrix.rows(); ++row) {
+        if (abs(matrix[row, col]) > drop_tolerance) {
+          push_to_last_column(row, matrix[row, col]);
+        }
+      }
+    }
   }
 
   template <typename R>
@@ -98,13 +117,18 @@ class CSCMatrix {
                      entries_.begin() + index_pointers_[col + 1]};
   }
 
-  std::span<std::pair<size_t, Field>> get_column(size_t col) const {
+  std::span<const std::pair<size_t, Field>> get_column(size_t col) const {
     return std::span{entries_.begin() + index_pointers_[col],
                      entries_.begin() + index_pointers_[col + 1]};
   }
 
   auto get_column_as_matrix(size_t col) const {
     return detail::SubColsExpr(*this, std::ranges::single_view{col});
+  }
+
+  template <IndicesRange R>
+  auto select_columns(R&& cols) const {
+    return detail::SubColsExpr(*this, std::forward<R>(cols));
   }
 
   //
@@ -150,6 +174,20 @@ class CSCMatrix {
       row = map[row];
     }
   }
+
+  // Removes all entries and columns from the matrix. If matrix shape was
+  // (rows, cols), then after clear it would be (rows, 0).
+  void clear() {
+    entries_.clear();
+    index_pointers_.clear();
+
+    index_pointers_.push_back(0);
+  }
 };
+
+template <ElementWiseMatrixRange R>
+CSCMatrix(R&& matrix, MatrixFieldType<R> drop_tolerance =
+                          FieldTraits<MatrixFieldType<R>>::tolerance)
+    -> CSCMatrix<MatrixFieldType<R>>;
 
 }  // namespace linalg

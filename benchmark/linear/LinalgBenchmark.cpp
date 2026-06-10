@@ -4,6 +4,7 @@
 
 #include "linalg/CSCMatrix.h"
 #include "linalg/Matrix.h"
+#include "linalg/Random.h"
 #include "linalg/Transpose.h"
 #include "linalg/Vector.h"
 
@@ -11,33 +12,23 @@ using namespace linalg;
 
 static size_t N = 10'000;
 
-CSCMatrix<double> random_sparse(size_t N, size_t average_per_col) {
-  std::default_random_engine random;
-  std::bernoulli_distribution nonzero_distribution(
-      static_cast<double>(average_per_col) / static_cast<double>(N));
+// Must always return the same matrices so that benchmark results are reliable.
+auto get_matrices() {
+  std::default_random_engine random(0);
+  std::uniform_real_distribution<double> value_distribution(1, 10);
 
-  auto result = CSCMatrix<double>::zeros(N);
-
-  for (size_t col = 0; col < N; ++col) {
-    result.add_column();
-
-    for (size_t row = 0; row < N; ++row) {
-      if (nonzero_distribution(random)) {
-        result.push_to_last_column(row, 1);
-      }
-    }
-  }
-
-  return result;
-}
-
-static void NewLinalgLibrary(benchmark::State& state) {
-  auto matrix = random_sparse(N, 10);
+  auto matrix = random::sparse(N, N, 10, random, value_distribution);
 
   Vector cost =
       Matrix<double>::generate(N, 1, [](size_t i, size_t j) { return i + j; });
   Vector pi =
       Matrix<double>::generate(N, 1, [](size_t i, size_t j) { return i + j; });
+
+  return std::tuple{std::move(matrix), std::move(cost), std::move(pi)};
+}
+
+static void NewLinalgLibrary(benchmark::State& state) {
+  const auto [matrix, cost, pi] = get_matrices();
 
   for (auto _ : state) {
     Matrix result = cost - transpose(matrix) * pi;
@@ -48,10 +39,7 @@ static void NewLinalgLibrary(benchmark::State& state) {
 }
 
 static void OldWay(benchmark::State& state) {
-  auto matrix = random_sparse(N, 10);
-
-  auto cost = Matrix<double>::zeros(N, 1);
-  auto pi = Matrix<double>::zeros(N, 1);
+  const auto [matrix, cost, pi] = get_matrices();
 
   for (auto _ : state) {
     auto result = Matrix<double>::zeros(N, 1);

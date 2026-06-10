@@ -13,19 +13,18 @@ namespace linalg {
 
 template <typename Field>
 class Matrix {
+  // protected so that Vector can access them
+ protected:
   size_t rows_;
   size_t cols_;
   std::vector<Field> data_;
 
-  // protected so that Vector can access them
- protected:
+  struct UninitializedTag {};
+
   size_t get_index(size_t row, size_t col) const { return row * cols_ + col; }
 
-  explicit Matrix(size_t rows, size_t cols)
+  explicit Matrix(UninitializedTag, size_t rows, size_t cols)
       : rows_(rows), cols_(cols), data_(rows * cols) {}
-
-  Matrix(size_t rows, size_t cols, Field value)
-      : rows_(rows), cols_(cols), data_(rows * cols, value) {}
 
  public:
   using FieldType = Field;
@@ -33,8 +32,11 @@ class Matrix {
   //
   Matrix() : Matrix(0, 0) {}
 
+  Matrix(size_t rows, size_t cols, Field value = 0)
+      : rows_(rows), cols_(cols), data_(rows * cols, value) {}
+
   Matrix(std::initializer_list<std::initializer_list<Field>> values)
-      : Matrix(values.size(), values.begin()->size()) {
+      : Matrix(UninitializedTag{}, values.size(), values.begin()->size()) {
     size_t row = 0;
     size_t col = 0;
 
@@ -65,7 +67,7 @@ class Matrix {
 
   template <ElementWiseMatrixRange T>
     requires std::same_as<MatrixFieldType<T>, Field>
-  Matrix(T&& other) : Matrix(other.rows(), other.cols()) {
+  Matrix(T&& other) : Matrix(UninitializedTag{}, other.rows(), other.cols()) {
     for (size_t row = 0; row < rows(); ++row) {
       for (size_t col = 0; col < cols(); ++col) {
         (*this)[row, col] = other[row, col];
@@ -83,11 +85,23 @@ class Matrix {
   }
 
   static Matrix uninitialized(size_t rows, size_t cols) {
-    return Matrix(rows, cols);
+    return Matrix(UninitializedTag{}, rows, cols);
   }
 
   static Matrix zeros(size_t rows, size_t cols) {
     return Matrix(rows, cols, 0);
+  }
+
+  static Matrix ones(size_t rows, size_t cols) { return Matrix(rows, cols, 1); }
+
+  static Matrix identity(size_t size) {
+    Matrix result(size, size);
+
+    for (size_t i = 0; i < size; ++i) {
+      result[i, i] = 1;
+    }
+
+    return result;
   }
 
   template <typename G>
@@ -114,7 +128,7 @@ class Matrix {
     cols_ = other.cols();
 
     data_.resize(rows_ * cols_);
-    std::ranges::fill_n(data_, rows_ * cols_, 0);
+    std::ranges::fill_n(data_.begin(), rows_ * cols_, Field(0));
 
     other.entries(
         [this](size_t i, size_t j, Field value) { (*this)[i, j] += value; });
@@ -133,7 +147,7 @@ class Matrix {
 
   Matrix& operator=(Matrix&& other) {
     auto copy = std::move(other);
-    std::swap(*this, copy);
+    swap(*this, copy);
 
     return *this;
   }
@@ -272,6 +286,32 @@ class Matrix {
         [&](size_t i, size_t j, Field value) { (*this)[i, j] -= value; });
 
     return *this;
+  }
+
+  Matrix& operator*=(Field scalar) {
+    for (size_t row = 0; row < rows(); ++row) {
+      for (size_t col = 0; col < cols(); ++col) {
+        (*this)[col, row] *= scalar;
+      }
+    }
+
+    return *this;
+  }
+
+  Matrix& operator/=(Field scalar) {
+    for (size_t row = 0; row < rows(); ++row) {
+      for (size_t col = 0; col < cols(); ++col) {
+        (*this)[col, row] /= scalar;
+      }
+    }
+
+    return *this;
+  }
+
+  friend void swap(Matrix& left, Matrix& right) {
+    std::swap(left.rows_, right.rows_);
+    std::swap(left.cols_, right.cols_);
+    std::swap(left.data_, right.data_);
   }
 };
 

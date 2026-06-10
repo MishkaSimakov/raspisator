@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
-#include "../src/linear/matrix/RowBasis.h"
 #include "Assertions.h"
+#include "linalg/Matrix.h"
+#include "linalg/Random.h"
+#include "linalg/RowBasis.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
+
+using namespace linalg;
 
 TEST(RowBasisTests, UnityMatrix) {
-  auto unity = Matrix<Rational>::unity(3);
+  auto unity = Matrix<Rational>::identity(3);
 
   auto row_basis = linalg::get_row_basis(unity);
 
@@ -61,48 +64,26 @@ TEST(RowBasisTests, RowPermutations) {
   ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
 }
 
-TEST(RowBasisTests, CompleteRowBasis1) {
+TEST(RowBasisTests, SmallMatrix1) {
   Matrix<Rational> matrix = {
-      {1, 0},
-      {0, 0},
-      {0, 1},
+      {-4, 0, -5},
+      {-3, -5, 3},
+      {-3, -3, 5},
   };
 
-  auto row_basis = linalg::complete_row_basis(matrix, std::vector<size_t>{0});
+  std::cout << matrix << std::endl;
+  auto row_basis = get_row_basis(matrix);
 
-  ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
+  ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 1, 2}));
 }
 
-TEST(RowBasisTests, CompleteRowBasis2) {
+TEST(RowBasisTests, SmallMatrix2) {
   Matrix<Rational> matrix = {
-    {1, 0},
-    {0, 0},
-    {0, 1},
-    {0, 0}
-};
+      {1, 1, 10},
+      {2, 2, 20},
+  };
 
-  auto row_basis = linalg::complete_row_basis(matrix, std::vector<size_t>{0});
+  auto row_basis = get_row_basis(matrix);
 
-  ASSERT_SETS_EQ(row_basis, (std::vector<size_t>{0, 2}));
-}
-
-TEST(RowBasisTests, CompleteRowBasisUnityMatrix) {
-  auto matrix = Matrix<Rational>::unity(50);
-
-  std::vector<size_t> expected(50);
-  std::iota(expected.begin(), expected.end(), 0);
-
-  {
-    std::vector<size_t> partial_basis(25);
-    std::iota(partial_basis.begin(), partial_basis.end(), 0);
-
-    auto row_basis = linalg::complete_row_basis(matrix, partial_basis);
-
-    ASSERT_SETS_EQ(row_basis, expected);
-  }
-
-  {
-    auto row_basis = linalg::complete_row_basis(matrix, expected);
-    ASSERT_SETS_EQ(row_basis, expected);
-  }
+  ASSERT_EQ(row_basis.size(), 1);
 }

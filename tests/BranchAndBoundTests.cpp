@@ -2,7 +2,6 @@
 
 #include "linear/BigInteger.h"
 #include "linear/bb/FullStrongBranching.h"
-#include "linear/matrix/Matrix.h"
 #include "linear/model/MILP.h"
 #include "linear/problem/VariableType.h"
 #include "linear/simplex/Simplex.h"

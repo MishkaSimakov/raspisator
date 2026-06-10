@@ -61,5 +61,5 @@ class StrictenBounds final : public BaseOptimizer<Field> {
     return problem;
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override { return point; }
+  Vector<Field> inverse(const Vector<Field>& point) override { return point; }
 };

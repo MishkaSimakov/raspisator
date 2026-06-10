@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "../../ConstructSparse.h"
 #include "linalg/CSCMatrix.h"
-#include "linalg/ConstructSparse.h"
 #include "linalg/Matrix.h"
 #include "linalg/MatrixSpy.h"
 #include "linalg/Print.h"

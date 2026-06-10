@@ -3,19 +3,20 @@
 #include <random>
 
 #include "Assertions.h"
+#include "ConstructSparse.h"
+#include "linalg/Matrix.h"
+#include "linalg/Random.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/Random.h"
 #include "linear/simplex/Simplex.h"
 
 TEST(UnboundedSimplexTests, SimpleTest1) {
-  CSCMatrix<Rational> A = {
+  auto A = sparse<Rational>({
       {1, -1, 1, 0},
       {2, 1, 0, 1},
-  };
+  });
 
-  Matrix<Rational> b = {{1}, {3}};
-  Matrix<Rational> c = {{2, 1, 1, -1}};
+  Vector<Rational> b = {1, 3};
+  Vector<Rational> c = {2, 1, 1, -1};
 
   Bounds<Rational> bounds(4);
   bounds[0] = {0, 10};
@@ -31,7 +32,7 @@ TEST(UnboundedSimplexTests, SimpleTest1) {
 
   auto solution = solver.primal(bounds, *feasible).solution;
 
-  Matrix<Rational> expected = {{0}, {3}, {4}, {0}};
+  Vector<Rational> expected = {0, 3, 4, 0};
 
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).point, expected);
   ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value, 7);
@@ -44,8 +45,8 @@ TEST(UnboundedSimplexTests, SimpleTest2) {
       {1, 3, 0, 0, 1},
   };
 
-  Matrix<Rational> b = {{3}, {9}, {5}};
-  Matrix<Rational> c = {{1, 4, 0, 0, 0}};
+  Vector<Rational> b = {3, 9, 5};
+  Vector<Rational> c = {1, 4, 0, 0, 0};
 
   Bounds<Rational> bounds(5);
   for (size_t i = 0; i < 5; ++i) {
@@ -64,8 +65,8 @@ TEST(UnboundedSimplexTests, SimpleTest2) {
   auto finite = std::get<FiniteLPSolution<Rational>>(solution);
 
   ASSERT_EQ(finite.value, Rational{20} / Rational{3});
-  ASSERT_EQ((finite.point[0, 0]), 0);
-  ASSERT_EQ((finite.point[1, 0]), Rational{5} / Rational{3});
+  ASSERT_EQ((finite.point[0]), 0);
+  ASSERT_EQ((finite.point[1]), Rational{5} / Rational{3});
 }
 
 TEST(UnboundedSimplexTests, UnboundedTest) {
@@ -74,8 +75,8 @@ TEST(UnboundedSimplexTests, UnboundedTest) {
       {-2, 1, 0, 1},
   };
 
-  Matrix<Rational> b = {{1}, {2}};
-  Matrix<Rational> c = {{3, 4, 0, 0}};
+  Vector<Rational> b = {1, 2};
+  Vector<Rational> c = {3, 4, 0, 0};
 
   Bounds<Rational> bounds(4);
   bounds[0] = {0, std::nullopt};

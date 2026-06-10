@@ -3,38 +3,38 @@
 #include <random>
 
 #include "Assertions.h"
+#include "linalg/CSCMatrix.h"
+#include "linalg/Matrix.h"
+#include "linalg/Random.h"
+#include "linalg/Stack.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/Random.h"
 #include "linear/simplex/Simplex.h"
 
+using namespace linalg;
+
 auto random_problem(size_t size, size_t magnitude,
-                    std::default_random_engine engine) {
+                    std::default_random_engine& engine) {
   std::uniform_int_distribution<int> height_distribution(1, size);
   std::uniform_int_distribution<int> width_increase_distribution(1, size);
-  std::uniform_int_distribution<int> elements_distribution(-magnitude,
-                                                           magnitude);
-
-  auto elements_generator = [&elements_distribution, &engine] {
-    return elements_distribution(engine);
-  };
+  std::uniform_int_distribution<int> value_distribution(-magnitude, magnitude);
 
   // generate an LP-problem
   size_t n = height_distribution(engine);
   size_t d = n + width_increase_distribution(engine);
 
-  auto A_basic = linalg::random_invertible<Rational>(n, elements_generator);
-  auto A_nonbasic = linalg::random<Rational>(n, d - n, elements_generator);
+  auto A_basic =
+      random::dense_invertible<Rational>(n, engine, value_distribution);
+  auto A_nonbasic =
+      random::dense<Rational>(n, d - n, engine, value_distribution);
 
-  auto c = linalg::random<Rational>(1, d, elements_generator);
+  Vector c = random::dense<Rational>(d, 1, engine, value_distribution);
 
-  Matrix<Rational> point(d, 1);
-
+  Vector<Rational> point(d);
   Bounds<Rational> bounds(d);
 
   for (size_t i = 0; i < d; ++i) {
-    int first = elements_generator();
-    int second = elements_generator();
+    int first = value_distribution(engine);
+    int second = value_distribution(engine);
 
     if (first > second) {
       std::swap(first, second);
@@ -45,8 +45,8 @@ auto random_problem(size_t size, size_t magnitude,
     point[i, 0] = std::uniform_int_distribution<int>(first, second)(engine);
   }
 
-  auto A = linalg::hstack(A_basic, A_nonbasic);
-  auto b = A * point;
+  Matrix A = hstack(A_basic, A_nonbasic);
+  Vector b = A * point;
 
   return std::make_tuple(std::move(A), std::move(b), std::move(c),
                          std::move(bounds));
@@ -65,7 +65,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
     auto [A, b, c, bounds] = random_problem(kSize, kElementMagnitude, engine);
 
     // calculate solution
-    auto solver = simplex::Simplex(CSCMatrix(A), b, c);
+    auto solver = simplex::Simplex(CSCMatrix<Rational>(A), b, c);
 
     // all variables have all bounds -> this method is guaranteed to find dual
     // feasible point

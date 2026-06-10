@@ -9,8 +9,8 @@
 
 namespace linalg {
 
-// Returns rows of the matrix that form row basis. If the absolute value is less
-// than @pivot_tolerance then it is treated as zero.
+// Returns rows of the matrix that form row basis. If the absolute value is <=
+// @pivot_tolerance then it is treated as zero.
 template <typename Field>
 std::vector<size_t> get_row_basis(
     Matrix<Field> matrix,
@@ -37,7 +37,7 @@ std::vector<size_t> get_row_basis(
 
     const size_t max_row_index = max_row->index;
 
-    if (matrix[max_row_index, col] < pivot_tolerance) {
+    if (abs(matrix[max_row_index, col]) <= pivot_tolerance) {
       continue;
     }
 
@@ -58,13 +58,13 @@ std::vector<size_t> get_row_basis(
     for (size_t i = current_row + 1; i < n; ++i) {
       Field coef = matrix[i, col];
 
-      if (abs(coef) < pivot_tolerance) {
+      if (abs(coef) <= pivot_tolerance) {
         continue;
       }
 
       for (size_t j = 0; j < d; ++j) {
         matrix[i, j] =
-            j == col ? 0 : matrix[i, j] - coef * matrix[current_row, col];
+            j == col ? 0 : matrix[i, j] - coef * matrix[current_row, j];
       }
     }
 

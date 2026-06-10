@@ -8,7 +8,6 @@
 #include "linear/simplex/Simplex.h"
 #include "Assertions.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Matrix.h"
 //
 // TEST(DegenerateSimplexMethodTests, SimpleTest) {
 //   Matrix<Rational> A = {

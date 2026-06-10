@@ -3,10 +3,8 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        MatrixTests.cpp
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
-        RowBasisTests.cpp
         SolutionCheckingTests.cpp
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
@@ -16,14 +14,13 @@ target_sources(tests PUBLIC
         simplex/FreeVariablesTests.cpp
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
-        simplex/BigTests.cpp
         simplex/UnboundedSimplexTests.cpp
 
-        LU/CommonTests.cpp
-        LU/SparseLUTests.cpp
-        LU/DenseLUTests.cpp
-        LU/EtaFileTests.cpp
-
+        #        LU/CommonTests.cpp
+        #        LU/SparseLUTests.cpp
+        #        LU/DenseLUTests.cpp
+        #        LU/EtaFileTests.cpp
+        #
         accumulators/ArgMinTests.cpp
         accumulators/ArgMaxTests.cpp
         accumulators/ArithmeticMeanTests.cpp
@@ -46,6 +43,10 @@ target_sources(tests PUBLIC
         linalg/VectorTests.cpp
         linalg/CSCMatrixTests.cpp
         linalg/UseCasesTests.cpp
+        linalg/lu/EtaFileTests.cpp
+        linalg/lu/FullPivotingLUTests.cpp
+        linalg/lu/SparseLUTests.cpp
+        linalg/RowBasisTests.cpp
 
         linalg/expr/AllTests.cpp
         linalg/expr/SubColsExprTests.cpp

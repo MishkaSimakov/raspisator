@@ -4,8 +4,8 @@
 
 #include <random>
 
+#include "../../src/linalg/lu/LU.h"
 #include "linear/matrix/Matrix.h"
-#include "linear/sparse/LU.h"
 
 static size_t N = 1'000;
 

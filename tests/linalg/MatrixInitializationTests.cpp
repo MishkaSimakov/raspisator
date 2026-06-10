@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "Assertions.h"
 #include "linalg/Matrix.h"
+#include "linalg/MatrixAssertions.h"
 
 using namespace linalg;
 

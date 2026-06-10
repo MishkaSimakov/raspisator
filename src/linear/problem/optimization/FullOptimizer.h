@@ -85,7 +85,7 @@ class FullOptimizer final : public BaseOptimizer<Field> {
     return problem;
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override {
+  Vector<Field> inverse(const Vector<Field>& point) override {
     auto result = point;
 
     for (std::unique_ptr<BaseOptimizer<Field>>& optimizer :

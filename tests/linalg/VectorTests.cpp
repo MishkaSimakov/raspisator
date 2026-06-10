@@ -30,3 +30,13 @@ TEST(VectorTests, AssignTransposedVectorToMatrix) {
 
   ASSERT_EQ(matrix, expected);
 }
+
+TEST(VectorTests, InvalidConstructorSize) {
+  Matrix matrix = {
+      {1, 2},
+      {3, 4},
+      {5, 6},
+  };
+
+  ASSERT_ANY_THROW({ Vector v = matrix; });
+}

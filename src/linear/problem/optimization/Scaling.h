@@ -3,7 +3,6 @@
 #include <cmath>
 
 #include "BaseOptimizer.h"
-#include "linear/matrix/Matrix.h"
 #include "linear/problem/MILPProblem.h"
 #include "utils/Accumulators.h"
 
@@ -114,11 +113,11 @@ class Scaling final : public BaseOptimizer<Field> {
     return std::log10(static_cast<double>(*max / *min));
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override {
+  Vector<Field> inverse(const Vector<Field>& point) override {
     auto result = point;
 
-    for (size_t i = 0; i < result.get_height(); ++i) {
-      result[i, 0] *= variables_scale_factors_[i];
+    for (size_t i = 0; i < result.size(); ++i) {
+      result[i] *= variables_scale_factors_[i];
     }
 
     return result;

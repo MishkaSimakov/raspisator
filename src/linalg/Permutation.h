@@ -3,11 +3,11 @@
 #include <cassert>
 #include <numeric>
 #include <set>
-#include <vector>
 #include <utility>
+#include <vector>
 
-#include "linear/matrix/Matrix.h"
-#include "linear/sparse/CSCMatrix.h"
+#include "linalg/CSCMatrix.h"
+#include "linalg/Matrix.h"
 
 namespace linalg {
 
@@ -198,14 +198,14 @@ class Permutation {
   }
 };
 
-}  // namespace linalg
-
 template <typename Field>
-Matrix<Field> operator*(const linalg::Permutation& P, const Matrix<Field>& A) {
+Matrix<Field> operator*(const Permutation& P, const Matrix<Field>& A) {
   return P.apply(A);
 }
 
 template <typename Field>
-Matrix<Field> operator*(const Matrix<Field>& A, const linalg::Permutation& P) {
+Matrix<Field> operator*(const Matrix<Field>& A, const Permutation& P) {
   return P.post_apply(A);
 }
+
+}  // namespace linalg

@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "linalg/Assertions.h"
+#include "../../ConstructSparse.h"
 #include "linalg/CSCMatrix.h"
-#include "linalg/ConstructSparse.h"
 #include "linalg/Matrix.h"
+#include "linalg/MatrixAssertions.h"
 #include "linalg/Print.h"
 #include "linalg/expr/SubColsExpr.h"
 

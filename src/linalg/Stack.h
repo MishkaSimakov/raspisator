@@ -9,7 +9,7 @@ namespace detail {
 
 template <typename Head, typename... Tail>
   requires(std::same_as<MatrixFieldType<Head>, MatrixFieldType<Tail>> && ...)
-struct common_field : MatrixFieldType<Head> {};
+struct common_field : std::type_identity<MatrixFieldType<Head>> {};
 
 template <typename... Args>
 using common_field_t = typename common_field<Args...>::type;

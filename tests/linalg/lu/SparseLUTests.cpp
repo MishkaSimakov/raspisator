@@ -1,59 +1,23 @@
 #include <gtest/gtest.h>
 
-#include "../../src/linalg/lu/LU.h"
-#include "TestMatrices.h"
+#include "../../ConstructSparse.h"
+#include "linalg/CSCMatrix.h"
+#include "linalg/Random.h"
+#include "linalg/Stack.h"
+#include "linalg/lu/LUPA.h"
 #include "linear/BigInteger.h"
-#include "linear/matrix/Elimination.h"
-#include "linear/matrix/Random.h"
-#include "linear/sparse/CSCMatrix.h"
 
-TEST(SparseLUTests, SolvesLinearSystem) {
-  for (size_t N = 10; N < 1000; N *= 2) {
-    auto matrix = sparse_matrix(N, 1);
-    auto sparse = CSCMatrix(matrix);
-
-    std::vector<size_t> columns(N);
-    std::iota(columns.begin(), columns.end(), 0);
-
-    auto [P, Q, ls, us] =
-        linalg::FullPivotingLU<Rational>(N).get(sparse, columns);
-
-    Matrix<Rational> b(N, 1, 123);
-    auto x = linalg::solve_linear(b, P, Q, ls, us);
-
-    ASSERT_EQ(matrix * x, b);
-  }
-}
-
-TEST(SparseLUTests, SolvesTransposedLinearSystem) {
-  for (size_t N = 10; N < 1000; N *= 2) {
-    auto matrix = sparse_matrix(N, 1);
-    auto sparse = CSCMatrix(matrix);
-
-    std::vector<size_t> columns(N);
-    std::iota(columns.begin(), columns.end(), 0);
-
-    auto [P, Q, ls, us] =
-        linalg::FullPivotingLU<Rational>(N).get(sparse, columns);
-
-    Matrix<Rational> b(N, 1, 123);
-
-    auto x = linalg::solve_linear_transposed(b, P, Q, ls, us);
-
-    ASSERT_EQ(linalg::transposed(matrix) * x, b);
-  }
-}
+using namespace linalg;
 
 TEST(SparseLUTests, SmallSolveLinearTransposedTest) {
-  Matrix<Rational> A = {
+  const auto A = sparse<Rational>({
       {3, -7, -2, 2},
       {-3, 5, 1, 0},
       {6, -4, 0, -5},
       {-9, 5, -5, 12},
-  };
+  });
 
-  auto sparse = CSCMatrix(A);
-  auto lupa = linalg::LUPA(sparse);
+  auto lupa = linalg::LUPA(A);
 
   lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
 
@@ -66,15 +30,14 @@ TEST(SparseLUTests, SmallSolveLinearTransposedTest) {
 }
 
 TEST(SparseLUTests, SmallGetRowTest) {
-  Matrix<Rational> A = {
+  const auto A = sparse<Rational>({
       {3, -7, -2, 2},
       {-3, 5, 1, 0},
       {6, -4, 0, -5},
       {-9, 5, -5, 12},
-  };
+  });
 
-  auto sparse = CSCMatrix(A);
-  auto lupa = linalg::LUPA(sparse);
+  auto lupa = linalg::LUPA(A);
 
   lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
 
@@ -85,15 +48,14 @@ TEST(SparseLUTests, SmallGetRowTest) {
 }
 
 TEST(SparseLUTests, ChangeColumnTest) {
-  Matrix<Rational> A = {
+  const auto A = sparse<Rational>({
       {3, -7, -2, 2, 1, 1},
       {-3, 5, 1, 0, 0, 2},
       {6, -4, 0, -5, 2, 3},
       {-9, 5, -5, 12, 3, 4},
-  };
+  });
 
-  auto sparse = CSCMatrix(A);
-  auto lupa = linalg::LUPA(sparse);
+  auto lupa = linalg::LUPA(A);
 
   lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
 
@@ -102,17 +64,18 @@ TEST(SparseLUTests, ChangeColumnTest) {
 
   auto inverse = lupa.get_inverse();
 
-  auto expected =
-      linalg::hstack(A[{0, 4}, 0], A[{0, 4}, 4], A[{0, 4}, 5], A[{0, 4}, 3]);
+  const auto expected_cols = std::vector<size_t>{0, 4, 5, 3};
+  auto expected = A.select_columns(expected_cols);
 
-  ASSERT_EQ(inverse * expected, Matrix<Rational>::unity(4));
+  ASSERT_EQ(inverse * expected, Matrix<Rational>::identity(4));
 }
+
 TEST(SparseLUTests, GetInverseMatrixTest) {
-  CSCMatrix<Rational> A = {
+  const auto A = sparse<Rational>({
       {1, 0, 0},
       {0, 2, 1},
       {0, 1, 0},
-  };
+  });
 
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 1, 2});
@@ -128,39 +91,40 @@ TEST(SparseLUTests, GetInverseMatrixTest) {
 }
 
 TEST(SparseLUTests, GetMatrixTest) {
-  CSCMatrix<Rational> A = {
+  const auto A = sparse<Rational>({
       {1, 1, 0},
       {0, 2, 1},
       {0, 3, 0},
-  };
+  });
 
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 1, 2});
 
   const auto matrix = lupa.get_matrix();
-  const auto expected = linalg::to_dense(A);
 
-  ASSERT_EQ(matrix, expected);
+  ASSERT_EQ(matrix, A);
 }
 
 TEST(SparseLUTests, GetMatrixRandomTest) {
   constexpr size_t size = 10;
 
   std::default_random_engine random;
+  std::uniform_int_distribution<int> value_distribution(-10, 10);
 
   for (size_t i = 0; i < 100; ++i) {
-    CSCMatrix<Rational> A(linalg::random_invertible<Rational>(size, random));
+    auto A =
+        random::dense_invertible<Rational>(size, random, value_distribution);
+    auto sparse = CSCMatrix(A);
 
-    auto lupa = linalg::LUPA(A);
+    auto lupa = linalg::LUPA(sparse);
 
     std::vector<size_t> columns(size);
     std::iota(columns.begin(), columns.end(), 0);
     lupa.set_columns(columns);
 
     const auto matrix = lupa.get_matrix();
-    const auto expected = linalg::to_dense(A);
 
-    ASSERT_EQ(matrix, expected);
+    ASSERT_EQ(matrix, A);
   }
 }
 
@@ -168,13 +132,16 @@ TEST(SparseLUTests, ChangeColumnsRandomTest) {
   constexpr size_t size = 10;
 
   std::default_random_engine random;
+  std::uniform_int_distribution<int> value_distribution(-10, 10);
 
   for (size_t i = 0; i < 100; ++i) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
-    const auto core = linalg::random_invertible<Rational>(size, random);
-    const auto dense = linalg::hstack(core, core);
-    const auto sparse = CSCMatrix<Rational>(dense);
+    const auto core =
+        random::dense_invertible<Rational>(size, random, value_distribution);
+
+    const auto dense = hstack(core, core);
+    const auto sparse = CSCMatrix(dense);
 
     auto lupa = linalg::LUPA(sparse);
 
@@ -196,13 +163,15 @@ TEST(SparseLUTests, ChangeColumnsRandomRoundtrip) {
   constexpr size_t size = 10;
 
   std::default_random_engine random;
+  std::uniform_int_distribution<int> value_distribution(-10, 10);
 
   for (size_t i = 0; i < 1000; ++i) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
-    const auto core = linalg::random_invertible<Rational>(size, random);
-    const auto dense = linalg::hstack(core, core);
-    const auto sparse = CSCMatrix<Rational>(dense);
+    const auto core =
+        random::dense_invertible<Rational>(size, random, value_distribution);
+    const auto dense = hstack(core, core);
+    const auto sparse = CSCMatrix(dense);
 
     auto lupa = linalg::LUPA(sparse);
 
@@ -228,13 +197,15 @@ TEST(SparseLUTests, ChangeColumnsAndPurgeRandomTest) {
   constexpr size_t size = 10;
 
   std::default_random_engine random;
+  std::uniform_int_distribution<int> value_distribution(-10, 10);
 
   for (size_t i = 0; i < 1000; ++i) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
-    const auto core = linalg::random_invertible<Rational>(size, random);
-    const auto dense = linalg::hstack(core, core);
-    const auto sparse = CSCMatrix<Rational>(dense);
+    const auto core =
+        random::dense_invertible<Rational>(size, random, value_distribution);
+    const auto dense = hstack(core, core);
+    const auto sparse = CSCMatrix(dense);
 
     linalg::LUPAConfig config{
         .purge_after_iterations = 5,

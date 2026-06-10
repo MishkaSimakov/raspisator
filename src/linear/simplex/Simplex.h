@@ -14,12 +14,13 @@
 #include "Dual.h"
 #include "Settings.h"
 #include "SimplexCoreDump.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/NPY.h"
-#include "linear/matrix/Norms.h"
-#include "linear/matrix/RowBasis.h"
+#include "linalg/Matrix.h"
+#include "linalg/NPY.h"
+#include "linalg/Norm.h"
+#include "linalg/RowBasis.h"
+#include "linalg/Transpose.h"
+#include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
-#include "linear/sparse/LU.h"
 #include "utils/Accumulators.h"
 #include "utils/Variant.h"
 
@@ -73,8 +74,8 @@ using IterationAction =
 template <typename Field, typename Accountant = EmptyAccountant<Field>>
 class Simplex {
   const CSCMatrix<Field> A_;
-  const Matrix<Field> b_;
-  const Matrix<Field> c_;
+  const Vector<Field> b_;
+  const Vector<Field> c_;
 
   IterationState<Field> state_;
 
@@ -83,21 +84,21 @@ class Simplex {
 
   Tolerances<Field> tolerances_;
 
-  static Matrix<Field> get_point(const IterationState<Field>& state) {
+  static Vector<Field> get_point(const IterationState<Field>& state) {
     auto [n, d] = state.problem_shape();
 
-    Matrix<Field> result(d, 1, 0);
+    Vector<Field> result(d);
 
     for (size_t i = 0; i < n; ++i) {
-      result[state.basic_variables[i], 0] = state.basic_point[i, 0];
+      result[state.basic_variables[i]] = state.basic_point[i];
     }
     for (size_t i = 0; i < d; ++i) {
       if (state.variables_states[i] == VariableState::AT_LOWER) {
-        result[i, 0] = *(*state.bounds)[i].lower;
+        result[i] = *(*state.bounds)[i].lower;
       } else if (state.variables_states[i] == VariableState::AT_UPPER) {
-        result[i, 0] = *(*state.bounds)[i].upper;
+        result[i] = *(*state.bounds)[i].upper;
       } else if (state.variables_states[i] == VariableState::NONBASIC_FREE) {
-        result[i, 0] = 0;
+        result[i] = 0;
       }
     }
 
@@ -232,19 +233,19 @@ class Simplex {
     return min_ratio->index;
   }
 
-  Matrix<Field> get_rhs(const Bounds<Field>& bounds,
+  Vector<Field> get_rhs(const Bounds<Field>& bounds,
                         const std::vector<VariableState>& states) const {
     auto [n, d] = A_.shape();
 
-    Matrix<Field> rhs(b_);
+    Vector<Field> rhs(b_);
     for (size_t col = 0; col < d; ++col) {
       if (states[col] == VariableState::AT_LOWER) {
         for (const auto& [row, value] : A_.get_column(col)) {
-          rhs[row, 0] -= value * *bounds[col].lower;
+          rhs[row] -= value * *bounds[col].lower;
         }
       } else if (states[col] == VariableState::AT_UPPER) {
         for (const auto& [row, value] : A_.get_column(col)) {
-          rhs[row, 0] -= value * *bounds[col].upper;
+          rhs[row] -= value * *bounds[col].upper;
         }
       }
     }
@@ -746,7 +747,7 @@ class Simplex {
   }
 
  public:
-  Simplex(CSCMatrix<Field> A, Matrix<Field> b, Matrix<Field> c,
+  Simplex(CSCMatrix<Field> A, Vector<Field> b, Vector<Field> c,
           Settings<Field> settings = {})
       : A_(std::move(A)),
         b_(std::move(b)),
@@ -761,12 +762,12 @@ class Simplex {
           "Solve a system of linear equations instead.");
     }
 
-    if (b_.shape() != std::pair{n, 1}) {
-      throw std::invalid_argument("Matrix b has wrong dimensions.");
+    if (b_.size() != n) {
+      throw std::invalid_argument("Vector b has wrong dimensions.");
     }
 
-    if (c_.shape() != std::pair{1, d}) {
-      throw std::invalid_argument("Matrix c has wrong dimensions.");
+    if (c_.size() != d) {
+      throw std::invalid_argument("Vector c has wrong dimensions.");
     }
   }
 
@@ -781,8 +782,7 @@ class Simplex {
       const Bounds<Field>& bounds) {
     auto [n, d] = A_.shape();
 
-    auto basic_variables =
-        linalg::get_row_basis(linalg::transposed(linalg::to_dense(A_)));
+    auto basic_variables = linalg::get_row_basis(Matrix(linalg::transpose(A_)));
 
     return try_get_dual_feasible(bounds, basic_variables);
   }
@@ -870,10 +870,10 @@ class Simplex {
       }
     }
 
-    auto new_c = Matrix<Field>(1, new_d, 0);
+    auto new_c = Vector<Field>(new_d);
 
     for (size_t i = old_d; i < new_d; ++i) {
-      new_c[0, i] = -1;
+      new_c[i] = -1;
     }
 
     auto helper = Simplex(new_A, b_, new_c);

@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 
+#include "../../src/linalg/lu/LU.h"
 #include "TestMatrices.h"
 #include "linear/BigInteger.h"
 #include "linear/matrix/Elimination.h"
 #include "linear/matrix/LU.h"
 #include "linear/matrix/Matrix.h"
 #include "linear/sparse/CSCMatrix.h"
-#include "linear/sparse/LU.h"
 
 template <typename Field>
 void check_U(const Matrix<Field>& matrix) {
