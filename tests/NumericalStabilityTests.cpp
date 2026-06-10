@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
 #include "Assertions.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/RowBasis.h"
+#include "linalg/Matrix.h"
+#include "linalg/RowBasis.h"
 #include "linear/model/LP.h"
+
+using linalg::Matrix;
 
 TEST(ProblemBuilderTests, RowBasisNumericalStability) {
   size_t N = 10;
@@ -16,8 +18,8 @@ TEST(ProblemBuilderTests, RowBasisNumericalStability) {
   }
 
   // introduce small errors into A
-  for (size_t i = 0; i < A.get_height(); ++i) {
-    for (size_t j = 0; j < A.get_width(); ++j) {
+  for (size_t i = 0; i < A.rows(); ++i) {
+    for (size_t j = 0; j < A.cols(); ++j) {
       A[i, j] += (static_cast<double>((i + j) % 5) - 2) * epsilon;
     }
   }

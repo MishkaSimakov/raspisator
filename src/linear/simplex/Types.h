@@ -1,9 +1,11 @@
 #pragma once
 
 #include "CyclingDetector.h"
-#include "linear/matrix/Matrix.h"
+#include "linalg/CSCMatrix.h"
+#include "linalg/Matrix.h"
+#include "linalg/Vector.h"
+#include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
-#include "linear/sparse/LU.h"
 
 namespace simplex {
 
@@ -27,9 +29,9 @@ struct IterationState {
 
   // Current values of basic variables.
   // basic_point[i, 0] is the value of basic_variables[i]
-  Matrix<Field> basic_point;
+  linalg::Vector<Field> basic_point;
 
-  Matrix<Field> reduced_cost;
+  linalg::Matrix<Field> reduced_cost;
 
   // During simplex iterations it is guaranteed that this pointer is valid.
   const Bounds<Field>* bounds;
@@ -40,10 +42,10 @@ struct IterationState {
 
   CyclingDetector<Field> cycling;
 
-  explicit IterationState(const CSCMatrix<Field>& A)
-      : basic_variables(A.shape().first),
-        variables_states(A.shape().second),
-        basic_point(A.shape().first, 1),
+  explicit IterationState(const linalg::CSCMatrix<Field>& A)
+      : basic_variables(A.rows()),
+        variables_states(A.cols()),
+        basic_point(A.rows()),
         bounds(nullptr),
         lupa(A) {}
 

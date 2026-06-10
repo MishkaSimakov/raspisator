@@ -1029,6 +1029,12 @@ inline Rational abs(const Rational& value) {
   return value < 0 ? -value : value;
 }
 
+inline std::string to_string(const Rational& value) {
+  std::stringstream ss;
+  ss << value;
+  return ss.str();
+}
+
 template <>
 struct FieldTraits<Rational> {
   static const Rational tolerance;

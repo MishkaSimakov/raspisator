@@ -1,18 +1,21 @@
 #include <gtest/gtest.h>
 
+#include "ConstructSparse.h"
+#include "linalg/CSCMatrix.h"
 #include "linear/BigInteger.h"
 #include "linear/model/LP.h"
 #include "linear/simplex/Simplex.h"
-#include "linear/sparse/CSCMatrix.h"
 
 TEST(FreeVariablesTests, SmallTest) {
   // \max x
   // x + y = 5
   // x free
   // y \in [1, 2]
-  CSCMatrix<Rational> A = {{1, 1}};
-  Matrix<Rational> b = {{5}};
-  Matrix<Rational> c = {{1, 0}};
+  CSCMatrix<Rational> A = sparse<Rational>({
+      {1, 1},
+  });
+  Vector<Rational> b = {5};
+  Vector<Rational> c = {1, 0};
 
   Bounds<Rational> bounds(2);
   bounds[0] = {std::nullopt, std::nullopt};
@@ -29,7 +32,7 @@ TEST(FreeVariablesTests, SmallTest) {
   ASSERT_TRUE(result.is_feasible());
   const auto solution = std::get<FiniteLPSolution<Rational>>(result.solution);
 
-  const Matrix<Rational> expected = {{4}, {1}};
+  const Vector<Rational> expected = {4, 1};
 
   ASSERT_EQ(solution.point, expected);
 }
@@ -39,9 +42,11 @@ TEST(FreeVariablesTests, AllFree) {
   // x + y = 5
   // x free
   // y free
-  CSCMatrix<Rational> A = {{1, 1}};
-  Matrix<Rational> b = {{5}};
-  Matrix<Rational> c = {{1, 0}};
+  CSCMatrix<Rational> A = sparse<Rational>({
+      {1, 1},
+  });
+  Vector<Rational> b = {5};
+  Vector<Rational> c = {1, 0};
 
   Bounds<Rational> bounds(2);
   bounds[0] = {std::nullopt, std::nullopt};

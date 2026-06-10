@@ -78,17 +78,17 @@ class RemoveConstantAndUnusedVariables final : public BaseOptimizer<Field> {
     return problem;
   }
 
-  Matrix<Field> inverse(const Matrix<Field>& point) override {
-    size_t d = point.get_height();
+  Vector<Field> inverse(const Vector<Field>& point) override {
+    size_t d = point.size();
 
-    Matrix<Field> result(d + constants_.size(), 1);
+    Vector<Field> result(d + constants_.size());
 
     size_t j = 0;
     for (size_t i = 0; i < d; ++i) {
       if (constants_.contains(i)) {
-        result[i, 0] = constants_.at(i);
+        result[i] = constants_.at(i);
       } else {
-        result[i, 0] = point[j, 0];
+        result[i] = point[j];
         ++j;
       }
     }

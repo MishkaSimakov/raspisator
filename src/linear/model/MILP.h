@@ -2,11 +2,11 @@
 
 #include <variant>
 
-#include "linear/matrix/Matrix.h"
+#include "linalg/Vector.h"
 
 template <typename Field>
 struct FiniteMILPSolution {
-  Matrix<Field> point;
+  linalg::Vector<Field> point;
   Field value;
 };
 

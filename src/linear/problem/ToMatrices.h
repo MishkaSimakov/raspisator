@@ -3,14 +3,17 @@
 #include <vector>
 
 #include "MILPProblem.h"
-#include "linear/matrix/Matrix.h"
+#include "linalg/Matrix.h"
+#include "linalg/Vector.h"
 #include "linear/model/LP.h"
+
+using linalg::Matrix, linalg::Vector;
 
 template <typename Field>
 struct MILPProblemAsMatrices {
   Matrix<Field> A;
-  Matrix<Field> b;
-  Matrix<Field> c;
+  Vector<Field> b;
+  Vector<Field> c;
 
   Bounds<Field> bounds;
   std::vector<VariableType> variables;
@@ -23,12 +26,12 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
 
   auto enumeration = problem.enumerate_variables();
 
-  Matrix<Field> A(n, d, 0);
-  Matrix<Field> b(n, 1, 0);
-  Matrix<Field> c(1, d, 0);
+  Matrix<Field> A(n, d);
+  Vector<Field> b(n);
+  Vector<Field> c(d);
 
   for (const auto& [var, coef] : problem.objective.get_variables()) {
-    c[0, enumeration.at(var)] = coef;
+    c[enumeration.at(var)] = coef;
   }
 
   for (size_t i = 0; i < n; ++i) {
@@ -43,7 +46,7 @@ MILPProblemAsMatrices<Field> to_matrices(const MILPProblem<Field>& problem) {
       A[i, enumeration.at(var)] = coef;
     }
 
-    b[i, 0] = -constraint.expr.get_shift();
+    b[i] = -constraint.expr.get_shift();
   }
 
   std::vector<VariableType> types(d);

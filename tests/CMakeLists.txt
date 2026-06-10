@@ -3,10 +3,8 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        MatrixTests.cpp
         DegenerateSimplexMethodTests.cpp
         BranchAndBoundTests.cpp
-        RowBasisTests.cpp
         SolutionCheckingTests.cpp
         ProblemBuilderTests.cpp
         BigIntegerTests.cpp
@@ -16,14 +14,13 @@ target_sources(tests PUBLIC
         simplex/FreeVariablesTests.cpp
         simplex/RandomTests.cpp
         simplex/SmallTests.cpp
-        simplex/BigTests.cpp
         simplex/UnboundedSimplexTests.cpp
 
-        LU/CommonTests.cpp
-        LU/SparseLUTests.cpp
-        LU/DenseLUTests.cpp
-        LU/EtaFileTests.cpp
-
+        #        LU/CommonTests.cpp
+        #        LU/SparseLUTests.cpp
+        #        LU/DenseLUTests.cpp
+        #        LU/EtaFileTests.cpp
+        #
         accumulators/ArgMinTests.cpp
         accumulators/ArgMaxTests.cpp
         accumulators/ArithmeticMeanTests.cpp
@@ -40,9 +37,27 @@ target_sources(tests PUBLIC
         mps/MPSTests.cpp
 
         feature/FullProblemSolvingTests.cpp
+
+        linalg/MatrixInitializationTests.cpp
+        linalg/MatrixResizeTests.cpp
+        linalg/VectorTests.cpp
+        linalg/CSCMatrixTests.cpp
+        linalg/UseCasesTests.cpp
+        linalg/lu/EtaFileTests.cpp
+        linalg/lu/FullPivotingLUTests.cpp
+        linalg/lu/SparseLUTests.cpp
+        linalg/RowBasisTests.cpp
+
+        linalg/expr/AllTests.cpp
+        linalg/expr/SubColsExprTests.cpp
+        linalg/expr/OwningViewTests.cpp
+        linalg/expr/MulExprTests.cpp
+        linalg/expr/SumExprTests.cpp
+        linalg/expr/TransposedExprTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main raspisator)
 set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
+target_include_directories(tests PRIVATE .)
 
 include(GoogleTest)
 gtest_discover_tests(tests)

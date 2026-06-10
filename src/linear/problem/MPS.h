@@ -9,7 +9,6 @@
 #include <unordered_map>
 
 #include "ToMatrices.h"
-#include "linear/matrix/Matrix.h"
 #include "utils/String.h"
 
 enum class MPSFieldsMode { FIXED_WIDTH, SPACE_SEPARATED };

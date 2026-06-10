@@ -51,8 +51,8 @@ int main() {
 
     auto matrices = to_matrices(problem);
 
-    std::println("{}: {} x {}", problem_name, matrices.A.get_height(),
-                 matrices.A.get_width());
+    std::println("{}: {} x {}", problem_name, matrices.A.rows(),
+                 matrices.A.cols());
 
     simplex::Settings<Field> settings{.is_strict = true};
     auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(

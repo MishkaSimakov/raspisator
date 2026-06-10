@@ -19,7 +19,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googlebenchmark)
 
-
 # fmt (no longer used, replaced with std formatting library)
 #FetchContent_Declare(
 #        fmt
