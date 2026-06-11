@@ -44,7 +44,8 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
     std::vector<std::pair<double, size_t>> costs;
 
     for (size_t i = 0; i < reduced_cost.size(); ++i) {
-      if (!is_feasible(simplex.states[i], reduced_cost[i],
+      if (!simplex.bounds[i].is_fixed() &&
+          !is_feasible(simplex.states[i], reduced_cost[i],
                        simplex.tolerance.feasibility)) {
         costs.emplace_back(abs(reduced_cost[i]), i);
       }
@@ -67,7 +68,8 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
     ArgMaximum<Field> max_cost;
 
     for (size_t i = 0; i < reduced_cost.size(); ++i) {
-      if (!is_feasible(simplex.states[i], reduced_cost[i],
+      if (!simplex.bounds[i].is_fixed() &&
+          !is_feasible(simplex.states[i], reduced_cost[i],
                        simplex.tolerance.feasibility)) {
         max_cost.record(i, abs(reduced_cost[i]));
       }
