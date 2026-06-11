@@ -38,6 +38,9 @@ class LUPA {
   size_t changes_since_refactorization_{0};
   size_t changes_since_purge_{0};
 
+  // Determinant of B^-1
+  Field det_;
+
   const LUPAConfig config_;
 
   void purge() {
@@ -71,13 +74,9 @@ class LUPA {
     auto itr = us_.begin();
     for (; itr != us_.end(); ++itr) {
       if ((*itr).pivot_index() == current_column) {
-        for (auto [row, value] : (*itr).pivot_entries()) {
-          if (row == current_column) {
-            break;
-          }
-        }
-
+        det_ /= (*itr).det();
         itr = us_.erase(itr);
+
         break;
       }
     }
@@ -130,6 +129,8 @@ class LUPA {
     }
 
     const Field diagonal = column[current_column, 0];
+
+    det_ /= diagonal;
 
     for (size_t i = 0; i < n; ++i) {
       column[i, 0] =
@@ -197,6 +198,18 @@ class LUPA {
     guard_columns_set();
 
     factorizer_.get(A_, columns_, P_, Q_, ls_, us_);
+
+    det_ = 1;
+
+    det_ *= P_.is_even() ? 1 : -1;
+    det_ *= Q_.is_even() ? 1 : -1;
+
+    for (const auto entry : ls_) {
+      det_ *= entry.det();
+    }
+    for (const auto entry : us_) {
+      det_ *= entry.det();
+    }
 
     changes_since_refactorization_ = 0;
     changes_since_purge_ = 0;
@@ -269,6 +282,11 @@ class LUPA {
   }
 
   size_t size() const { return ls_.size() + us_.size(); }
+
+  Field det() const {
+    guard_columns_set();
+    return det_;
+  }
 };
 
 }  // namespace linalg

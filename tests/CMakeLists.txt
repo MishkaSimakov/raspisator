@@ -38,22 +38,23 @@ target_sources(tests PUBLIC
         #        presolve/RemoveLinearlyDependentEqualitiesTests.cpp
         #        presolve/TransformToEqualitiesTests.cpp
         #
-        #        linalg/MatrixInitializationTests.cpp
-        #        linalg/MatrixResizeTests.cpp
-        #        linalg/VectorTests.cpp
-        #        linalg/CSCMatrixTests.cpp
-        #        linalg/UseCasesTests.cpp
-        #        linalg/lu/EtaFileTests.cpp
-        #        linalg/lu/FullPivotingLUTests.cpp
-        #        linalg/lu/SparseLUTests.cpp
-        #        linalg/RowBasisTests.cpp
-        #
-        #        linalg/expr/AllTests.cpp
-        #        linalg/expr/SubColsExprTests.cpp
-        #        linalg/expr/OwningViewTests.cpp
-        #        linalg/expr/MulExprTests.cpp
-        #        linalg/expr/SumExprTests.cpp
-        #        linalg/expr/TransposedExprTests.cpp
+        linalg/MatrixInitializationTests.cpp
+        linalg/MatrixResizeTests.cpp
+        linalg/VectorTests.cpp
+        linalg/CSCMatrixTests.cpp
+        linalg/UseCasesTests.cpp
+        linalg/RowBasisTests.cpp
+
+        linalg/lu/EtaFileTests.cpp
+        linalg/lu/FullPivotingLUTests.cpp
+        linalg/lu/LUPATests.cpp
+
+        linalg/expr/AllTests.cpp
+        linalg/expr/SubColsExprTests.cpp
+        linalg/expr/OwningViewTests.cpp
+        linalg/expr/MulExprTests.cpp
+        linalg/expr/SumExprTests.cpp
+        linalg/expr/TransposedExprTests.cpp
 
         simplex2/SmallTests.cpp
         simplex2/RandomTests.cpp

@@ -134,7 +134,7 @@ class FullPivotingLU {
 
     for (size_t j = 0; j < n; ++j) {
       // choose pivot column with the least amount of elements
-      ArgMinimum<size_t, std::less<>> min_nz_column;
+      ArgMinimum<size_t> min_nz_column;
 
       for (size_t i = 0; i < n; ++i) {
         if (Q_impl_[i] == n) {

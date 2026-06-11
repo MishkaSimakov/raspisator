@@ -189,6 +189,35 @@ class Permutation {
     return from_vector(std::move(result));
   }
 
+  bool is_even() const {
+    std::vector<bool> visited(permutation_.size(), false);
+
+    bool result = true;
+
+    for (size_t i = 0; i < permutation_.size(); ++i) {
+      if (visited[i]) {
+        continue;
+      }
+
+      const size_t start = i;
+      size_t current = i;
+      size_t size = 0;
+
+      do {
+        visited[current] = true;
+
+        ++size;
+        current = permutation_[current];
+      } while (current != start);
+
+      if (size % 2 == 0) {
+        result = !result;
+      }
+    }
+
+    return result;
+  }
+
   // Swaps rows i and j of the permutation matrix P
   void swap(size_t i, size_t j) {
     assert(i < size() && "row index i out of bounds");

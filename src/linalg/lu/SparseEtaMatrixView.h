@@ -177,6 +177,9 @@ class SparseEtaMatrixView {
   size_t rows() const { return size_; }
   size_t cols() const { return size_; }
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
+
+  //
+  Field det() const { return pivot_diagonal(); }
 };
 
 }  // namespace linalg
