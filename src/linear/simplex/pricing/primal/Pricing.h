@@ -12,7 +12,7 @@ template <typename Field>
 class PrimalPricing {
  public:
   virtual std::optional<size_t> get_primal_entering(
-      detail::StateView<Field> simplex, const Vector<Field>& reduced_cost) = 0;
+      StateView<Field> simplex, const Vector<Field>& reduced_cost) = 0;
 
   virtual ~PrimalPricing() = default;
 };

@@ -2,7 +2,6 @@
 
 #include "linalg/CSCMatrix.h"
 #include "linalg/lu/LUPA.h"
-#include "linear/model/LP.h"
 #include "linear/simplex/Math.h"
 #include "problem/StandardLP.h"
 
@@ -12,7 +11,8 @@ namespace simplex {
 // invertible.
 template <typename Field>
 bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
-                      const Vector<Field>& c, const Bounds<Field>& bounds,
+                      const Vector<Field>& c,
+                      const std::vector<Bound<Field>>& bounds,
                       const std::vector<VariableState>& states) {
   auto [n, d] = A.shape();
 
@@ -58,7 +58,8 @@ bool is_dual_feasible(const problem::StandardLP<Field>& problem,
 // invertible.
 template <typename Field>
 bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
-                        const Vector<Field>& c, const Bounds<Field>& bounds,
+                        const Vector<Field>& c,
+                        const std::vector<Bound<Field>>& bounds,
                         const std::vector<VariableState>& states) {
   auto [n, d] = A.shape();
 

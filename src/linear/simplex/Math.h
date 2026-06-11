@@ -4,26 +4,28 @@
 
 #include "linalg/Linalg.h"
 #include "linear/model/Bound.h"
-#include "linear/model/LP.h"
 #include "problem/StandardLP.h"
 
 namespace simplex::detail {
 
+// Overload for callers that have the matrix components separated
 template <typename Field>
-Vector<Field> get_adjusted_rhs(const problem::StandardLP<Field>& problem,
+Vector<Field> get_adjusted_rhs(const CSCMatrix<Field>& A,
+                               const Vector<Field>& b,
+                               const std::vector<Bound<Field>>& bounds,
                                const std::vector<VariableState>& states) {
-  auto [n, d] = problem.matrix.shape();
+  auto [n, d] = A.shape();
 
-  Vector<Field> result = problem.rhs;
+  Vector<Field> result = b;
 
   for (size_t col = 0; col < d; ++col) {
     if (states[col] == VariableState::AT_LOWER) {
-      for (const auto& [row, value] : problem.matrix.get_column(col)) {
-        result[row] -= value * *problem.var_bounds[col].lower;
+      for (const auto& [row, value] : A.get_column(col)) {
+        result[row] -= value * *bounds[col].lower;
       }
     } else if (states[col] == VariableState::AT_UPPER) {
-      for (const auto& [row, value] : problem.matrix.get_column(col)) {
-        result[row] -= value * *problem.var_bounds[col].upper;
+      for (const auto& [row, value] : A.get_column(col)) {
+        result[row] -= value * *bounds[col].upper;
       }
     }
   }
@@ -32,8 +34,16 @@ Vector<Field> get_adjusted_rhs(const problem::StandardLP<Field>& problem,
 }
 
 template <typename Field>
+Vector<Field> get_adjusted_rhs(const problem::StandardLP<Field>& problem,
+                               const std::vector<VariableState>& states) {
+  return get_adjusted_rhs(problem.matrix, problem.rhs, problem.var_bounds,
+                          states);
+}
+
+template <typename Field>
 static Vector<Field> get_point_from_basis(
-    const Bounds<Field>& bounds, const std::vector<VariableState>& states,
+    const std::vector<Bound<Field>>& bounds,
+    const std::vector<VariableState>& states,
     const std::vector<size_t>& basic_vars, const Vector<Field>& basic_point) {
   Vector<Field> result(states.size());
 

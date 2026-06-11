@@ -11,7 +11,7 @@ template <typename Field>
 class DualPricing {
  public:
   virtual std::optional<LeavingVariable> get_dual_leaving(
-      detail::StateView<Field> simplex) = 0;
+      StateView<Field> simplex) = 0;
 
   virtual ~DualPricing() = default;
 };

@@ -1,8 +1,8 @@
-#enable_testing()
-#
-#add_executable(tests)
-#
-#target_sources(tests PUBLIC
+enable_testing()
+
+add_executable(tests)
+
+target_sources(tests PUBLIC
 #        DegenerateSimplexMethodTests.cpp
 #        BranchAndBoundTests.cpp
 #        SolutionCheckingTests.cpp
@@ -53,10 +53,14 @@
 #        linalg/expr/MulExprTests.cpp
 #        linalg/expr/SumExprTests.cpp
 #        linalg/expr/TransposedExprTests.cpp
-#)
-#target_link_libraries(tests GTest::gtest_main highs raspisator)
-#set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
-#target_include_directories(tests PUBLIC .)
-#
-#include(GoogleTest)
-#gtest_discover_tests(tests)
+
+        simplex2/SmallTests.cpp
+        simplex2/RandomTests.cpp
+        simplex2/TraversalTests.cpp
+)
+target_link_libraries(tests GTest::gtest_main highs raspisator)
+set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
+target_include_directories(tests PUBLIC .)
+
+include(GoogleTest)
+gtest_discover_tests(tests)

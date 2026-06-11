@@ -16,8 +16,7 @@ class DualDantzigPricing final : public DualPricing<Field> {
 
   std::default_random_engine random_;
 
-  std::optional<LeavingVariable> dantzig_pricing(
-      detail::StateView<Field> simplex) {
+  std::optional<LeavingVariable> dantzig_pricing(StateView<Field> simplex) {
     ArgMaximum<BoundViolation<Field>> max_violation;
 
     for (size_t i = 0; i < simplex.basic_vars.size(); ++i) {
@@ -44,8 +43,7 @@ class DualDantzigPricing final : public DualPricing<Field> {
 
   // Select a random boundary violating variable. This strategy is used when
   // potential cycling is detected.
-  std::optional<LeavingVariable> random_pricing(
-      const detail::StateView<Field>& state) {
+  std::optional<LeavingVariable> random_pricing(StateView<Field> state) {
     std::vector<LeavingVariable> result;
 
     for (size_t i = 0; i < state.basic_vars.size(); ++i) {
@@ -68,7 +66,7 @@ class DualDantzigPricing final : public DualPricing<Field> {
 
  public:
   std::optional<LeavingVariable> get_dual_leaving(
-      detail::StateView<Field> simplex) override {
+      StateView<Field> simplex) override {
     if (cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
         CyclingState::HAS_CYCLING) {
       return random_pricing(simplex);

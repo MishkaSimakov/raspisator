@@ -7,7 +7,7 @@
 #include "linear/model/LP.h"
 #include "linear/simplex/Tolerance.h"
 
-namespace simplex::detail {
+namespace simplex {
 
 // Simplex state DTO used for pricing and ratio tests
 template <typename Field>
@@ -24,4 +24,4 @@ struct StateView {
   Tolerance<Field> tolerance;
 };
 
-}  // namespace simplex::detail
+}  // namespace simplex

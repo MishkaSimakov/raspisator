@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MILP.h"
 #include "StandardLP.h"
 
 namespace problem {
@@ -7,6 +8,11 @@ namespace problem {
 template <typename Field>
 struct StandardMILP : StandardLP<Field> {
   std::vector<bool> is_integer;
+
+  StandardMILP() = default;
+
+  explicit StandardMILP(const MILP<Field>& other)
+      : StandardLP<Field>(other), is_integer(other.is_integer) {}
 
   // for debugging purposes, throws if problem is not correct
   void validate() const {

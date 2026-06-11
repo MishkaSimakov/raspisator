@@ -35,7 +35,7 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
     }
   }
 
-  std::optional<size_t> random_pricing(detail::StateView<Field> simplex,
+  std::optional<size_t> random_pricing(StateView<Field> simplex,
                                        const Vector<Field>& reduced_cost) {
     using std::abs;
 
@@ -63,7 +63,7 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
   }
 
   std::optional<size_t> most_infeasible_pricing(
-      detail::StateView<Field> simplex, const Vector<Field>& reduced_cost) {
+      StateView<Field> simplex, const Vector<Field>& reduced_cost) {
     ArgMaximum<Field> max_cost;
 
     for (size_t i = 0; i < reduced_cost.size(); ++i) {
@@ -78,8 +78,7 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
 
  public:
   std::optional<size_t> get_primal_entering(
-      detail::StateView<Field> simplex,
-      const Vector<Field>& reduced_cost) override {
+      StateView<Field> simplex, const Vector<Field>& reduced_cost) override {
     if (cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
         CyclingState::HAS_CYCLING) {
       return random_pricing(simplex, reduced_cost);

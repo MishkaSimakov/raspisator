@@ -31,9 +31,9 @@ void dump_state(const problem::StandardLP<Field>& problem,
 
   os << "namespace SimplexDump_" << dump_id << " {\n";
 
-  os << "Matrix<Field> A = {" << problem->matrix << "};\n";
-  os << "Matrix<Field> b = {" << problem->rhs << "};\n";
-  os << "Matrix<Field> c = {" << problem->cost << "};\n";
+  os << "Matrix<Field> A = {" << problem.matrix << "};\n";
+  os << "Matrix<Field> b = {" << problem.rhs << "};\n";
+  os << "Matrix<Field> c = {" << problem.cost << "};\n";
 
   std::vector<std::string> string_bounds(problem.var_bounds.size());
   for (size_t i = 0; i < problem.var_bounds.size(); ++i) {
@@ -48,7 +48,7 @@ void dump_state(const problem::StandardLP<Field>& problem,
     bound += ",";
 
     if (problem.var_bounds[i].upper) {
-      bound += std::format("{}", problem.var_bounds[i].upper);
+      bound += std::format("{}", *problem.var_bounds[i].upper);
     } else {
       bound += "std::nullopt";
     }

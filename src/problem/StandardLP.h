@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "CoreLP.h"
+#include "LP.h"
 #include "detail/ExpressionPrinter.h"
 #include "linalg/Linalg.h"
 
@@ -15,6 +16,21 @@ namespace problem {
 template <typename Field>
 struct StandardLP : CoreLP<Field> {
   Vector<Field> rhs;
+
+  StandardLP() = default;
+
+  explicit StandardLP(const LP<Field>& other)
+      : CoreLP<Field>(other), rhs(other.rhs_bounds.size()) {
+    for (size_t i = 0; i < other.rhs_bounds.size(); ++i) {
+      if (!other.rhs_bounds[i].is_fixed()) {
+        throw std::invalid_argument(
+            "Can not convert LP to StandardLP because some constraints have "
+            "non-zero range.");
+      }
+
+      rhs[i] = *other.rhs_bounds[i].lower;
+    }
+  }
 
   // for debugging purposes, throws if problem is not correct
   void validate() const {

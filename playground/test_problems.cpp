@@ -12,6 +12,7 @@
 #include "utils/Paths.h"
 
 #include "linear/simplex/pricing/primal/MostInfeasible.h"
+#include "problem/StandardMILP.h"
 
 using Field = double;
 
@@ -48,32 +49,13 @@ int main() {
     problem =
         presolve::RemoveLinearlyDependentEqualities<Field>().apply(problem);
 
-    std::println("{}: {} x {}", problem_name, problem.matrix.rows(),
-                 problem.matrix.cols());
+    problem::StandardMILP standard_problem(problem);
 
-    auto A = problem.matrix;
-    auto b = Matrix<Field>(problem.matrix.rows(), 1);
-    auto c = Matrix<Field>(1, problem.matrix.cols());
-
-    for (size_t i = 0; i < problem.matrix.rows(); ++i) {
-      b[i, 0] = *problem.rhs_bounds[i].lower;
-    }
-    for (size_t i = 0; i < problem.matrix.cols(); ++i) {
-      c[0, i] = problem.cost[i];
-    }
-
-    auto bounds = Bounds<Field>(problem.var_bounds);
-
-    simplex::Config<Field> settings{.validate_input = true};
-    auto solver = simplex::Simplex<Field, simplex::LoggingAccountant<Field>>(
-        A, b, c,
-        {
-            .validate_input = true,
-            .primal_pricing =
-                std::make_unique<simplex::PrimalMostInfeasible<Field>>(),
-        });
-
-    auto states = simplex::primal_phase1(A, b, c, bounds);
+    auto states = simplex::primal_phase1(
+        standard_problem,
+        simplex::Config<Field>()
+            .set_validate_input(true)
+            .set_accountant<simplex::LoggingAccountant<Field>>());
 
     if (!states) {
       std::println("  Failed to find primal feasible basis.");
@@ -81,7 +63,15 @@ int main() {
     }
 
     std::println("  Found primal feasible basis, starting solving.");
-    auto solution = solver.primal(bounds, *states);
+
+    auto solver = simplex::Simplex<Field>(
+        simplex::Config<Field>()
+            .set_accountant<simplex::LoggingAccountant<Field>>());
+
+    solver.set_validate_input(true);
+    solver.set_problem(standard_problem);
+
+    auto solution = solver.primal(*states);
 
     std::visit(Overload{
                    [](const FiniteLPSolution<Field>& solution) {

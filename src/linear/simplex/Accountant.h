@@ -1,5 +1,6 @@
 #pragma once
-#include "Types.h"
+
+#include "StateView.h"
 
 namespace simplex {
 
@@ -24,15 +25,18 @@ namespace simplex {
 // using IterationAction =
 //     std::variant<NoLeaving, NoEntering, ToggleBound, ChangeBasicVariable>;
 
-//
 template <typename Field>
-class EmptyAccountant {
+class Accountant {
  public:
-  void iteration(IterationState<Field> state) {}
+  virtual void iteration(StateView<Field> simplex) {}
+
+  virtual ~Accountant() = default;
 };
 
+//
+
 template <typename Field>
-class LoggingAccountant {
+class LoggingAccountant final : public Accountant<Field> {
   using Clock = std::chrono::high_resolution_clock;
 
   Clock::time_point last_time_;
@@ -42,7 +46,7 @@ class LoggingAccountant {
   LoggingAccountant()
       : last_time_(Clock::now()), iterations_since_last_time_(0) {}
 
-  void iteration(IterationState<Field> state) {
+  void iteration(StateView<Field> simplex) override {
     ++iterations_since_last_time_;
     auto curr_time = Clock::now();
 
@@ -51,8 +55,8 @@ class LoggingAccountant {
           static_cast<double>(iterations_since_last_time_) /
           std::chrono::duration<double>(curr_time - last_time_).count();
 
-      std::println("{:.1f} itr/s, objective: {}, size: {}, elapsed: {}", speed,
-                   state.objective, state.lupa.size(), curr_time - last_time_);
+      std::println("{:.1f} itr/s, objective: {}, elapsed: {}", speed,
+                   simplex.objective, curr_time - last_time_);
 
       last_time_ = curr_time;
       iterations_since_last_time_ = 0;
