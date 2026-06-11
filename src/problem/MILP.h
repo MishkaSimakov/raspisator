@@ -5,9 +5,27 @@
 namespace problem {
 
 template <typename Field>
+struct StandardMILP;
+
+template <typename Field>
 struct MILP : LP<Field> {
   std::vector<bool> is_integer;
   std::vector<bool> implied_is_integer;
+
+  MILP() = default;
+
+  // Note: read comment in similar CoreLP constructor
+  MILP(size_t rows, size_t cols)
+      : LP<Field>(rows, cols), is_integer(cols), implied_is_integer(cols) {}
+
+  explicit MILP(const LP<Field>& other)
+      : LP<Field>(other),
+        is_integer(other.matrix.cols(), false),
+        implied_is_integer(other.matrix.cols(), false) {}
+
+  explicit MILP(const StandardMILP<Field>&);
+
+  explicit MILP(const StandardLP<Field>& other) : MILP(LP<Field>(other)) {}
 
   // for debugging purposes, throws if problem is not correct
   void validate() const {

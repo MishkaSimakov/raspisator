@@ -25,7 +25,7 @@ TEST(Simplex2RandomTests, DualFeasible) {
                                               .build_feasible();
 
     auto states = simplex::try_init_dual_by_reduced_cost(
-        prob.matrix, prob.rhs, prob.cost, Bounds<Rational>(prob.var_bounds));
+        prob.matrix, prob.rhs, prob.cost, prob.var_bounds);
 
     // try_init_dual_by_reduced_cost is guaranteed to succeed when all
     // variables have both finite bounds
@@ -83,7 +83,7 @@ TEST(Simplex2RandomTests, Infeasible) {
 
     // All variables have both bounds, so dual init is guaranteed to succeed
     auto states = simplex::try_init_dual_by_reduced_cost(
-        prob.matrix, prob.rhs, prob.cost, Bounds<Rational>(prob.var_bounds));
+        prob.matrix, prob.rhs, prob.cost, prob.var_bounds);
 
     ASSERT_TRUE(states.has_value())
         << "Dual init failed for infeasible problem at iteration " << i;

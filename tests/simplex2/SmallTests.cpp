@@ -34,7 +34,7 @@ static problem::StandardMILP<Rational> make_problem(
 static std::optional<std::vector<VariableState>> dual_init(
     const problem::StandardMILP<Rational>& p) {
   return simplex::try_init_dual_by_reduced_cost(p.matrix, p.rhs, p.cost,
-                                                Bounds<Rational>(p.var_bounds));
+                                                p.var_bounds);
 }
 
 // ---- Adapted from tests/simplex/SmallTests.cpp ----
@@ -51,8 +51,7 @@ TEST(Simplex2SmallTests, StartingInSolution) {
   solver.set_problem(p);
 
   auto states = simplex::try_init_dual_by_reduced_cost(
-      p.matrix, p.rhs, p.cost, Bounds<Rational>(p.var_bounds),
-      std::vector<size_t>{1, 2});
+      p.matrix, p.rhs, p.cost, p.var_bounds, std::vector<size_t>{1, 2});
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);

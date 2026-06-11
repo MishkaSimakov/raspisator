@@ -18,7 +18,8 @@ namespace simplex {
 template <typename Field>
 std::optional<std::vector<VariableState>> try_init_dual_by_reduced_cost(
     const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
-    const Bounds<Field>& bounds, const std::vector<size_t>& basic_variables) {
+    const std::vector<Bound<Field>>& bounds,
+    const std::vector<size_t>& basic_variables) {
   auto [n, d] = A.shape();
 
   if (basic_variables.size() != n) {
@@ -60,12 +61,19 @@ std::optional<std::vector<VariableState>> try_init_dual_by_reduced_cost(
 template <typename Field>
 std::optional<std::vector<VariableState>> try_init_dual_by_reduced_cost(
     const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
-    const Bounds<Field>& bounds) {
+    const std::vector<Bound<Field>>& bounds) {
   auto [n, d] = A.shape();
 
   auto basic_variables = linalg::get_row_basis(Matrix(linalg::transpose(A)));
 
   return try_init_dual_by_reduced_cost(A, b, c, bounds, basic_variables);
+}
+
+template <typename Field>
+std::optional<std::vector<VariableState>> try_init_dual_by_reduced_cost(
+    const problem::StandardLP<Field>& problem) {
+  return try_init_dual_by_reduced_cost(problem.matrix, problem.rhs,
+                                       problem.cost, problem.var_bounds);
 }
 
 }  // namespace simplex

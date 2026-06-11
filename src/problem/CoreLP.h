@@ -27,6 +27,17 @@ struct CoreLP {
   std::vector<std::string> var_names;
   std::vector<std::string> row_names;
 
+  CoreLP() = default;
+
+  // Construct empty but valid problem with @rows constraints and @cols
+  // variables. All names are empty.
+  CoreLP(size_t rows, size_t cols)
+      : matrix(CSCMatrix<Field>::zeros(rows, cols)),
+        cost(cols),
+        var_bounds(cols),
+        var_names(cols),
+        row_names(rows) {}
+
   // for debugging purposes, throws if the problem is incorrect
   void validate() const {
     const auto [n, d] = matrix.shape();

@@ -11,6 +11,10 @@ struct StandardMILP : StandardLP<Field> {
 
   StandardMILP() = default;
 
+  // Note: read comment in similar CoreLP constructor
+  StandardMILP(size_t rows, size_t cols)
+      : StandardLP<Field>(rows, cols), is_integer(cols) {}
+
   explicit StandardMILP(const MILP<Field>& other)
       : StandardLP<Field>(other), is_integer(other.is_integer) {}
 
@@ -25,6 +29,12 @@ struct StandardMILP : StandardLP<Field> {
     }
   }
 };
+
+template <typename Field>
+MILP<Field>::MILP(const StandardMILP<Field>& other) : LP<Field>(other) {
+  is_integer = other.is_integer;
+  implied_is_integer = other.is_integer;
+}
 
 template <typename Field>
 std::ostream& operator<<(std::ostream& os, const StandardMILP<Field>& problem) {

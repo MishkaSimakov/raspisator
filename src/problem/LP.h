@@ -6,11 +6,15 @@
 #include <vector>
 
 #include "CoreLP.h"
+#include "detail/ExpressionPrinter.h"
 #include "linalg/Linalg.h"
 #include "linear/model/Bound.h"
-#include "detail/ExpressionPrinter.h"
 
 namespace problem {
+
+// LP problem representation suitable for solving.
+template <typename Field>
+struct StandardLP;
 
 // LP problem representation suitable for presolve.
 template <typename Field>
@@ -21,6 +25,14 @@ struct LP : CoreLP<Field> {
 
   bool proven_infeasible{false};
   bool proven_unbounded{false};
+
+  LP() = default;
+
+  // Note: read comment in similar CoreLP constructor
+  LP(size_t rows, size_t cols)
+      : CoreLP<Field>(rows, cols), rhs_bounds(rows), implied_var_bounds(cols) {}
+
+  explicit LP(const StandardLP<Field>&);
 
   // for debugging purposes, throws if problem is not correct
   void validate() const {

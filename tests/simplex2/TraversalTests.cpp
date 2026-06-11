@@ -43,8 +43,7 @@ TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
   solver.set_problem(p);
 
   auto states = simplex::try_init_dual_by_reduced_cost(
-      p.matrix, p.rhs, p.cost, Bounds<Rational>(p.var_bounds),
-      std::vector<size_t>{1, 2});
+      p.matrix, p.rhs, p.cost, p.var_bounds, std::vector<size_t>{1, 2});
   ASSERT_TRUE(states.has_value());
 
   // Run to a feasible basis
@@ -110,8 +109,8 @@ TEST(Simplex2TraversalTests, ChangeBoundFlipsState) {
   simplex::Simplex<Rational> solver;
   solver.set_problem(p);
 
-  auto states = simplex::try_init_dual_by_reduced_cost(
-      p.matrix, p.rhs, p.cost, Bounds<Rational>(p.var_bounds));
+  auto states = simplex::try_init_dual_by_reduced_cost(p.matrix, p.rhs, p.cost,
+                                                       p.var_bounds);
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
@@ -158,8 +157,8 @@ TEST(Simplex2TraversalTests, TableauRowBasisIdentity) {
   simplex::Simplex<Rational> solver;
   solver.set_problem(p);
 
-  auto states = simplex::try_init_dual_by_reduced_cost(
-      p.matrix, p.rhs, p.cost, Bounds<Rational>(p.var_bounds));
+  auto states = simplex::try_init_dual_by_reduced_cost(p.matrix, p.rhs, p.cost,
+                                                       p.var_bounds);
   ASSERT_TRUE(states.has_value());
 
   solver.dual(*states);

@@ -19,6 +19,9 @@ struct StandardLP : CoreLP<Field> {
 
   StandardLP() = default;
 
+  // Note: read comment in similar CoreLP constructor
+  StandardLP(size_t rows, size_t cols) : CoreLP<Field>(rows, cols), rhs(rows) {}
+
   explicit StandardLP(const LP<Field>& other)
       : CoreLP<Field>(other), rhs(other.rhs_bounds.size()) {
     for (size_t i = 0; i < other.rhs_bounds.size(); ++i) {
@@ -43,6 +46,16 @@ struct StandardLP : CoreLP<Field> {
     }
   }
 };
+
+template <typename Field>
+LP<Field>::LP(const StandardLP<Field>& other) : CoreLP<Field>(other) {
+  implied_var_bounds = other.var_bounds;
+
+  rhs_bounds.resize(other.rhs.size());
+  for (size_t i = 0; i < other.rhs.size(); ++i) {
+    rhs_bounds[i] = Bound<Field>{other.rhs[i], other.rhs[i]};
+  }
+}
 
 template <typename Field>
 std::ostream& operator<<(std::ostream& os, const StandardLP<Field>& problem) {
