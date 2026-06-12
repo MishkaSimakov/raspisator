@@ -8,7 +8,7 @@
 #include "linear/bb/Settings.h"
 #include "linear/problem/ToMatrices.h"
 #include "linear/problem/optimization/FullOptimizer.h"
-#include "linear/scheduling/BlomersHeuristic.h"
+#include "schedule/BlomersHeuristic.h"
 #include "schedule/model/STN.h"
 #include "schedule/model/Solution.h"
 #include "schedule/problems/Blomer.h"
