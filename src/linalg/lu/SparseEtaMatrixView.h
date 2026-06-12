@@ -22,17 +22,6 @@ class SparseEtaMatrixView {
   EtaMatrixType type_;
   std::span<ValueT> entries_;
 
-  // Returns element on diagonal in pivot row or column.
-  Field pivot_diagonal() const {
-    for (const auto& [row, value] : entries_) {
-      if (row == pivot_index_) {
-        return value;
-      }
-    }
-
-    return 0;
-  }
-
   template <typename T>
   void apply_as_col(T& matrix) const {
     for (size_t col = 0; col < matrix.cols(); ++col) {
@@ -179,6 +168,17 @@ class SparseEtaMatrixView {
   std::pair<size_t, size_t> shape() const { return {rows(), cols()}; }
 
   //
+  // Returns element on diagonal in pivot row or column.
+  Field pivot_diagonal() const {
+    for (const auto& [row, value] : entries_) {
+      if (row == pivot_index_) {
+        return value;
+      }
+    }
+
+    return 0;
+  }
+
   Field det() const { return pivot_diagonal(); }
 };
 

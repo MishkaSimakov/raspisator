@@ -82,7 +82,6 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
 
   if (min_theta_bound.has_value()) {
     const Field theta_max = *min_theta_bound;
-    // logging::log_value(*theta_max.min(), "theta_max.txt");
 
     ArgMaximum<Field> max_pivot;
 
@@ -93,8 +92,6 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
         max_pivot.record(i, abs(entering_col[i]));
       }
     }
-
-    // logging::log_value(*max_pivot.max(), "max_pivot.txt");
 
     const Field leaving_theta = *get_variable_theta(max_pivot->index);
 

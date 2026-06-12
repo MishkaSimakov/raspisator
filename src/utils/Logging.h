@@ -4,9 +4,8 @@
 #include <string_view>
 
 #include "Paths.h"
-#include "linear/matrix/Matrix.h"
-#include "linear/matrix/NPY.h"
-#include "linear/sparse/CSCMatrix.h"
+#include "linalg/Linalg.h"
+#include "linalg/NPY.h"
 
 namespace logging {
 
@@ -25,30 +24,30 @@ inline std::ofstream get_log_fstream(std::string_view filename) {
 }
 
 template <typename Field>
-void log_density(const CSCMatrix<Field>& matrix, std::string_view filename) {
+void density(const CSCMatrix<Field>& matrix, std::string_view filename) {
   get_log_fstream(filename)
       << matrix.density() << ", " << matrix.nonzero_count() << "\n";
 }
 
 template <typename Field>
-void log_density(const Matrix<Field>& matrix, std::string_view filename) {
+void density(const Matrix<Field>& matrix, std::string_view filename) {
   get_log_fstream(filename)
       << matrix.density() << ", " << matrix.nonzero_count() << "\n";
 }
 
 template <typename T>
-void log_value(const T& value, std::string_view filename) {
+void value(const T& value, std::string_view filename) {
   get_log_fstream(filename) << value << "\n";
 }
 
 template <typename Field>
-void log_npy(const Matrix<Field>& matrix, std::string_view filename) {
+void npy(const Matrix<Field>& matrix, std::string_view filename) {
   auto os = get_log_fstream(filename);
 
   linalg::to_npy(os, matrix);
 }
 
-inline void log(std::string_view text, std::string_view filename) {
+inline void string(std::string_view text, std::string_view filename) {
   auto os = get_log_fstream(filename);
   os << text;
 }

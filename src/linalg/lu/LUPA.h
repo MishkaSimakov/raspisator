@@ -10,6 +10,7 @@
 #include "linalg/lu/FullPivotingLU.h"
 #include "linalg/lu/Solve.h"
 #include "utils/Accumulators.h"
+#include "utils/Logging.h"
 
 namespace linalg {
 
@@ -41,7 +42,7 @@ class LUPA {
   // Determinant of B^-1
   Field det_;
 
-  const LUPAConfig config_;
+  LUPAConfig config_;
 
   void purge() {
     ls_.purge();
@@ -55,10 +56,7 @@ class LUPA {
   UpdateResult forrest_tomlin_update(size_t current_column, size_t new_column) {
     auto [n, d] = A_.shape();
 
-    Matrix<Field> column(n, 1, 0);
-    for (const auto [row, value] : A_.get_column(new_column)) {
-      column[row, 0] = value;
-    }
+    Vector column = A_.get_column_as_matrix(new_column);
 
     column = P_.apply(std::move(column));
     for (auto entry : ls_) {
@@ -69,7 +67,7 @@ class LUPA {
     // current_column after applying Q_
     current_column = Q_.post_apply(current_column);
 
-    Matrix<Field> r(n, 1, 0);
+    Vector<Field> r(n);
 
     auto itr = us_.begin();
     for (; itr != us_.end(); ++itr) {
@@ -101,40 +99,38 @@ class LUPA {
         return UpdateResult::NEED_REFACTORIZATION;
       }
 
-      r[(*itr).pivot_index(), 0] = main_value / diagonal;
+      r[(*itr).pivot_index()] = main_value / diagonal;
       r = (*itr).apply_transposed(std::move(r));
     }
 
-    r[current_column, 0] = 1;
+    r[current_column] = 1;
 
     Maximum<Field> r_max;
     for (size_t i = 0; i < n; ++i) {
-      r_max.record(r[i, 0]);
+      r_max.record(r[i]);
     }
 
-    if (*r_max > 10) {
-      // std::println("refactorization: {}", *r_max.max());
-      return UpdateResult::NEED_REFACTORIZATION;
-    }
-
-    // logging::log_value(*r_max.max(), "r_max.txt");
+    // if (*r_max > 10) {
+    //   std::println("refactorization: {}", *r_max);
+    //   return UpdateResult::NEED_REFACTORIZATION;
+    // }
 
     ls_.push_back(current_column, r, EtaMatrixType::ROW);
 
     // add new eta matrix to U1 ... Un
     column = (*std::prev(ls_.cend())).apply(std::move(column));
 
-    if (!FieldTraits<Field>::is_nonzero(column[current_column, 0])) {
+    const Field diagonal = column[current_column];
+
+    if (!FieldTraits<Field>::is_nonzero(diagonal)) {
       return UpdateResult::NEED_REFACTORIZATION;
     }
-
-    const Field diagonal = column[current_column, 0];
 
     det_ /= diagonal;
 
     for (size_t i = 0; i < n; ++i) {
-      column[i, 0] =
-          i != current_column ? -column[i, 0] / diagonal : Field(1) / diagonal;
+      column[i] =
+          i != current_column ? -column[i] / diagonal : Field(1) / diagonal;
     }
 
     us_.push_back(current_column, column, EtaMatrixType::COLUMN);
@@ -170,7 +166,9 @@ class LUPA {
     refactorize();
   }
 
-  void change_column(size_t current_column, size_t new_column) {
+  // pivot_element is the \alpha_{pp}, where
+  void change_column(size_t current_column, size_t new_column,
+                     std::optional<Field> pivot_element = std::nullopt) {
     guard_columns_set();
 
     columns_[current_column] = new_column;

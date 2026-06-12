@@ -22,8 +22,8 @@ double norm(M&& matrix) {
   return sqrt(result);
 }
 
-template <RowWiseMatrixRange M>
-double inf_norm(M&& matrix) {
+template <ElementWiseMatrixRange M>
+MatrixFieldType<M> inf_norm(M&& matrix) {
   using std::abs, std::max;
   using Field = MatrixFieldType<M>;
 
@@ -33,7 +33,9 @@ double inf_norm(M&& matrix) {
   for (size_t row = 0; row < n; ++row) {
     Field row_sum = 0;
 
-    matrix.row_entries([&](size_t, Field value) { row_sum += abs(value); });
+    for (size_t col = 0; col < d; ++col) {
+      row_sum += abs(matrix[row, col]);
+    }
 
     result = std::max(result, row_sum);
   }

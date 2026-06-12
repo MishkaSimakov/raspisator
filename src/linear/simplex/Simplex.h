@@ -102,17 +102,11 @@ class Simplex {
   }
 
   std::optional<size_t> get_dual_entering_variable(
-      LeavingVariable leaving) const {
+      LeavingVariable leaving, const Vector<Field>& reduced_cost,
+      const Vector<Field>& leaving_row) const {
     auto [n, d] = problem_->matrix.shape();
 
     ArgMinimum<Field> min_ratio;
-
-    const Vector pi =
-        lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
-    const Vector reduced_costs =
-        problem_->cost - linalg::transpose(problem_->matrix) * pi;
-
-    const auto inverse_row = lupa_->get_row(leaving.index);
 
     for (size_t i = 0; i < d; ++i) {
       if (var_states_[i] == VariableState::BASIC) {
@@ -121,7 +115,7 @@ class Simplex {
 
       Field coef = 0;
       for (const auto& [row, value] : problem_->matrix.get_column(i)) {
-        coef += inverse_row[row, 0] * value;
+        coef += leaving_row[row] * value;
       }
 
       if (!FieldTraits<Field>::is_nonzero(coef)) {
@@ -129,19 +123,8 @@ class Simplex {
       }
 
       // TODO: think about drop tolerance
-      const Field cost = FieldTraits<Field>::is_nonzero(reduced_costs[i, 0])
-                             ? reduced_costs[i, 0]
-                             : 0;
-
-      if (!((var_states_[i] == VariableState::AT_LOWER &&
-             cost < Field(1) / Field(1e5)) ||
-            (var_states_[i] == VariableState::AT_UPPER &&
-             cost > -Field(1) / Field(1e5)))) {
-        throw std::runtime_error(
-            std::format("Current point is not dual feasible! Reduced cost for "
-                        "variable #{} has value {}.",
-                        i, reduced_costs[i, 0]));
-      }
+      const Field cost =
+          FieldTraits<Field>::is_nonzero(reduced_cost[i]) ? reduced_cost[i] : 0;
 
       Field ratio = cost / coef;
 
@@ -248,6 +231,37 @@ class Simplex {
     return false;
   }
 
+  bool violate_dual_bounds(const Vector<Field>& reduced_cost) const {
+    using std::abs;
+    const auto [n, d] = problem_->matrix.shape();
+
+    for (size_t i = 0; i < d; ++i) {
+      switch (var_states_[i]) {
+        case VariableState::AT_LOWER:
+          if (reduced_cost[i] > config_.tolerance.feasibility) {
+            return true;
+          }
+          break;
+        case VariableState::AT_UPPER:
+          if (reduced_cost[i] < -config_.tolerance.feasibility) {
+            return true;
+          }
+          break;
+        case VariableState::NONBASIC_FREE:
+          if (abs(reduced_cost[i]) > config_.tolerance.feasibility) {
+            return true;
+          }
+          break;
+        case VariableState::BASIC:
+          break;
+        default:
+          throw std::runtime_error("Unknown variable state.");
+      }
+    }
+
+    return false;
+  }
+
   // It is guaranteed, that after execution of this method, if finite LP
   // solution was found, then inside LUPA basic variables would be selected as
   // columns.
@@ -263,9 +277,26 @@ class Simplex {
     initialize_state(states);
     size_t iteration = 0;
 
+    Field prev_iteration_residue = 0;
+
     while (true) {
       basic_point_ =
           lupa_->solve_linear(detail::get_adjusted_rhs(*problem_, var_states_));
+
+      // TODO: make this faster
+      const Field residue = linalg::inf_norm(
+          Vector(problem_->matrix * get_point() - problem_->rhs));
+
+      logging::value(residue, "residue_inf.txt");
+
+      if (residue > 1e-9) {
+        lupa_->refactorize();
+
+        basic_point_ = lupa_->solve_linear(
+            detail::get_adjusted_rhs(*problem_, var_states_));
+      }
+
+      prev_iteration_residue = residue;
 
       if (violate_primal_bounds()) {
         throw std::runtime_error("Not implemented.");
@@ -308,6 +339,7 @@ class Simplex {
 
       Vector column =
           lupa_->solve_linear(problem_->matrix.get_column_as_matrix(*entering));
+
       auto action = detail::primal_ratio_test(*problem_, state_view, *entering,
                                               reduced_costs[*entering], column);
 
@@ -374,7 +406,19 @@ class Simplex {
         return construct_result<FiniteLPSolution<Field>>(state_view);
       }
 
-      auto entering = get_dual_entering_variable(*leaving);
+      const Vector pi =
+          lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
+      const Vector reduced_cost =
+          problem_->cost - linalg::transpose(problem_->matrix) * pi;
+
+      if (violate_dual_bounds(reduced_cost)) {
+        throw std::runtime_error("Not implemented.");
+      }
+
+      const Vector leaving_row = lupa_->get_row(leaving->index);
+
+      auto entering =
+          get_dual_entering_variable(*leaving, reduced_cost, leaving_row);
       if (!entering) {
         return construct_result<NoFeasibleElements>(state_view);
       }
