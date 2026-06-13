@@ -3,6 +3,7 @@
 #include <Highs.h>
 #include <filesystem>
 
+#include "presolve/Pass.h"
 #include "problem/MILP.h"
 
 namespace highs {
@@ -48,6 +49,8 @@ HighsLp from_milp(const problem::MILP<Field>& problem) {
 
   lp.num_col_ = static_cast<int>(d);
   lp.num_row_ = static_cast<int>(n);
+
+  lp.sense_ = ObjSense::kMaximize;
 
   // Objective
   lp.col_cost_.resize(d);

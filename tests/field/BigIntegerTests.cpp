@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "linear/BigInteger.h"
+#include "field/BigInteger.h"
 
 TEST(BigIntegerTests, LongMultiplication) {
   std::vector<std::tuple<BigInteger, BigInteger, BigInteger>> problems;

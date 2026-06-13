@@ -3,14 +3,14 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        #        DegenerateSimplexMethodTests.cpp
-        #        BranchAndBoundTests.cpp
-        #        SolutionCheckingTests.cpp
-        #        ProblemBuilderTests.cpp
-        #        BigIntegerTests.cpp
-        #        NumericalStabilityTests.cpp
-        #        BoundsTests.cpp
-        #
+        field/BigIntegerTests.cpp
+
+        schedule/SolutionCheckingTests.cpp
+#        schedule/FullProblemSolvingTests.cpp
+
+        problem/ProblemBuilderTests.cpp
+        problem/BoundsTests.cpp
+
         simplex/Phase1Tests.cpp
         simplex/CatalogTests.cpp
         simplex/RandomTests.cpp

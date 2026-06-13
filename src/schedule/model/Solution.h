@@ -5,7 +5,7 @@
 #include <ranges>
 
 #include "STN.h"
-#include "linear/FieldTraits.h"
+#include "field/FieldTraits.h"
 #include "utils/Variant.h"
 
 template <typename Field>

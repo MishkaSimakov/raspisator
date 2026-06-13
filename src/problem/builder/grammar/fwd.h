@@ -1,7 +1,11 @@
 #pragma once
 
+namespace problem {
+
 template <typename Field>
-struct MILPProblem;
+struct Builder;
+
+}
 
 template <typename Field>
 class Variable;

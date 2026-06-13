@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "Variable.h"
-#include "linear/FieldTraits.h"
+#include "field/FieldTraits.h"
 
 template <typename Field>
 class Expression {
@@ -132,7 +132,7 @@ class Expression {
 
   Field get_shift() const { return shift_; }
 
-  friend MILPProblem<Field>;
+  friend problem::Builder<Field>;
   friend Constraint<Field>;
 };
 

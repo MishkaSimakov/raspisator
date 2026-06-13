@@ -11,7 +11,7 @@ class Variable {
 
   explicit Variable(std::string name) : name_(std::move(name)) {}
 
-  friend class MILPProblem<Field>;
+  friend class problem::Builder<Field>;
   friend class Expression<Field>;
 
  public:

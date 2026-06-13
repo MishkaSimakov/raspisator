@@ -1,10 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "../src/problem/builder/VariableType.h"
-#include "linear/BigInteger.h"
-#include "linear/bb/FullStrongBranching.h"
-#include "linear/model/MILP.h"
-#include "linear/simplex/Simplex.h"
+#include "bb/FullStrongBranching.h"
+#include "field/BigInteger.h"
+#include "problem/builder/VariableType.h"
+#include "simplex/Simplex.h"
 
 TEST(BranchAndBoundTests, SimpleProblems) {
   GTEST_SKIP() << "Branch and Bound doesn't work because simplex changed";

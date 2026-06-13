@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "linear/BigInteger.h"
-#include "linear/model/Bound.h"
+#include "field/BigInteger.h"
+#include "problem/Bound.h"
 
 TEST(BoundsTests, SimpleMultiplication) {
   Bound<Rational> bound(-10, 10);

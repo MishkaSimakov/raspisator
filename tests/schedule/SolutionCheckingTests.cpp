@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "linear/BigInteger.h"
+#include "field/BigInteger.h"
 #include "schedule/model/Solution.h"
 
 STN<Rational>* generate_sequential_problem() {

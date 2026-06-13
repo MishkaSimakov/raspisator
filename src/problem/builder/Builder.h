@@ -10,7 +10,7 @@
 #include "grammar/Expression.h"
 #include "grammar/Variable.h"
 #include "linalg/Linalg.h"
-#include "linear/model/Bound.h"
+#include "problem/Bound.h"
 #include "problem/MILP.h"
 #include "utils/Accumulators.h"
 
@@ -25,14 +25,17 @@ struct VariableInfo {
 };
 
 template <typename Field>
-class ProblemBuilder {
+class Builder {
   std::vector<VariableInfo<Field>> variables_;
 
   std::vector<Constraint<Field>> constraints_;
+  std::vector<std::string> constraints_names_;
+
   Expression<Field> objective_;
+  std::string objective_name_;
 
  public:
-  ProblemBuilder() = default;
+  Builder() = default;
 
   std::unordered_map<std::string, size_t> enumerate_variables() const {
     std::unordered_map<std::string, size_t> result;
@@ -88,12 +91,14 @@ class ProblemBuilder {
     return new_variable(name, type, Bound<Field>(lower_bound, upper_bound));
   }
 
-  void add_constraint(Constraint<Field> constraint) {
+  void add_constraint(Constraint<Field> constraint, std::string name = "") {
     constraints_.push_back(std::move(constraint));
+    constraints_names_.push_back(std::move(name));
   }
 
-  void set_objective(Expression<Field> objective) {
+  void set_objective(Expression<Field> objective, std::string name = "") {
     this->objective_ = std::move(objective);
+    objective_name_ = std::move(name);
   }
 
   double get_sparsity() const {
@@ -133,8 +138,12 @@ class ProblemBuilder {
       result.cost[enumeration.at(var)] = coef;
     }
 
-    // rhs bounds
+    result.cost_name = objective_name_;
+
+    // rhs bounds + rows names
     result.rhs_bounds.resize(n);
+    result.row_names.resize(n);
+
     for (size_t row = 0; row < n; ++row) {
       const Field rhs = -constraints_[row].expr.get_shift();
 
@@ -143,6 +152,8 @@ class ProblemBuilder {
       } else {
         result.rhs_bounds[row] = {std::nullopt, rhs};
       }
+
+      result.row_names[row] = constraints_names_[row];
     }
 
     // constraints matrix
@@ -178,25 +189,24 @@ class ProblemBuilder {
 
     return result;
   }
+
+  friend std::ostream& operator<<(std::ostream& os, const Builder& problem) {
+    std::println(os, "problem with {} constraints and {} variables",
+                 problem.constraints_.size(), problem.variables_.size());
+
+    os << "max " << problem.objective_ << "\n";
+    os << "such that:\n";
+
+    for (const Constraint<Field>& constraint : problem.constraints_) {
+      os << constraint << "\n";
+    }
+
+    for (const VariableInfo<Field>& info : problem.variables_) {
+      std::println(os, "{} ∈ {}", info.name, info.bound);
+    }
+
+    return os;
+  }
 };
-
-template <typename Field>
-std::ostream& operator<<(std::ostream& os, const MILPProblem<Field>& problem) {
-  std::println(os, "problem with {} constraints and {} variables",
-               problem.constraints_.size(), problem.variables_.size());
-
-  os << "max " << problem.objective_ << "\n";
-  os << "such that:\n";
-
-  for (const Constraint<Field>& constraint : problem.constraints_) {
-    os << constraint << "\n";
-  }
-
-  for (const VariableInfo<Field>& info : problem.variables_) {
-    std::println(os, "{} ∈ {}", info.name, info.bound);
-  }
-
-  return os;
-}
 
 }  // namespace problem
