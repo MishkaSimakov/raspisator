@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "linear/model/Bound.h"
+#include "problem/Bound.h"
 
 namespace problem::detail {
 

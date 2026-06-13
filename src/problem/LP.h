@@ -8,7 +8,7 @@
 #include "CoreLP.h"
 #include "detail/ExpressionPrinter.h"
 #include "linalg/Linalg.h"
-#include "linear/model/Bound.h"
+#include "problem/Bound.h"
 
 namespace problem {
 

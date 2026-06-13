@@ -1,9 +1,9 @@
 #pragma once
 
+#include "../../field/FieldTraits.h"
 #include "linalg/Matrix.h"
 #include "linalg/Permutation.h"
 #include "linalg/lu/EtaFile.h"
-#include "linear/FieldTraits.h"
 #include "utils/Accumulators.h"
 
 namespace linalg {

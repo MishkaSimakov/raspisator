@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 
 #include "ConstructSparse.h"
+#include "field/BigInteger.h"
+#include "field/FieldTraits.h"
 #include "linalg/Det.h"
 #include "linalg/Linalg.h"
 #include "linalg/Random.h"
 #include "linalg/Stack.h"
 #include "linalg/lu/LUPA.h"
-#include "linear/BigInteger.h"
-#include "linear/FieldTraits.h"
 
 using namespace linalg;
 

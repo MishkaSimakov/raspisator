@@ -1,7 +1,7 @@
 #pragma once
 
+#include "../field/FieldTraits.h"
 #include "linalg/Matrix.h"
-#include "linear/FieldTraits.h"
 
 namespace linalg {
 

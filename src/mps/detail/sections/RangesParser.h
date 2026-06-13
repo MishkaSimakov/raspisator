@@ -3,8 +3,8 @@
 #include <cassert>
 #include <format>
 
+#include "../../../field/FieldTraits.h"
 #include "SectionParser.h"
-#include "linear/FieldTraits.h"
 
 namespace mps::detail {
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include <optional>
 
 #include "linalg/Linalg.h"

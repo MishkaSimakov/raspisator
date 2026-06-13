@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "faker/Catalog.h"
-#include "linear/BigInteger.h"
-#include "linear/simplex/Feasibility.h"
-#include "linear/simplex/init/primal/Phase1.h"
+#include "field/BigInteger.h"
+#include "simplex/Feasibility.h"
+#include "simplex/init/primal/Phase1.h"
 
 TEST(PrimalPhase1Tests, CatalogProblems) {
   const auto problems = faker::catalog<Rational>()

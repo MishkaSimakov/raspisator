@@ -13,6 +13,7 @@ target_sources(tests PUBLIC
         #
         simplex/Phase1Tests.cpp
         simplex/CatalogTests.cpp
+        simplex/RandomTests.cpp
 
         accumulators/ArgMinTests.cpp
         accumulators/ArgMaxTests.cpp
@@ -57,7 +58,8 @@ target_sources(tests PUBLIC
         simplex2/TraversalTests.cpp
 )
 target_link_libraries(tests GTest::gtest_main highs raspisator)
-set_target_properties(tests PROPERTIES CMAKE_CXX_FLAGS "-fsanitize=address")
+#target_compile_options(tests PRIVATE -fsanitize=address)
+#target_link_options(tests PRIVATE -fsanitize=address)
 target_include_directories(tests PUBLIC .)
 
 include(GoogleTest)

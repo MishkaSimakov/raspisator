@@ -457,6 +457,35 @@ Instance<Field> textbook15() {
 }
 
 template <typename Field>
+Instance<Field> textbook16() {
+  problem::StandardLP<Field> problem(3, 5);
+
+  problem.name = "textbook16";
+
+  problem.matrix = CSCMatrix<Field>(Matrix<Field>{
+      {2, 1, 1, 0, 0},
+      {3, 5, 0, 1, 0},
+      {1, 3, 0, 0, 1},
+  });
+  problem.rhs = {3, 9, 5};
+  problem.cost = {1, 4, 0, 0, 0};
+
+  problem.var_bounds = std::vector(5, Bound<Field>{0, std::nullopt});
+
+  Instance<Field> result;
+
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {0, Field(5) / Field(3), Field(4) / Field(3),
+                           Field(2) / Field(3), 0};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = Field(20) / Field(3);
+
+  return result;
+}
+
+template <typename Field>
 std::vector<Instance<Field>> textbook() {
   std::vector<Instance<Field>> result;
 
@@ -475,6 +504,7 @@ std::vector<Instance<Field>> textbook() {
   result.push_back(textbook13<Field>());
   result.push_back(textbook14<Field>());
   result.push_back(textbook15<Field>());
+  result.push_back(textbook16<Field>());
 
   return result;
 }

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "linalg/Linalg.h"
-#include "linear/model/Bound.h"
+#include "problem/Bound.h"
 
 namespace problem {
 

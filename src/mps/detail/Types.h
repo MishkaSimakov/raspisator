@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "linear/model/Bound.h"
+#include "problem/Bound.h"
 
 namespace mps::detail {
 

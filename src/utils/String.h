@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cctype>
-#include <locale>
+#include <ranges>
+#include <string>
+#include <string_view>
 
 namespace str {
 

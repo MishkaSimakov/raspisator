@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
+#include "../src/problem/builder/VariableType.h"
 #include "linear/BigInteger.h"
 #include "linear/bb/FullStrongBranching.h"
 #include "linear/model/MILP.h"
-#include "linear/problem/VariableType.h"
 #include "linear/simplex/Simplex.h"
 
 TEST(BranchAndBoundTests, SimpleProblems) {

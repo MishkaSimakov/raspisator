@@ -3,18 +3,15 @@
 #include <variant>
 
 #include "ConstructSparse.h"
-#include "linalg/Matrix.h"
-#include "linear/BigInteger.h"
-#include "linear/model/LP.h"
-#include "linear/simplex/Simplex.h"
-#include "linear/simplex/init/dual/ReducedCost.h"
+#include "field/BigInteger.h"
+#include "linalg/Linalg.h"
 #include "problem/StandardMILP.h"
-
-using linalg::CSCMatrix, linalg::Matrix, linalg::Vector;
+#include "simplex/Simplex.h"
+#include "simplex/init/dual/ReducedCost.h"
 
 static problem::StandardMILP<Rational> make_problem(
-    linalg::CSCMatrix<Rational> matrix, Vector<Rational> rhs,
-    Vector<Rational> cost, std::vector<Bound<Rational>> bounds) {
+    CSCMatrix<Rational> matrix, Vector<Rational> rhs, Vector<Rational> cost,
+    std::vector<Bound<Rational>> bounds) {
   const auto [n, d] = matrix.shape();
   problem::StandardMILP<Rational> p;
   p.matrix = std::move(matrix);

@@ -85,9 +85,9 @@ class SparseEtaMatrixView {
       : size_(size), pivot_index_(pivot_index), type_(type), entries_(values) {}
 
   // NOLINTNEXTLINE(google-explicit-constructor)
-  SparseEtaMatrixView(SparseEtaMatrixView<Field, false> other)
-    requires(is_const)
-      : pivot_index_(other.pivot_index_),
+  SparseEtaMatrixView(const SparseEtaMatrixView<Field, false>& other)
+      : size_(other.size_),
+        pivot_index_(other.pivot_index_),
         type_(other.type),
         entries_(other.entries_) {}
 

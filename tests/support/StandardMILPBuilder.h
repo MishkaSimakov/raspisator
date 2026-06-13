@@ -6,8 +6,7 @@
 #include "linalg/Matrix.h"
 #include "linalg/Random.h"
 #include "linalg/Stack.h"
-#include "linear/model/Bound.h"
-#include "linear/model/LP.h"
+#include "problem/Bound.h"
 #include "problem/StandardMILP.h"
 
 // Builder for problem::StandardMILP with guaranteed structural properties.

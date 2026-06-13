@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cassert>
+#include <cctype>
 #include <cmath>
+#include <functional>
+#include <memory>
 #include <optional>
 
 template <typename Field>
@@ -36,11 +39,10 @@ class ArithmeticMean {
 };
 
 template <typename T>
-requires requires(T value)
-{
-  std::log(value);
-  std::exp(value);
-}
+  requires requires(T value) {
+    std::log(value);
+    std::exp(value);
+  }
 class GeometricMean {
   T log_sum_;
   size_t count_;

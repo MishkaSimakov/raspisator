@@ -2,11 +2,10 @@
 
 #include <variant>
 
-#include "linear/simplex/Simplex.h"
-#include "linear/simplex/init/dual/ReducedCost.h"
-
 #include "faker/Catalog.h"
-#include "linear/simplex/init/primal/Phase1.h"
+#include "simplex/Simplex.h"
+#include "simplex/init/dual/ReducedCost.h"
+#include "simplex/init/primal/Phase1.h"
 
 TEST(CatalogTests, Dual) {
   const auto problems = faker::catalog<Rational>()
@@ -16,7 +15,7 @@ TEST(CatalogTests, Dual) {
                             .know_optimal_objective(true)
                             .all();
 
-  for (auto instance : problems) {
+  for (const auto& instance : problems) {
     problem::StandardLP problem(instance.problem);
 
     auto states = simplex::try_init_dual_by_reduced_cost(problem);
@@ -30,9 +29,10 @@ TEST(CatalogTests, Dual) {
 
     auto solution = solver.dual(*states).solution;
 
-    ASSERT_TRUE(std::holds_alternative<FiniteLPSolution<Rational>>(solution));
+    ASSERT_TRUE(
+        std::holds_alternative<simplex::FiniteLPSolution<Rational>>(solution));
 
-    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value,
+    ASSERT_EQ(std::get<simplex::FiniteLPSolution<Rational>>(solution).value,
               *instance.optimal_objective);
 
     ASSERT_TRUE(simplex::is_primal_feasible(problem, solver.get_states()));
@@ -45,7 +45,7 @@ TEST(CatalogTests, UnboundedPrimal) {
                             .solution_type(faker::SolutionType::UNBOUNDED)
                             .all();
 
-  for (auto instance : problems) {
+  for (const auto& instance : problems) {
     problem::StandardLP problem(instance.problem);
 
     auto states = simplex::primal_phase1(problem);
@@ -59,7 +59,7 @@ TEST(CatalogTests, UnboundedPrimal) {
 
     auto solution = solver.primal(*states).solution;
 
-    ASSERT_TRUE(std::holds_alternative<Unbounded>(solution));
+    ASSERT_TRUE(std::holds_alternative<simplex::Unbounded>(solution));
   }
 }
 
@@ -70,7 +70,7 @@ TEST(CatalogTests, FeasiblePrimal) {
                             .know_optimal_objective(true)
                             .all();
 
-  for (auto instance : problems) {
+  for (const auto& instance : problems) {
     problem::StandardLP problem(instance.problem);
 
     auto states = simplex::primal_phase1(problem);
@@ -84,9 +84,10 @@ TEST(CatalogTests, FeasiblePrimal) {
 
     auto solution = solver.primal(*states).solution;
 
-    ASSERT_TRUE(std::holds_alternative<FiniteLPSolution<Rational>>(solution));
+    ASSERT_TRUE(
+        std::holds_alternative<simplex::FiniteLPSolution<Rational>>(solution));
 
-    ASSERT_EQ(std::get<FiniteLPSolution<Rational>>(solution).value,
+    ASSERT_EQ(std::get<simplex::FiniteLPSolution<Rational>>(solution).value,
               *instance.optimal_objective);
 
     ASSERT_TRUE(simplex::is_primal_feasible(problem, solver.get_states()));

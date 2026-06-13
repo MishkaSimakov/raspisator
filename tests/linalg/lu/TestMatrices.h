@@ -3,8 +3,8 @@
 #include <random>
 #include <vector>
 
+#include "../../../src/field/BigInteger.h"
 #include "linalg/Linalg.h"
-#include "linear/BigInteger.h"
 
 using linalg::Matrix;
 

@@ -3,11 +3,10 @@
 #include <variant>
 
 #include "Assertions.h"
-#include "linear/BigInteger.h"
-#include "linear/model/LP.h"
-#include "linear/simplex/Feasibility.h"
-#include "linear/simplex/Simplex.h"
-#include "linear/simplex/init/dual/ReducedCost.h"
+#include "field/BigInteger.h"
+#include "simplex/Feasibility.h"
+#include "simplex/Simplex.h"
+#include "simplex/init/dual/ReducedCost.h"
 #include "support/StandardMILPBuilder.h"
 
 constexpr size_t kIterations = 500;
@@ -39,7 +38,7 @@ TEST(Simplex2RandomTests, DualFeasible) {
     ASSERT_TRUE(result.is_feasible())
         << "Dual simplex failed to find solution at iteration " << i;
 
-    auto& sol = std::get<FiniteLPSolution<Rational>>(result.solution);
+    auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
     ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(prob, sol))
         << "Solution validation failed at iteration " << i;
   }
@@ -66,7 +65,7 @@ TEST(Simplex2RandomTests, PrimalFeasible) {
     ASSERT_TRUE(result.is_feasible())
         << "Primal simplex failed to find solution at iteration " << i;
 
-    auto& sol = std::get<FiniteLPSolution<Rational>>(result.solution);
+    auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
     ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(prob, sol))
         << "Solution validation failed at iteration " << i;
   }
@@ -93,7 +92,8 @@ TEST(Simplex2RandomTests, Infeasible) {
 
     auto result = solver.dual(*states);
 
-    EXPECT_TRUE(std::holds_alternative<NoFeasibleElements>(result.solution))
+    EXPECT_TRUE(
+        std::holds_alternative<simplex::NoFeasibleElements>(result.solution))
         << "Expected infeasible result at iteration " << i
         << " but got feasible solution";
   }
@@ -117,7 +117,7 @@ TEST(Simplex2RandomTests, Unbounded) {
 
     auto result = solver.primal(primal_states);
 
-    EXPECT_TRUE(std::holds_alternative<Unbounded>(result.solution))
+    EXPECT_TRUE(std::holds_alternative<simplex::Unbounded>(result.solution))
         << "Expected unbounded result at iteration " << i;
   }
 }

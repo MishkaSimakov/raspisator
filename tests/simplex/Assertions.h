@@ -4,19 +4,16 @@
 
 #include <algorithm>
 
-#include "linalg/Matrix.h"
-#include "linalg/Transpose.h"
-#include "linalg/Vector.h"
+#include "linalg/Linalg.h"
 #include "linalg/lu/LUPA.h"
-#include "linear/model/LP.h"
-
-using linalg::Matrix, linalg::Vector, linalg::CSCMatrix;
+#include "problem/Bound.h"
+#include "simplex/Result.h"
 
 template <typename Field>
-void validate_simplex_solution(const Matrix<Field>& A, const Vector<Field>& b,
-                               const Vector<Field>& c,
-                               const Bounds<Field>& bounds,
-                               const FiniteLPSolution<Field>& solution) {
+void validate_simplex_solution(
+    const Matrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
+    const std::vector<Bound<Field>>& bounds,
+    const simplex::FiniteLPSolution<Field>& solution) {
   auto [n, d] = A.shape();
 
   Vector residue = A * solution.point - b;
@@ -35,11 +32,11 @@ void validate_simplex_solution(const Matrix<Field>& A, const Vector<Field>& b,
     }
 
     for (size_t i = 0; i < d; ++i) {
-      if (solution.variables[i] == VariableState::AT_LOWER) {
+      if (solution.variables[i] == simplex::VariableState::AT_LOWER) {
         ASSERT_TRUE(bounds[i].lower &&
                     !FieldTraits<Field>::is_nonzero(*bounds[i].lower -
                                                     solution.point[i]));
-      } else if (solution.variables[i] == VariableState::AT_UPPER) {
+      } else if (solution.variables[i] == simplex::VariableState::AT_UPPER) {
         ASSERT_TRUE(bounds[i].upper &&
                     !FieldTraits<Field>::is_nonzero(*bounds[i].upper -
                                                     solution.point[i]));
@@ -60,13 +57,13 @@ void validate_simplex_solution(const Matrix<Field>& A, const Vector<Field>& b,
   Vector reduced_cost = c - linalg::transpose(sparse_A) * pi;
 
   for (size_t i = 0; i < d; ++i) {
-    if (solution.variables[i] == VariableState::BASIC) {
+    if (solution.variables[i] == simplex::VariableState::BASIC) {
       continue;
     }
 
-    ASSERT_TRUE((solution.variables[i] == VariableState::AT_LOWER &&
+    ASSERT_TRUE((solution.variables[i] == simplex::VariableState::AT_LOWER &&
                  !FieldTraits<Field>::is_strictly_positive(reduced_cost[i])) ||
-                (solution.variables[i] == VariableState::AT_UPPER &&
+                (solution.variables[i] == simplex::VariableState::AT_UPPER &&
                  !FieldTraits<Field>::is_strictly_negative(reduced_cost[i])));
   }
 }

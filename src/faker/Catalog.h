@@ -12,6 +12,7 @@ class CatalogQueryBuilder {
   std::optional<bool> linearly_dependent_rows_;
   std::optional<bool> all_variables_bounded_;
   std::optional<bool> know_optimal_objective_;
+  std::optional<bool> has_feasible_point_;
 
   static bool are_all_variables_bounded(const Instance<Field>& instance) {
     for (size_t i = 0; i < instance.problem.var_bounds.size(); ++i) {
@@ -49,6 +50,11 @@ class CatalogQueryBuilder {
       return false;
     }
 
+    if (has_feasible_point_ &&
+        (instance.feasible_point != std::nullopt) == *has_feasible_point_) {
+      return false;
+    }
+
     return true;
   }
 
@@ -75,6 +81,11 @@ class CatalogQueryBuilder {
 
   CatalogQueryBuilder& know_optimal_objective(std::optional<bool> value) {
     know_optimal_objective_ = value;
+    return *this;
+  }
+
+  CatalogQueryBuilder& has_feasible_point(std::optional<bool> value) {
+    has_feasible_point_ = value;
     return *this;
   }
 

@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <ranges>
 #include <vector>
+#include <format>
 
 #include "expr/SubColsExpr.h"
-
-#include "linear/FieldTraits.h"
+#include "field/FieldTraits.h"
 
 namespace linalg {
 

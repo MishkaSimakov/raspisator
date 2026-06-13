@@ -3,13 +3,13 @@
 #include <print>
 #include <unordered_set>
 
-#include "linear/simplex/Config.h"
-#include "linear/simplex/Simplex.h"
-#include "linear/simplex/init/primal/Phase1.h"
 #include "mps/MPS.h"
 #include "presolve/Chain.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "presolve/passes/TransformToEqualities.h"
+#include "simplex/Config.h"
+#include "simplex/Simplex.h"
+#include "simplex/init/primal/Phase1.h"
 #include "utils/Paths.h"
 
 #include "presolve/passes/Scaling.h"
@@ -80,19 +80,20 @@ int main() {
 
     std::visit(
         Overload{
-            [&optimizer, &problem](const FiniteLPSolution<Field>& solution) {
+            [&optimizer,
+             &problem](const simplex::FiniteLPSolution<Field>& solution) {
               auto objective =
                   linalg::dot(optimizer.inverse(solution.point), problem.cost);
 
               std::println("  finite solution: {}", objective);
             },
-            [](const NoFeasibleElements&) {
+            [](const simplex::NoFeasibleElements&) {
               std::println("  no feasible elements");
             },
-            [](const ReachedIterationsLimit<Field>&) {
+            [](const simplex::ReachedIterationsLimit<Field>&) {
               std::println("  reached iterations limit");
             },
-            [](const Unbounded&) { std::println("  unbounded"); },
+            [](const simplex::Unbounded&) { std::println("  unbounded"); },
         },
         solution.solution);
   }

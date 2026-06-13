@@ -5,14 +5,15 @@
 #include "linalg/Linalg.h"
 #include "linalg/lu/FullPivotingLU.h"
 #include "linalg/lu/Solve.h"
-#include "linear/model/LP.h"
 #include "problem/StandardLP.h"
+#include "simplex/Result.h"
 
 // Validates that solution is optimal, feasible, and consistent with problem.
 // Checks: Ax = b, bounds, nonbasic variable positions, optimality conditions.
 template <typename Field>
-void validate_simplex_solution(const problem::StandardLP<Field>& problem,
-                               const FiniteLPSolution<Field>& solution) {
+void validate_simplex_solution(
+    const problem::StandardLP<Field>& problem,
+    const simplex::FiniteLPSolution<Field>& solution) {
   const auto [n, d] = problem.matrix.shape();
 
   // Residual check: A*x == b
