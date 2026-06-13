@@ -2,7 +2,6 @@
 
 #include <random>
 
-#include "Assertions.h"
 #include "field/BigInteger.h"
 #include "linalg/Matrix.h"
 #include "linalg/Random.h"
@@ -44,12 +43,12 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
     // check solution
     ASSERT_TRUE(run_result.is_feasible());
 
-    auto finite_solution =
-        std::get<simplex::FiniteLPSolution<Rational>>(run_result.solution);
+    auto final_states =
+        std::get<simplex::FiniteLPSolution<Rational>>(run_result.solution)
+            .variables;
 
-    ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(
-        Matrix(problem.matrix), standard_lp.rhs, problem.cost,
-        problem.var_bounds, finite_solution));
+    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, final_states));
+    ASSERT_TRUE(simplex::is_dual_feasible(standard_lp, final_states));
   }
 }
 
@@ -65,6 +64,7 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
 
     auto problem =
         random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+
     problem = presolve::TransformToEqualities<Rational>().apply(problem);
 
     problem::StandardLP<Rational> standard_lp(problem);
@@ -81,11 +81,11 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
     // check solution
     ASSERT_TRUE(run_result.is_feasible());
 
-    auto finite_solution =
-        std::get<simplex::FiniteLPSolution<Rational>>(run_result.solution);
+    auto final_states =
+        std::get<simplex::FiniteLPSolution<Rational>>(run_result.solution)
+            .variables;
 
-    ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(
-        Matrix(problem.matrix), standard_lp.rhs, problem.cost,
-        problem.var_bounds, finite_solution));
+    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, final_states));
+    ASSERT_TRUE(simplex::is_dual_feasible(standard_lp, final_states));
   }
 }

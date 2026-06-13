@@ -35,11 +35,20 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
   const Vector reduced_costs = c - linalg::transpose(A) * pi;
 
   for (size_t i = 0; i < states.size(); ++i) {
-    if ((states[i] == VariableState::AT_LOWER &&
-         (!bounds[i].lower || reduced_costs[i] > tolerance)) ||
-        (states[i] == VariableState::AT_UPPER &&
-         (!bounds[i].upper || reduced_costs[i] < -tolerance))) {
-      return false;
+    if (reduced_costs[i] > tolerance) {
+      // infeasible if variable value can be increased
+      if (!bounds[i].upper ||
+          states[i] == VariableState::AT_LOWER && !bounds[i].is_fixed()) {
+        return false;
+      }
+    }
+
+    if (reduced_costs[i] < tolerance) {
+      // infeasible if variable value can be decreased
+      if (!bounds[i].lower ||
+          states[i] == VariableState::AT_UPPER && !bounds[i].is_fixed()) {
+        return false;
+      }
     }
   }
 
