@@ -25,6 +25,7 @@ TEST(PrimalPhase1Tests, CatalogProblems) {
 TEST(PrimalPhase1Tests, CatalogInfeasibleProblems) {
   const auto problems = faker::catalog<Rational>()
                             .problem_type(faker::ProblemType::StandardLP)
+                            .linearly_dependent_rows(false)
                             .solution_type(faker::SolutionType::INFEASIBLE)
                             .all();
 

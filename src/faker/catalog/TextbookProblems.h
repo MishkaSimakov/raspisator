@@ -3,14 +3,13 @@
 #include <vector>
 
 #include "faker/Instance.h"
-#include "faker/Tag.h"
 #include "linalg/Linalg.h"
 #include "problem/StandardLP.h"
 
 namespace faker::detail {
 
 template <typename Field>
-TaggedInstance<Field> textbook1() {
+Instance<Field> textbook1() {
   problem::StandardLP<Field> problem(2, 4);
 
   problem.name = "textbook1";
@@ -26,23 +25,20 @@ TaggedInstance<Field> textbook1() {
   problem.var_bounds = {Bound<Field>{0, 10}, Bound<Field>{0, 10},
                         Bound<Field>{0, 10}, Bound<Field>{0, 10}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {0, 3, 4, 0};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = 7;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE | Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {0, 3, 4, 0};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 7;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook2() {
+Instance<Field> textbook2() {
   problem::StandardLP<Field> problem(2, 4);
 
   problem.name = "textbook2";
@@ -58,23 +54,20 @@ TaggedInstance<Field> textbook2() {
   problem.var_bounds = {Bound<Field>{0, 10}, Bound<Field>{0, 10},
                         Bound<Field>{0, 10}, Bound<Field>{0, 10}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {4, 0, 2, 0};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = 10;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE | Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {4, 0, 2, 0};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 10;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook3() {
+Instance<Field> textbook3() {
   problem::StandardLP<Field> problem(1, 2);
 
   problem.name = "textbook3";
@@ -85,23 +78,20 @@ TaggedInstance<Field> textbook3() {
 
   problem.var_bounds = {Bound<Field>{0, 10}, Bound<Field>{0, 10}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {0, 1};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = 2;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE | Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {0, 1};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 2;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook4() {
+Instance<Field> textbook4() {
   // y -> max
   // x = 1
   // x in (-5, 5)
@@ -117,23 +107,21 @@ TaggedInstance<Field> textbook4() {
 
   problem.var_bounds = {Bound<Field>{-5, 5}, Bound<Field>{0, std::nullopt}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::UNBOUNDED;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {1, 0};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = std::nullopt;
-
-  result.tag = Tag::TINY | Tag::UNBOUNDED | Tag::STANDARD_LP;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::UNBOUNDED;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {1, 0};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = std::nullopt;
 
   return result;
 }
 
 // Variation of textbook1 with different bounds
 template <typename Field>
-TaggedInstance<Field> textbook5() {
+Instance<Field> textbook5() {
   problem::StandardLP<Field> problem(2, 4);
 
   problem.name = "textbook5";
@@ -149,23 +137,20 @@ TaggedInstance<Field> textbook5() {
   problem.var_bounds = {Bound<Field>{0, 1}, Bound<Field>{0, 3},
                         Bound<Field>{1, 10}, Bound<Field>{0, 10}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {0, 0, 1, 3};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = 7;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE | Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {0, 0, 1, 3};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 7;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook6() {
+Instance<Field> textbook6() {
   problem::StandardLP<Field> problem(1, 6);
 
   problem.name = "textbook6";
@@ -177,23 +162,20 @@ TaggedInstance<Field> textbook6() {
 
   problem.var_bounds = std::vector<Bound<Field>>(6, {0, 1});
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {1, 0, 0, 1, 1, 1};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = 4;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE | Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {1, 0, 0, 1, 1, 1};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 4;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook7() {
+Instance<Field> textbook7() {
   problem::StandardLP<Field> problem(3, 6);
 
   problem.name = "textbook7";
@@ -209,24 +191,21 @@ TaggedInstance<Field> textbook7() {
 
   problem.var_bounds = std::vector<Bound<Field>>(6, {0, std::nullopt});
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {
-      0, Field(14) / Field(5), Field(17) / Field(5), 0, 0, 3};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = Field(3) / Field(5);
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {0, Field(14) / Field(5), Field(17) / Field(5), 0, 0,
+                           3};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = Field(3) / Field(5);
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook8() {
+Instance<Field> textbook8() {
   problem::StandardLP<Field> problem(3, 6);
 
   problem.name = "textbook8";
@@ -242,22 +221,20 @@ TaggedInstance<Field> textbook8() {
 
   problem.var_bounds = std::vector<Bound<Field>>(6, {0, std::nullopt});
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::INFEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = std::nullopt;
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = std::nullopt;
-
-  result.tag = Tag::TINY | Tag::INFEASIBLE | Tag::STANDARD_LP;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::INFEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = std::nullopt;
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = std::nullopt;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook9() {
+Instance<Field> textbook9() {
   problem::StandardLP<Field> problem(3, 5);
 
   problem.name = "textbook9";
@@ -275,24 +252,21 @@ TaggedInstance<Field> textbook9() {
                         Bound<Field>{-10, 0}, Bound<Field>{-4, 5},
                         Bound<Field>{-2, 5}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {-Field(17) / Field(7), -7, -10,
-                                    -Field(2) / Field(7), -Field(9) / Field(7)};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = Field(1000) / Field(7);
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE | Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {-Field(17) / Field(7), -7, -10, -Field(2) / Field(7),
+                           -Field(9) / Field(7)};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = Field(1000) / Field(7);
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook10() {
+Instance<Field> textbook10() {
   problem::StandardLP<Field> problem(1, 2);
 
   problem.name = "textbook10";
@@ -311,23 +285,20 @@ TaggedInstance<Field> textbook10() {
   problem.var_bounds = {Bound<Field>{std::nullopt, std::nullopt},
                         Bound<Field>{1, 2}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {4, 1};
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = 4;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {4, 1};
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 4;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook11() {
+Instance<Field> textbook11() {
   problem::StandardLP<Field> problem(1, 2);
 
   problem.name = "textbook11";
@@ -346,22 +317,20 @@ TaggedInstance<Field> textbook11() {
   problem.var_bounds = {Bound<Field>{std::nullopt, std::nullopt},
                         Bound<Field>{std::nullopt, std::nullopt}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::UNBOUNDED;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = std::nullopt;
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = std::nullopt;
-
-  result.tag = Tag::TINY | Tag::UNBOUNDED | Tag::STANDARD_LP;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::UNBOUNDED;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = std::nullopt;
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = std::nullopt;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook12() {
+Instance<Field> textbook12() {
   problem::StandardLP<Field> problem(2, 2);
 
   problem.name = "textbook12";
@@ -377,23 +346,20 @@ TaggedInstance<Field> textbook12() {
 
   problem.var_bounds = {Bound<Field>{0, 4}, Bound<Field>{0, 2}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::INFEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = std::nullopt;
-  result.instance.has_linearly_dependent_rows = false;
-  result.instance.optimal_objective = std::nullopt;
-
-  result.tag = Tag::TINY | Tag::INFEASIBLE | Tag::STANDARD_LP |
-               Tag::ALL_VARIABLES_BOUNDED;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::INFEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = std::nullopt;
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = std::nullopt;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook13() {
+Instance<Field> textbook13() {
   problem::StandardLP<Field> problem(2, 2);
 
   problem.name = "textbook13";
@@ -412,23 +378,20 @@ TaggedInstance<Field> textbook13() {
   problem.var_bounds = {Bound<Field>{0, std::nullopt},
                         Bound<Field>{0, std::nullopt}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::FEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = {1, 1};
-  result.instance.has_linearly_dependent_rows = true;
-  result.instance.optimal_objective = 0;
-
-  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
-               Tag::KNOWN_OPTIMAL_OBJECTIVE;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = {1, 1};
+  result.has_linearly_dependent_rows = true;
+  result.optimal_objective = 0;
 
   return result;
 }
 
 template <typename Field>
-TaggedInstance<Field> textbook14() {
+Instance<Field> textbook14() {
   problem::StandardLP<Field> problem(2, 2);
 
   problem.name = "textbook14";
@@ -447,23 +410,55 @@ TaggedInstance<Field> textbook14() {
   problem.var_bounds = {Bound<Field>{0, std::nullopt},
                         Bound<Field>{0, std::nullopt}};
 
-  TaggedInstance<Field> result;
+  Instance<Field> result;
 
-  result.instance.problem = problem::MILP(problem);
-  result.instance.solution_type = SolutionType::INFEASIBLE;
-  result.instance.problem_type = ProblemType::StandardLP;
-  result.instance.feasible_point = std::nullopt;
-  result.instance.has_linearly_dependent_rows = true;
-  result.instance.optimal_objective = std::nullopt;
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::INFEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = std::nullopt;
+  result.has_linearly_dependent_rows = true;
+  result.optimal_objective = std::nullopt;
 
-  result.tag = Tag::TINY | Tag::INFEASIBLE | Tag::STANDARD_LP;
+  return result;
+}
+
+// Problem with many zeros in matrix, rhs and cost vector. Has high degeneracy.
+template <typename Field>
+Instance<Field> textbook15() {
+  constexpr size_t N = 10;
+
+  problem::StandardLP<Field> problem(2 * N, 3 * N);
+
+  problem.name = "textbook15";
+
+  Matrix<Field> A(2 * N, 3 * N);
+
+  for (size_t i = 0; i < N; ++i) {
+    A[i, i] = i + 1;
+    A[N + i, N + i] = -Field(i + 1);
+  }
+
+  problem.matrix = CSCMatrix<Field>(A);
+  problem.rhs = Vector<Field>::zeros(2 * N);
+  problem.cost = Vector<Field>::zeros(3 * N);
+
+  problem.var_bounds = std::vector(3 * N, Bound<Field>{0, std::nullopt});
+
+  Instance<Field> result;
+
+  result.problem = problem::MILP(problem);
+  result.solution_type = SolutionType::FEASIBLE;
+  result.problem_type = ProblemType::StandardLP;
+  result.feasible_point = Vector<Field>::zeros(3 * N);
+  result.has_linearly_dependent_rows = false;
+  result.optimal_objective = 0;
 
   return result;
 }
 
 template <typename Field>
-std::vector<TaggedInstance<Field>> textbook() {
-  std::vector<TaggedInstance<Field>> result;
+std::vector<Instance<Field>> textbook() {
+  std::vector<Instance<Field>> result;
 
   result.push_back(textbook1<Field>());
   result.push_back(textbook2<Field>());
@@ -479,6 +474,7 @@ std::vector<TaggedInstance<Field>> textbook() {
   result.push_back(textbook12<Field>());
   result.push_back(textbook13<Field>());
   result.push_back(textbook14<Field>());
+  result.push_back(textbook15<Field>());
 
   return result;
 }

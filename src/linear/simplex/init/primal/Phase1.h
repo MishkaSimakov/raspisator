@@ -67,6 +67,9 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     new_problem.cost[i] = -1;
   }
 
+  // save pivot tolerance, it will be needed later
+  const Field pivot_tolerance = config.tolerance.pivot;
+
   auto helper = Simplex<Field>(std::move(config));
   helper.set_problem(new_problem);
 
@@ -111,7 +114,7 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
       max_pivot.record(j, abs(coef.sum()));
     }
 
-    if (!max_pivot.has_value() || max_pivot->max <= config.tolerance.pivot) {
+    if (!max_pivot.has_value() || max_pivot->max <= pivot_tolerance) {
       // Problem contains linearly dependent rows.
       return std::unexpected{Phase1Error::LINEARLY_DEPENDENT_ROWS};
     }

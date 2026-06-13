@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Instance.h"
-#include "Tag.h"
 #include "catalog/TextbookProblems.h"
 
 namespace faker {
@@ -82,10 +81,10 @@ class CatalogQueryBuilder {
   std::vector<Instance<Field>> all() const {
     std::vector<Instance<Field>> result;
 
-    auto add = [&](std::vector<TaggedInstance<Field>> instances) {
-      for (const auto& [tag, instance] : instances) {
+    auto add = [&](std::vector<Instance<Field>> instances) {
+      for (auto& instance : instances) {
         if (satisfy_filter(instance)) {
-          result.push_back(instance);
+          result.push_back(std::move(instance));
         }
       }
     };
