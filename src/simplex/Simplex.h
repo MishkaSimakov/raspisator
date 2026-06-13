@@ -454,6 +454,11 @@ class Simplex {
     config_.max_iterations = max_iterations;
   }
 
+  template<typename T, typename... Args>
+  void set_accountant(Args&&... args) {
+    config_.accountant = std::make_unique<T>(std::forward<Args>(args)...);
+  }
+
   // Point associated with the given states must be dual feasible
   SimplexResult<Field> dual(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
