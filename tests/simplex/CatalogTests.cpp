@@ -9,11 +9,12 @@
 #include "linear/simplex/init/primal/Phase1.h"
 
 TEST(CatalogTests, Dual) {
-  const auto selector = faker::Tag::KNOWN_OPTIMAL_OBJECTIVE |
-                        faker::Tag::ALL_VARIABLES_BOUNDED |
-                        faker::Tag::STANDARD_LP;
-
-  const auto problems = faker::catalog<Rational>(selector);
+  const auto problems = faker::catalog<Rational>()
+                            .problem_type(faker::ProblemType::StandardLP)
+                            .solution_type(faker::SolutionType::FEASIBLE)
+                            .all_variables_bounded(true)
+                            .know_optimal_objective(true)
+                            .all();
 
   for (auto instance : problems) {
     problem::StandardLP problem(instance.problem);
@@ -39,9 +40,10 @@ TEST(CatalogTests, Dual) {
 }
 
 TEST(CatalogTests, UnboundedPrimal) {
-  const auto selector = faker::Tag::UNBOUNDED | faker::Tag::STANDARD_LP;
-
-  const auto problems = faker::catalog<Rational>(selector);
+  const auto problems = faker::catalog<Rational>()
+                            .problem_type(faker::ProblemType::StandardLP)
+                            .solution_type(faker::SolutionType::UNBOUNDED)
+                            .all();
 
   for (auto instance : problems) {
     problem::StandardLP problem(instance.problem);
@@ -62,11 +64,11 @@ TEST(CatalogTests, UnboundedPrimal) {
 }
 
 TEST(CatalogTests, FeasiblePrimal) {
-  const auto selector = faker::Tag::FEASIBLE |
-                        faker::Tag::KNOWN_OPTIMAL_OBJECTIVE |
-                        faker::Tag::STANDARD_LP;
-
-  const auto problems = faker::catalog<Rational>(selector);
+  const auto problems = faker::catalog<Rational>()
+                            .problem_type(faker::ProblemType::StandardLP)
+                            .solution_type(faker::SolutionType::FEASIBLE)
+                            .know_optimal_objective(true)
+                            .all();
 
   for (auto instance : problems) {
     problem::StandardLP problem(instance.problem);

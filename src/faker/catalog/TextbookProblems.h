@@ -361,6 +361,107 @@ TaggedInstance<Field> textbook11() {
 }
 
 template <typename Field>
+TaggedInstance<Field> textbook12() {
+  problem::StandardLP<Field> problem(2, 2);
+
+  problem.name = "textbook12";
+
+  // System: x1 = 5, but x1 in [0,4]. No feasible point.
+  problem.matrix = CSCMatrix<Field>(Matrix<Field>{
+      {1, 0},
+      {0, 1},
+  });
+
+  problem.rhs = {5, 3};
+  problem.cost = {0, 0};
+
+  problem.var_bounds = {Bound<Field>{0, 4}, Bound<Field>{0, 2}};
+
+  TaggedInstance<Field> result;
+
+  result.instance.problem = problem::MILP(problem);
+  result.instance.solution_type = SolutionType::INFEASIBLE;
+  result.instance.problem_type = ProblemType::StandardLP;
+  result.instance.feasible_point = std::nullopt;
+  result.instance.has_linearly_dependent_rows = false;
+  result.instance.optimal_objective = std::nullopt;
+
+  result.tag = Tag::TINY | Tag::INFEASIBLE | Tag::STANDARD_LP |
+               Tag::ALL_VARIABLES_BOUNDED;
+
+  return result;
+}
+
+template <typename Field>
+TaggedInstance<Field> textbook13() {
+  problem::StandardLP<Field> problem(2, 2);
+
+  problem.name = "textbook13";
+
+  // max 0
+  // x = 1
+  // x = 1
+  problem.matrix = CSCMatrix<Field>(Matrix<Field>{
+      {1, 0},
+      {1, 0},
+  });
+
+  problem.rhs = {1, 1};
+  problem.cost = {0, 0};
+
+  problem.var_bounds = {Bound<Field>{0, std::nullopt},
+                        Bound<Field>{0, std::nullopt}};
+
+  TaggedInstance<Field> result;
+
+  result.instance.problem = problem::MILP(problem);
+  result.instance.solution_type = SolutionType::FEASIBLE;
+  result.instance.problem_type = ProblemType::StandardLP;
+  result.instance.feasible_point = {1, 1};
+  result.instance.has_linearly_dependent_rows = true;
+  result.instance.optimal_objective = 0;
+
+  result.tag = Tag::TINY | Tag::FEASIBLE | Tag::STANDARD_LP |
+               Tag::KNOWN_OPTIMAL_OBJECTIVE;
+
+  return result;
+}
+
+template <typename Field>
+TaggedInstance<Field> textbook14() {
+  problem::StandardLP<Field> problem(2, 2);
+
+  problem.name = "textbook14";
+
+  // max 0
+  // x = 1
+  // x = 2
+  problem.matrix = CSCMatrix<Field>(Matrix<Field>{
+      {1, 0},
+      {1, 0},
+  });
+
+  problem.rhs = {1, 2};
+  problem.cost = {0, 0};
+
+  problem.var_bounds = {Bound<Field>{0, std::nullopt},
+                        Bound<Field>{0, std::nullopt}};
+
+  TaggedInstance<Field> result;
+
+  result.instance.problem = problem::MILP(problem);
+  result.instance.solution_type = SolutionType::INFEASIBLE;
+  result.instance.problem_type = ProblemType::StandardLP;
+  result.instance.feasible_point = std::nullopt;
+  result.instance.has_linearly_dependent_rows = true;
+  result.instance.optimal_objective = std::nullopt;
+
+  result.tag = Tag::TINY | Tag::INFEASIBLE | Tag::STANDARD_LP;
+
+  return result;
+}
+
+template <typename Field>
 std::vector<TaggedInstance<Field>> textbook() {
   std::vector<TaggedInstance<Field>> result;
 
@@ -375,6 +476,9 @@ std::vector<TaggedInstance<Field>> textbook() {
   result.push_back(textbook9<Field>());
   result.push_back(textbook10<Field>());
   result.push_back(textbook11<Field>());
+  result.push_back(textbook12<Field>());
+  result.push_back(textbook13<Field>());
+  result.push_back(textbook14<Field>());
 
   return result;
 }
