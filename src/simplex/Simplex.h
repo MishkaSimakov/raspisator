@@ -14,8 +14,8 @@
 #include "Config.h"
 #include "CyclingDetector.h"
 #include "Feasibility.h"
-#include "SimplexMath.h"
 #include "SimplexCoreDump.h"
+#include "SimplexMath.h"
 #include "Tolerance.h"
 #include "linalg/Matrix.h"
 #include "linalg/NPY.h"
@@ -278,6 +278,7 @@ class Simplex {
     size_t iteration = 0;
 
     Field prev_iteration_residue = 0;
+    bool intentional_repeat = false;
 
     while (true) {
       basic_point_ =
@@ -306,6 +307,7 @@ class Simplex {
           .bounds = problem_->var_bounds,
           .states = var_states_,
           .basic_vars = basic_vars_,
+          .intentional_repeat = intentional_repeat,
           .tolerance = config_.tolerance,
       };
 
@@ -348,10 +350,15 @@ class Simplex {
                 config_.tolerance.suspicious_pivot &&
             lupa_->get_changes_since_refactorization() > 0) {
           std::cout << "suspicious pivot" << iteration << std::endl;
+
           lupa_->refactorize();
+          intentional_repeat = true;
+
           continue;
         }
       }
+
+      intentional_repeat = false;
 
       std::visit(Overload{
                      [this](detail::ChangeBasis action) {
@@ -454,7 +461,7 @@ class Simplex {
     config_.max_iterations = max_iterations;
   }
 
-  template<typename T, typename... Args>
+  template <typename T, typename... Args>
   void set_accountant(Args&&... args) {
     config_.accountant = std::make_unique<T>(std::forward<Args>(args)...);
   }

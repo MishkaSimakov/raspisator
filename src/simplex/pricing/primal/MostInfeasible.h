@@ -81,8 +81,9 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
  public:
   std::optional<size_t> get_primal_entering(
       StateView<Field> simplex, const Vector<Field>& reduced_cost) override {
-    if (cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
-        CyclingState::HAS_CYCLING) {
+    if (!simplex.intentional_repeat &&
+        cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
+            CyclingState::HAS_CYCLING) {
       return random_pricing(simplex, reduced_cost);
     }
 

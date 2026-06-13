@@ -21,6 +21,10 @@ struct StateView {
   const std::vector<VariableState>& states;
   const std::vector<size_t>& basic_vars;
 
+  // Sometimes simplex intentionally repeat iteration for the same basis, and
+  // this can confuse cycling detectors.
+  bool intentional_repeat;
+
   Tolerance<Field> tolerance;
 };
 

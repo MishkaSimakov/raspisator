@@ -67,8 +67,9 @@ class DualDantzigPricing final : public DualPricing<Field> {
  public:
   std::optional<LeavingVariable> get_dual_leaving(
       StateView<Field> simplex) override {
-    if (cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
-        CyclingState::HAS_CYCLING) {
+    if (!simplex.intentional_repeat &&
+        cycling_.record(simplex.iteration, simplex.states, simplex.objective) ==
+            CyclingState::HAS_CYCLING) {
       return random_pricing(simplex);
     }
 
