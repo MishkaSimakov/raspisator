@@ -7,6 +7,7 @@
 #include "linear/simplex/Simplex.h"
 #include "linear/simplex/init/primal/Phase1.h"
 #include "mps/MPS.h"
+#include "presolve/Chain.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "presolve/passes/TransformToEqualities.h"
 #include "utils/Paths.h"
@@ -34,9 +35,9 @@ int main() {
 
     auto problem_name = path.filename().string();
 
-    if (!problems.contains(problem_name)) {
-      continue;
-    }
+    // if (!problems.contains(problem_name)) {
+    // continue;
+    // }
 
     std::ifstream is(entry);
     if (!is) {
@@ -47,12 +48,13 @@ int main() {
     std::println("{}: {} x {}", problem_name, problem.matrix.rows(),
                  problem.matrix.cols());
 
-    problem = presolve::TransformToEqualities<Field>().apply(problem);
-    problem =
-        presolve::RemoveLinearlyDependentEqualities<Field>().apply(problem);
-    problem = presolve::Scaling<Field>().apply(problem);
+    auto optimizer =
+        presolve::Chain<Field>()
+            .add<presolve::TransformToEqualities<Field>>()
+            .add<presolve::RemoveLinearlyDependentEqualities<Field>>()
+            .add<presolve::Scaling<Field>>();
 
-    problem::StandardMILP standard_problem(problem);
+    problem::StandardMILP standard_problem(optimizer.apply(problem));
 
     auto states = simplex::primal_phase1(
         standard_problem,
@@ -76,19 +78,23 @@ int main() {
 
     auto solution = solver.primal(*states);
 
-    std::visit(Overload{
-                   [](const FiniteLPSolution<Field>& solution) {
-                     std::println("  finite solution: {}", solution.value);
-                   },
-                   [](const NoFeasibleElements&) {
-                     std::println("  no feasible elements");
-                   },
-                   [](const ReachedIterationsLimit<Field>&) {
-                     std::println("  reached iterations limit");
-                   },
-                   [](const Unbounded&) { std::println("  unbounded"); },
-               },
-               solution.solution);
+    std::visit(
+        Overload{
+            [&optimizer, &problem](const FiniteLPSolution<Field>& solution) {
+              auto objective =
+                  linalg::dot(optimizer.inverse(solution.point), problem.cost);
+
+              std::println("  finite solution: {}", objective);
+            },
+            [](const NoFeasibleElements&) {
+              std::println("  no feasible elements");
+            },
+            [](const ReachedIterationsLimit<Field>&) {
+              std::println("  reached iterations limit");
+            },
+            [](const Unbounded&) { std::println("  unbounded"); },
+        },
+        solution.solution);
   }
 
   return 0;

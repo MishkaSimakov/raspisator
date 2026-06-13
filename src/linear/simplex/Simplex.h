@@ -266,6 +266,8 @@ class Simplex {
   // columns.
   SimplexResult<Field> primal_implementation(
       const std::vector<VariableState>& states) {
+    using std::abs;
+
     if (!config_.primal_pricing) {
       throw std::logic_error(
           "Primal pricing must be specified in simplex config.");

@@ -21,6 +21,8 @@ enum class Phase1Error {
 template <typename Field>
 std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     const problem::StandardLP<Field>& problem, Config<Field> config = {}) {
+  using std::abs;
+
   const auto [n, old_d] = problem.matrix.shape();
   const size_t new_d = old_d + n;
 
@@ -93,33 +95,29 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     const auto row = helper.get_tableau_row(basic_index);
 
     // try to find replacement for i among non-artificial variables
-    bool found = false;
+    ArgMaximum<Field> max_pivot;
 
     for (size_t j = 0; j < old_d; ++j) {
       if (solution.variables[j] == VariableState::BASIC) {
         continue;
       }
 
-      Field coef = 0;
+      KahanSum<Field> coef;
 
       for (const auto [index, value] : problem.matrix.get_column(j)) {
-        coef += row[index] * value;
+        coef.add(row[index] * value);
       }
 
-      if (FieldTraits<Field>::is_nonzero(coef)) {
-        // change i -> j in basis
-        solution.variables[j] = VariableState::BASIC;
-        helper.change_basis(basic_index, j, VariableState::AT_LOWER);
-        found = true;
-
-        break;
-      }
+      max_pivot.record(j, abs(coef.sum()));
     }
 
-    if (!found) {
+    if (!max_pivot.has_value() || max_pivot->max <= config.tolerance.pivot) {
       // Problem contains linearly dependent rows.
       return std::unexpected{Phase1Error::LINEARLY_DEPENDENT_ROWS};
     }
+
+    solution.variables[max_pivot->index] = VariableState::BASIC;
+    helper.change_basis(basic_index, max_pivot->index, VariableState::AT_LOWER);
   }
 
   solution.variables.resize(old_d);
