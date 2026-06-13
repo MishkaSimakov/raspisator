@@ -34,10 +34,11 @@ target_sources(tests PUBLIC
         #        mps/MPSTests.cpp
         #
         #        feature/FullProblemSolvingTests.cpp
-        #
-        #        presolve/RemoveLinearlyDependentEqualitiesTests.cpp
-        #        presolve/TransformToEqualitiesTests.cpp
-        #
+
+        presolve/RemoveLinearlyDependentEqualitiesTests.cpp
+        presolve/TransformToEqualitiesTests.cpp
+        presolve/ScalingTests.cpp
+
         linalg/MatrixInitializationTests.cpp
         linalg/MatrixResizeTests.cpp
         linalg/VectorTests.cpp

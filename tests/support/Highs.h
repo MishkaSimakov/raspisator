@@ -9,9 +9,22 @@ namespace highs {
 
 struct Solution {
   HighsModelStatus status;
-  std::vector<double> x;
+  Vector<double> x;
   double objective;
 };
+
+inline Solution inverse_pass(const problem::MILP<double>& problem,
+                             const presolve::Pass<double>& pass,
+                             Solution solution) {
+  if (solution.status != HighsModelStatus::kOptimal) {
+    return solution;
+  }
+
+  solution.x = pass.inverse(solution.x);
+  solution.objective = linalg::dot(problem.cost, solution.x);
+
+  return solution;
+}
 
 inline HighsLp read_mps(const std::filesystem::path& path) {
   Highs highs;
@@ -131,7 +144,11 @@ inline Solution solve(const HighsLp& problem) {
   solution.status = highs.getModelStatus();
 
   const auto& highs_sol = highs.getSolution();
-  solution.x = highs_sol.col_value;
+
+  solution.x = Vector<double>(highs_sol.col_value.size());
+  for (size_t i = 0; i < highs_sol.col_value.size(); ++i) {
+    solution.x[i] = highs_sol.col_value[i];
+  }
   solution.objective = highs.getInfo().objective_function_value;
 
   return solution;

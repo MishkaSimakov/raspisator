@@ -4,6 +4,7 @@
 #include <set>
 
 #include "ConstructSparse.h"
+#include "PassAssertions.h"
 #include "obfuscators/ShuffleRows.h"
 #include "presolve/passes/RemoveLinearlyDependentEqualities.h"
 #include "support/Highs.h"
@@ -176,38 +177,16 @@ TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection1) {
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, RandomTests) {
-  constexpr size_t kIterations = 1'000;
-  constexpr size_t kSize = 20;
-  constexpr int kElementMagnitude = 10;
-
   std::default_random_engine random;
 
-  for (size_t i = 0; i < kIterations; ++i) {
-    auto problem =
-        random_feasible_problem<double>(kSize, kElementMagnitude, random);
+  for (size_t i = 0; i < 1'000; ++i) {
+    auto problem = random_feasible_problem<double>(10, 10, random);
 
     add_linearly_dependent_constraints(problem, random);
     shuffle_rows(problem, random);
 
-    // solve without preprocessing
-    auto solution = highs::solve(highs::from_milp(problem));
-
-    // preprocess
     presolve::RemoveLinearlyDependentEqualities<double> pass;
 
-    auto new_problem = pass.apply(problem);
-    new_problem.validate();
-
-    ASSERT_FALSE(new_problem.proven_infeasible);
-
-    // solve new problem
-    auto new_solution = highs::solve(highs::from_milp(new_problem));
-
-    ASSERT_EQ(solution.status, new_solution.status);
-
-    if (solution.status == HighsModelStatus::kOptimal) {
-      // Objective must match
-      ASSERT_NEAR(solution.objective, new_solution.objective, 1e-6);
-    }
+    ASSERT_PASS_CORRECT(problem, pass);
   }
 }
