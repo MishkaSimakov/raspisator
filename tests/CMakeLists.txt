@@ -11,11 +11,7 @@ target_sources(tests PUBLIC
         #        NumericalStabilityTests.cpp
         #        BoundsTests.cpp
         #
-        #        simplex/FreeVariablesTests.cpp
-        #        simplex/Phase1Tests.cpp
-        #        simplex/RandomTests.cpp
-        #        simplex/SmallTests.cpp
-        #        simplex/UnboundedSimplexTests.cpp
+        simplex/Phase1Tests.cpp
         simplex/CatalogTests.cpp
 
         accumulators/ArgMinTests.cpp

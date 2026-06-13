@@ -6,8 +6,7 @@
 #include "Bound.h"
 #include "linalg/Matrix.h"
 #include "linalg/Vector.h"
-
-enum class VariableState { AT_LOWER, AT_UPPER, NONBASIC_FREE, BASIC };
+#include "linear/simplex/VariableState.h"
 
 template <typename Field>
 class Bounds {
@@ -48,13 +47,13 @@ struct FiniteLPSolution {
   linalg::Vector<Field> point;
   Field value;
 
-  std::vector<VariableState> variables;
+  std::vector<simplex::VariableState> variables;
 
   std::vector<size_t> get_basic_variables() const {
     std::vector<size_t> result;
 
     for (size_t i = 0; i < variables.size(); ++i) {
-      if (variables[i] == VariableState::BASIC) {
+      if (variables[i] == simplex::VariableState::BASIC) {
         result.push_back(i);
       }
     }

@@ -213,6 +213,10 @@ class LUPA {
     changes_since_purge_ = 0;
   }
 
+  size_t get_changes_since_refactorization() const {
+    return changes_since_refactorization_;
+  }
+
   // solves Ax = b
   Vector<Field> solve_linear(Vector<Field> b) const {
     guard_columns_set();
@@ -275,6 +279,30 @@ class LUPA {
     }
 
     result = P_.apply_transposed(std::move(result));
+
+    return result;
+  }
+
+  Matrix<Field> get_l() const {
+    guard_columns_set();
+
+    auto result = Matrix<Field>::identity(A_.rows());
+
+    for (auto entry : ls_ | std::views::reverse) {
+      result = entry.apply_inverse(std::move(result));
+    }
+
+    return result;
+  }
+
+  Matrix<Field> get_u() const {
+    guard_columns_set();
+
+    auto result = Matrix<Field>::identity(A_.rows());
+
+    for (auto entry : us_) {
+      result = entry.apply_inverse(std::move(result));
+    }
 
     return result;
   }

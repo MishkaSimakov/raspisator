@@ -48,8 +48,9 @@ class StandardMILPBuilder {
 
   struct FeasibleResult {
     problem::StandardMILP<Field> problem;
-    linalg::Vector<Field> witness;             // x* used in construction
-    std::vector<VariableState> primal_states;  // valid initial primal states
+    Vector<Field> witness;  // x* used in construction
+    std::vector<simplex::VariableState>
+        primal_states;  // valid initial primal states
   };
 
   // Generates a StandardMILP that is guaranteed to be primal feasible.
@@ -116,12 +117,12 @@ class StandardMILPBuilder {
     }
 
     // Primal states: first n = BASIC, rest = AT_LOWER
-    std::vector<VariableState> states(d);
+    std::vector<simplex::VariableState> states(d);
     for (size_t i = 0; i < n; ++i) {
-      states[i] = VariableState::BASIC;
+      states[i] = simplex::VariableState::BASIC;
     }
     for (size_t j = n; j < d; ++j) {
-      states[j] = VariableState::AT_LOWER;
+      states[j] = simplex::VariableState::AT_LOWER;
     }
 
     // Build cost (random, nonzero for non-degeneracy)
@@ -225,7 +226,7 @@ class StandardMILPBuilder {
   //   - Primal states: first n = BASIC, last = AT_LOWER
   struct UnboundedResult {
     problem::StandardMILP<Field> problem;
-    std::vector<VariableState> primal_states;
+    std::vector<simplex::VariableState> primal_states;
   };
 
   UnboundedResult build_unbounded() {
@@ -266,11 +267,11 @@ class StandardMILPBuilder {
     bounds[d - 1] = Bound<Field>{Field(0), std::nullopt};
 
     // Primal states: first n = BASIC (at value 0), last = AT_LOWER (at value 0)
-    std::vector<VariableState> states(d);
+    std::vector<simplex::VariableState> states(d);
     for (size_t i = 0; i < n; ++i) {
-      states[i] = VariableState::BASIC;
+      states[i] = simplex::VariableState::BASIC;
     }
-    states[d - 1] = VariableState::AT_LOWER;
+    states[d - 1] = simplex::VariableState::AT_LOWER;
 
     problem::StandardMILP<Field> p;
     p.matrix = linalg::CSCMatrix<Field>(A);

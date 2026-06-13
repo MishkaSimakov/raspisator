@@ -58,7 +58,7 @@ TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
   // Find a nonbasic AT_LOWER variable to bring in
   size_t entering = d;  // sentinel
   for (size_t j = 0; j < d; ++j) {
-    if (states_before[j] == VariableState::AT_LOWER) {
+    if (states_before[j] == simplex::VariableState::AT_LOWER) {
       entering = j;
       break;
     }
@@ -70,7 +70,7 @@ TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
   const size_t leaving_var = basic_vars_before[leaving_pos];
   ASSERT_NE(leaving_var, entering);
 
-  solver.change_basis(leaving_pos, entering, VariableState::AT_LOWER);
+  solver.change_basis(leaving_pos, entering, simplex::VariableState::AT_LOWER);
 
   const auto basic_vars_after = solver.get_basic_vars();
   const auto states_after = solver.get_states();
@@ -86,8 +86,8 @@ TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
   }
 
   // States updated correctly
-  EXPECT_EQ(states_after[entering], VariableState::BASIC);
-  EXPECT_EQ(states_after[leaving_var], VariableState::AT_LOWER);
+  EXPECT_EQ(states_after[entering], simplex::VariableState::BASIC);
+  EXPECT_EQ(states_after[leaving_var], simplex::VariableState::AT_LOWER);
 
   // States of other variables unchanged
   for (size_t j = 0; j < d; ++j) {
@@ -122,17 +122,17 @@ TEST(Simplex2TraversalTests, ChangeBoundFlipsState) {
   // Find an AT_LOWER nonbasic variable
   size_t target = d;
   for (size_t j = 0; j < d; ++j) {
-    if (states_after_solve[j] == VariableState::AT_LOWER) {
+    if (states_after_solve[j] == simplex::VariableState::AT_LOWER) {
       target = j;
       break;
     }
   }
   ASSERT_NE(target, d) << "No AT_LOWER variable found after solve";
 
-  solver.change_bound(target, VariableState::AT_UPPER);
+  solver.change_bound(target, simplex::VariableState::AT_UPPER);
 
   const auto updated_states = solver.get_states();
-  EXPECT_EQ(updated_states[target], VariableState::AT_UPPER);
+  EXPECT_EQ(updated_states[target], simplex::VariableState::AT_UPPER);
 
   // All other states unchanged
   for (size_t j = 0; j < d; ++j) {

@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "VariableState.h"
 #include "linalg/Linalg.h"
 #include "linear/model/Bound.h"
 #include "problem/StandardLP.h"

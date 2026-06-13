@@ -24,7 +24,6 @@
 #include "linalg/RowBasis.h"
 #include "linalg/lu/LUPA.h"
 #include "linear/model/LP.h"
-#include "pricing/primal/MostInfeasible.h"
 #include "problem/StandardLP.h"
 #include "ratio/primal/Harris.h"
 #include "utils/Accumulators.h"
@@ -283,23 +282,16 @@ class Simplex {
       basic_point_ =
           lupa_->solve_linear(detail::get_adjusted_rhs(*problem_, var_states_));
 
-      // TODO: make this faster
-      const Field residue = linalg::inf_norm(
-          Vector(problem_->matrix * get_point() - problem_->rhs));
-
-      logging::value(residue, "residue_inf.txt");
-
-      if (residue > 1e-9) {
+      if (violate_primal_bounds()) {
         lupa_->refactorize();
 
         basic_point_ = lupa_->solve_linear(
             detail::get_adjusted_rhs(*problem_, var_states_));
-      }
 
-      prev_iteration_residue = residue;
-
-      if (violate_primal_bounds()) {
-        throw std::runtime_error("Not implemented.");
+        if (violate_primal_bounds()) {
+          throw std::runtime_error(
+              std::format("iteration #{}, not implemented.", iteration));
+        }
       }
 
       const Field objective =
@@ -345,6 +337,19 @@ class Simplex {
 
       if (std::holds_alternative<detail::Unbounded>(action)) {
         return construct_result<Unbounded>(state_view);
+      }
+
+      if (std::holds_alternative<detail::ChangeBasis>(action)) {
+        auto change = std::get<detail::ChangeBasis>(action);
+
+        // suspicious pivot, refactorize and try again
+        if (abs(column[change.leaving_index]) <
+                config_.tolerance.suspicious_pivot &&
+            lupa_->get_changes_since_refactorization() > 0) {
+          std::cout << "suspicious pivot" << iteration << std::endl;
+          lupa_->refactorize();
+          continue;
+        }
       }
 
       std::visit(Overload{
@@ -451,7 +456,7 @@ class Simplex {
   // Point associated with the given states must be dual feasible
   SimplexResult<Field> dual(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
-      if (!is_dual_feasible(*problem_, states)) {
+      if (!is_dual_feasible(*problem_, states, config_.tolerance.feasibility)) {
         return "Initial point is not dual feasible.";
       }
 
@@ -469,7 +474,8 @@ class Simplex {
   // Point associated with the given states must be primal feasible
   SimplexResult<Field> primal(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
-      if (!is_primal_feasible(*problem_, states)) {
+      if (!is_primal_feasible(*problem_, states,
+                              config_.tolerance.feasibility)) {
         return "Initial point is not primal feasible.";
       }
 

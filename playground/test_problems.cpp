@@ -11,7 +11,7 @@
 #include "presolve/passes/TransformToEqualities.h"
 #include "utils/Paths.h"
 
-#include "linear/simplex/pricing/primal/MostInfeasible.h"
+#include "presolve/passes/Scaling.h"
 #include "problem/StandardMILP.h"
 
 using Field = double;
@@ -43,12 +43,14 @@ int main() {
       throw std::runtime_error("Failed to open problem file.");
     }
 
-    std::println("{}", problem_name);
     auto problem = mps::read<Field>(is, mps::Format::FIXED);
+    std::println("{}: {} x {}", problem_name, problem.matrix.rows(),
+                 problem.matrix.cols());
 
     problem = presolve::TransformToEqualities<Field>().apply(problem);
     problem =
         presolve::RemoveLinearlyDependentEqualities<Field>().apply(problem);
+    problem = presolve::Scaling<Field>().apply(problem);
 
     problem::StandardMILP standard_problem(problem);
 

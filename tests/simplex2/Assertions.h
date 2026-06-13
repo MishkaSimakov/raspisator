@@ -2,14 +2,11 @@
 
 #include <gtest/gtest.h>
 
-#include "linalg/Transpose.h"
-#include "linalg/Vector.h"
+#include "linalg/Linalg.h"
 #include "linalg/lu/FullPivotingLU.h"
 #include "linalg/lu/Solve.h"
 #include "linear/model/LP.h"
 #include "problem/StandardLP.h"
-
-using linalg::Vector;
 
 // Validates that solution is optimal, feasible, and consistent with problem.
 // Checks: Ax = b, bounds, nonbasic variable positions, optimality conditions.
@@ -42,11 +39,11 @@ void validate_simplex_solution(const problem::StandardLP<Field>& problem,
           << "Upper bound violated for variable " << i;
     }
 
-    if (solution.variables[i] == VariableState::AT_LOWER) {
+    if (solution.variables[i] == simplex::VariableState::AT_LOWER) {
       ASSERT_TRUE(bound.lower && !FieldTraits<Field>::is_nonzero(
                                      *bound.lower - solution.point[i]))
           << "Variable " << i << " is AT_LOWER but not at lower bound";
-    } else if (solution.variables[i] == VariableState::AT_UPPER) {
+    } else if (solution.variables[i] == simplex::VariableState::AT_UPPER) {
       ASSERT_TRUE(bound.upper && !FieldTraits<Field>::is_nonzero(
                                      *bound.upper - solution.point[i]))
           << "Variable " << i << " is AT_UPPER but not at upper bound";
@@ -66,15 +63,14 @@ void validate_simplex_solution(const problem::StandardLP<Field>& problem,
       problem.cost - linalg::transpose(problem.matrix) * pi;
 
   for (size_t i = 0; i < d; ++i) {
-    if (solution.variables[i] == VariableState::BASIC) {
+    if (solution.variables[i] == simplex::VariableState::BASIC) {
       continue;
     }
 
-    ASSERT_TRUE(
-        (solution.variables[i] == VariableState::AT_LOWER &&
-         !FieldTraits<Field>::is_strictly_positive(reduced_cost[i])) ||
-        (solution.variables[i] == VariableState::AT_UPPER &&
-         !FieldTraits<Field>::is_strictly_negative(reduced_cost[i])))
+    ASSERT_TRUE((solution.variables[i] == simplex::VariableState::AT_LOWER &&
+                 !FieldTraits<Field>::is_strictly_positive(reduced_cost[i])) ||
+                (solution.variables[i] == simplex::VariableState::AT_UPPER &&
+                 !FieldTraits<Field>::is_strictly_negative(reduced_cost[i])))
         << "Optimality condition violated for variable " << i
         << " (state=" << static_cast<int>(solution.variables[i])
         << ", reduced_cost=" << reduced_cost[i] << ")";

@@ -31,7 +31,7 @@ static problem::StandardMILP<Rational> make_problem(
 }
 
 // Convenience: get dual initial states for a problem
-static std::optional<std::vector<VariableState>> dual_init(
+static std::optional<std::vector<simplex::VariableState>> dual_init(
     const problem::StandardMILP<Rational>& p) {
   return simplex::try_init_dual_by_reduced_cost(p.matrix, p.rhs, p.cost,
                                                 p.var_bounds);
@@ -232,8 +232,8 @@ TEST(Simplex2SmallTests, UnboundedDetected) {
       {{Rational{0}, Rational{1}}, {Rational{0}, std::nullopt}});
 
   // Primal init: x1 basic (at value 0 = rhs), x2 at lower bound
-  std::vector<VariableState> states = {VariableState::BASIC,
-                                       VariableState::AT_LOWER};
+  std::vector states = {simplex::VariableState::BASIC,
+                        simplex::VariableState::AT_LOWER};
 
   ASSERT_TRUE(simplex::is_primal_feasible(p, states));
 
@@ -262,9 +262,10 @@ TEST(Simplex2SmallTests, PrimalSimplex) {
        {Rational{0}, std::nullopt}});
 
   // Primal feasible initial states: x2, x3, x4 basic (indices 1, 2, 3)
-  std::vector<VariableState> states = {
-      VariableState::AT_LOWER, VariableState::BASIC,    VariableState::BASIC,
-      VariableState::BASIC,    VariableState::AT_LOWER, VariableState::AT_LOWER,
+  std::vector states = {
+      simplex::VariableState::AT_LOWER, simplex::VariableState::BASIC,
+      simplex::VariableState::BASIC,    simplex::VariableState::BASIC,
+      simplex::VariableState::AT_LOWER, simplex::VariableState::AT_LOWER,
   };
 
   ASSERT_TRUE(simplex::is_primal_feasible(p, states));

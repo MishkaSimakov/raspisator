@@ -32,4 +32,19 @@ auto operator*(MatrixFieldType<M> scalar, M&& matrix) {
   return detail::ScalarMulExpr(std::move(scalar), std::forward<M>(matrix));
 }
 
+template<typename Field>
+Field dot(const Vector<Field>& left, const Vector<Field>& right) {
+  if (left.size() != right.size()) {
+    throw std::invalid_argument("Wrong arguments' shapes for dot product.");
+  }
+
+  Field result = 0;
+
+  for (size_t i = 0; i < left.size(); ++i) {
+    result += left[i] * right[i];
+  }
+
+  return result;
+}
+
 }  // namespace linalg

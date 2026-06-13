@@ -13,7 +13,8 @@ template <typename Field>
 bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
                       const Vector<Field>& c,
                       const std::vector<Bound<Field>>& bounds,
-                      const std::vector<VariableState>& states) {
+                      const std::vector<VariableState>& states,
+                      Field tolerance = FieldTraits<Field>::tolerance) {
   auto [n, d] = A.shape();
 
   std::vector<size_t> basic_variables;
@@ -35,11 +36,9 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
 
   for (size_t i = 0; i < states.size(); ++i) {
     if ((states[i] == VariableState::AT_LOWER &&
-         (!bounds[i].lower ||
-          FieldTraits<Field>::is_strictly_positive(reduced_costs[i]))) ||
+         (!bounds[i].lower || reduced_costs[i] > tolerance)) ||
         (states[i] == VariableState::AT_UPPER &&
-         (!bounds[i].upper ||
-          FieldTraits<Field>::is_strictly_negative(reduced_costs[i])))) {
+         (!bounds[i].upper || reduced_costs[i] < -tolerance))) {
       return false;
     }
   }
@@ -49,9 +48,10 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
 
 template <typename Field>
 bool is_dual_feasible(const problem::StandardLP<Field>& problem,
-                      const std::vector<VariableState>& states) {
+                      const std::vector<VariableState>& states,
+                      Field tolerance = FieldTraits<Field>::tolerance) {
   return is_dual_feasible(problem.matrix, problem.rhs, problem.cost,
-                          problem.var_bounds, states);
+                          problem.var_bounds, states, tolerance);
 }
 
 // This function does not check whether matrix formed by basic columns is
@@ -60,7 +60,8 @@ template <typename Field>
 bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
                         const Vector<Field>& c,
                         const std::vector<Bound<Field>>& bounds,
-                        const std::vector<VariableState>& states) {
+                        const std::vector<VariableState>& states,
+                        Field tolerance = FieldTraits<Field>::tolerance) {
   auto [n, d] = A.shape();
 
   std::vector<size_t> basic_variables;
@@ -81,7 +82,7 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
   auto basic_point = lupa.solve_linear(rhs);
 
   for (size_t i = 0; i < n; ++i) {
-    if (!bounds[basic_variables[i]].contains(basic_point[i])) {
+    if (!bounds[basic_variables[i]].contains(basic_point[i], tolerance)) {
       return false;
     }
   }
@@ -91,9 +92,10 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
 
 template <typename Field>
 bool is_primal_feasible(const problem::StandardLP<Field>& problem,
-                        const std::vector<VariableState>& states) {
+                        const std::vector<VariableState>& states,
+                        Field tolerance = FieldTraits<Field>::tolerance) {
   return is_primal_feasible(problem.matrix, problem.rhs, problem.cost,
-                            problem.var_bounds, states);
+                            problem.var_bounds, states, tolerance);
 }
 
 }  // namespace simplex
