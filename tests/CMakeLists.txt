@@ -18,22 +18,21 @@ target_sources(tests PUBLIC
         #        simplex/UnboundedSimplexTests.cpp
         simplex/CatalogTests.cpp
 
-        #        accumulators/ArgMinTests.cpp
-        #        accumulators/ArgMaxTests.cpp
-        #        accumulators/ArithmeticMeanTests.cpp
-        #
-        #        mps/DataRecordTokenizerTests.cpp
-        #        mps/IndicatorRecordTokenizerTests.cpp
-        #        mps/RowsParserTests.cpp
-        #        mps/ColumnsParserTests.cpp
-        #        mps/RHSParserTests.cpp
-        #        mps/RangesParserTests.cpp
-        #        mps/BoundsParserTests.cpp
-        #        mps/MPSParserTests.cpp
-        #        mps/IntegerVariablesExtensionTests.cpp
-        #        mps/MPSTests.cpp
-        #
-        #        feature/FullProblemSolvingTests.cpp
+        accumulators/ArgMinTests.cpp
+        accumulators/ArgMaxTests.cpp
+        accumulators/ArithmeticMeanTests.cpp
+        accumulators/GeometricMeanTests.cpp
+
+        mps/DataRecordTokenizerTests.cpp
+        mps/IndicatorRecordTokenizerTests.cpp
+        mps/RowsParserTests.cpp
+        mps/ColumnsParserTests.cpp
+        mps/RHSParserTests.cpp
+        mps/RangesParserTests.cpp
+        mps/BoundsParserTests.cpp
+        mps/MPSParserTests.cpp
+        mps/IntegerVariablesExtensionTests.cpp
+        mps/MPSTests.cpp
 
         presolve/RemoveLinearlyDependentEqualitiesTests.cpp
         presolve/TransformToEqualitiesTests.cpp

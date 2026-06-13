@@ -36,15 +36,20 @@ class ArithmeticMean {
 };
 
 template <typename T>
+requires requires(T value)
+{
+  std::log(value);
+  std::exp(value);
+}
 class GeometricMean {
-  T product_;
+  T log_sum_;
   size_t count_;
 
  public:
-  GeometricMean() : product_(1), count_(0) {}
+  GeometricMean() : log_sum_(0), count_(0) {}
 
   void record(T value) {
-    product_ *= value;
+    log_sum_ += std::log(value);
     ++count_;
   }
 
@@ -53,17 +58,16 @@ class GeometricMean {
       return std::nullopt;
     }
 
-    return std::pow(product_, 1. / count_);
+    return std::exp(log_sum_ / count_);
   }
   bool has_value() const { return count_ != 0; }
 
   T operator*() const {
     assert(count_ > 0);
-    return std::pow(product_, 1. / count_);
+    return std::exp(log_sum_ / count_);
   }
 
   size_t count() const { return count_; }
-  T product() const { return product_; }
 };
 
 template <typename T, typename Comparator = std::less<T>>
