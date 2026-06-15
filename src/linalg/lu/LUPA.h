@@ -39,6 +39,10 @@ class LUPA {
   size_t changes_since_refactorization_{0};
   size_t changes_since_purge_{0};
 
+  // buffers for Forrest-Tomlin update
+  Vector<Field> column_;
+  Vector<Field> r_;
+
   // Determinant of B^-1
   Field det_;
 
@@ -57,18 +61,16 @@ class LUPA {
     auto [n, d] = A_.shape();
 
     // TODO: this computation is duplicated in primal simplex.
-    Vector column = A_.get_column_as_matrix(new_column);
+    column_ = A_.get_column_as_matrix(new_column);
 
-    column = P_.apply(std::move(column));
+    column_ = P_.apply(std::move(column_));
     for (auto entry : ls_) {
-      column = entry.apply(std::move(column));
+      column_ = entry.apply(std::move(column_));
     }
 
     // Permutation Q_ changes columns order. Here we find a column that becomes
     // current_column after applying Q_
     current_column = Q_.post_apply(current_column);
-
-    Vector<Field> r(n);
 
     auto itr = us_.begin();
     for (; itr != us_.end(); ++itr) {
@@ -82,6 +84,10 @@ class LUPA {
 
     // TODO: it was noticed that r is often empty in setcover problem!
     // Check this for other problems
+    r_.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+      r_[i] = 0;
+    }
 
     for (; itr != us_.end(); ++itr) {
       Field diagonal = 0;
@@ -100,15 +106,15 @@ class LUPA {
         return UpdateResult::NEED_REFACTORIZATION;
       }
 
-      r[(*itr).pivot_index()] = main_value / diagonal;
-      r = (*itr).apply_transposed(std::move(r));
+      r_[(*itr).pivot_index()] = main_value / diagonal;
+      r_ = (*itr).apply_transposed(std::move(r_));
     }
 
-    r[current_column] = 1;
+    r_[current_column] = 1;
 
     Maximum<Field> r_max;
     for (size_t i = 0; i < n; ++i) {
-      r_max.record(r[i]);
+      r_max.record(r_[i]);
     }
 
     // if (*r_max > 10) {
@@ -116,12 +122,12 @@ class LUPA {
     //   return UpdateResult::NEED_REFACTORIZATION;
     // }
 
-    ls_.push_back(current_column, r, EtaMatrixType::ROW);
+    ls_.push_back(current_column, r_, EtaMatrixType::ROW);
 
     // add new eta matrix to U1 ... Un
-    column = (*std::prev(ls_.cend())).apply(std::move(column));
+    column_ = (*std::prev(ls_.cend())).apply(std::move(column_));
 
-    const Field diagonal = column[current_column];
+    const Field diagonal = column_[current_column];
 
     if (!FieldTraits<Field>::is_nonzero(diagonal)) {
       return UpdateResult::NEED_REFACTORIZATION;
@@ -130,11 +136,11 @@ class LUPA {
     det_ /= diagonal;
 
     for (size_t i = 0; i < n; ++i) {
-      column[i] =
-          i != current_column ? -column[i] / diagonal : Field(1) / diagonal;
+      column_[i] =
+          i != current_column ? -column_[i] / diagonal : Field(1) / diagonal;
     }
 
-    us_.push_back(current_column, column, EtaMatrixType::COLUMN);
+    us_.push_back(current_column, column_, EtaMatrixType::COLUMN);
 
     return UpdateResult::SUCCESS;
   }
@@ -238,7 +244,7 @@ class LUPA {
     Vector<Field> e(columns_.size());
     e[row_index] = 1;
 
-    return solve_linear_transposed(e);
+    return solve_linear_transposed(std::move(e));
   }
 
   // Returns inverse of the current matrix, reconstructed from LU-decomposition.

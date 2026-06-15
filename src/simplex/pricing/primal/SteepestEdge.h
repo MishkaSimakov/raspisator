@@ -49,8 +49,6 @@ class PrimalSteepestEdge final : public PrimalPricing<Field> {
     }
   }
 
-  CyclingDetector<Field> cycling_;
-
  public:
   void init(const problem::StandardLP<Field>& problem,
             linalg::LUPA<Field>& lupa,
@@ -64,13 +62,6 @@ class PrimalSteepestEdge final : public PrimalPricing<Field> {
 
   std::optional<size_t> get_primal_entering(
       StateView<Field> simplex, const Vector<Field>& reduced_cost) override {
-    auto status =
-        cycling_.record(simplex.iteration, simplex.states, simplex.objective);
-
-    if (status == CyclingState::HAS_CYCLING) {
-      std::cout << "cycling!!!!" << std::endl;
-    }
-
     ArgMaximum<Field> max_cost;
 
     for (size_t i = 0; i < reduced_cost.size(); ++i) {

@@ -55,6 +55,11 @@ class Simplex {
   std::vector<VariableState> var_states_;
   Vector<Field> basic_point_;
 
+  // values that are incrementally updated during iterations
+  // they are not publicly available, and not updated during change_basis and
+  // toggle_bound calls
+  // TODO: think about updating them in change_basis and toggle_bound
+  Vector<Field> adjusted_rhs_;
   Vector<Field> reduced_cost_;
   Field objective_;
 
@@ -282,8 +287,7 @@ class Simplex {
   IterationResult primal_iteration() {
     using std::abs;
 
-    basic_point_ =
-        lupa_->solve_linear(detail::get_adjusted_rhs(*problem_, var_states_));
+    basic_point_ = lupa_->solve_linear(adjusted_rhs_);
 
     if (violate_primal_bounds()) {
       if (lupa_->get_changes_since_refactorization() > 0) {
@@ -363,6 +367,38 @@ class Simplex {
         }
       }
 
+      // update adjusted_rhs
+      const size_t leaving_var = basic_vars_[move->leaving_index];
+
+      if (move->new_state == VariableState::AT_LOWER) {
+        for (const auto& [row, value] :
+             problem_->matrix.get_column(leaving_var)) {
+          adjusted_rhs_[row] -=
+              value * *problem_->var_bounds[leaving_var].lower;
+        }
+      } else {  // move->new_state == VariableState::AT_UPPER
+        for (const auto& [row, value] :
+             problem_->matrix.get_column(leaving_var)) {
+          adjusted_rhs_[row] -=
+              value * *problem_->var_bounds[leaving_var].upper;
+        }
+      }
+
+      if (var_states_[move->entering_variable] == VariableState::AT_LOWER) {
+        for (const auto& [row, value] :
+             problem_->matrix.get_column(move->entering_variable)) {
+          adjusted_rhs_[row] +=
+              value * *problem_->var_bounds[move->entering_variable].lower;
+        }
+      } else if (var_states_[move->entering_variable] ==
+                 VariableState::AT_UPPER) {
+        for (const auto& [row, value] :
+             problem_->matrix.get_column(move->entering_variable)) {
+          adjusted_rhs_[row] +=
+              value * *problem_->var_bounds[move->entering_variable].upper;
+        }
+      }
+
       change_basis(move->leaving_index, move->entering_variable,
                    move->new_state);
 
@@ -375,6 +411,22 @@ class Simplex {
       // reduced cost doesn't change
       objective_ += reduced_cost_[move->variable] * move->step_length;
 
+      // update adjusted rhs
+      const Field gap = *problem_->var_bounds[move->variable].upper -
+                        *problem_->var_bounds[move->variable].lower;
+
+      if (var_states_[move->variable] == VariableState::AT_LOWER) {
+        for (const auto& [row, value] :
+             problem_->matrix.get_column(move->variable)) {
+          adjusted_rhs_[row] -= value * gap;
+        }
+      } else if (var_states_[move->variable] == VariableState::AT_UPPER) {
+        for (const auto& [row, value] :
+             problem_->matrix.get_column(move->variable)) {
+          adjusted_rhs_[row] += value * gap;
+        }
+      }
+
       change_bound(move->variable, move->new_state);
 
       return IterationResult::MOVED;
@@ -384,6 +436,8 @@ class Simplex {
   }
 
   void recalculate_incremental() {
+    // TODO: numerical issues can be detected here by comparing incrementally
+    // updated value with actual value
     // recalculate incremental reduced cost
     const Vector pi =
         lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
@@ -396,6 +450,9 @@ class Simplex {
 
     objective_ = detail::get_objective(problem_->cost, problem_->var_bounds,
                                        var_states_, basic_vars_, basic_point);
+
+    // adjusted rhs vector
+    adjusted_rhs_ = detail::get_adjusted_rhs(*problem_, var_states_);
   }
 
   void primal_refactorize() {
@@ -424,8 +481,6 @@ class Simplex {
     initialize_state(states);
 
     config_.primal_pricing->init(*problem_, *lupa_, var_states_, basic_vars_);
-
-    std::cout << "starting, objective is " << objective_ << std::endl;
 
     //
     while (true) {
