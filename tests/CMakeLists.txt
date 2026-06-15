@@ -39,6 +39,7 @@ target_sources(tests PUBLIC
         linalg/MatrixResizeTests.cpp
         linalg/VectorTests.cpp
         linalg/CSCMatrixTests.cpp
+        linalg/PermutationTests.cpp
         linalg/UseCasesTests.cpp
         linalg/RowBasisTests.cpp
 

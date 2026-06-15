@@ -134,6 +134,25 @@ class Matrix {
     return *this;
   }
 
+  template <ElementWiseMatrixRange T>
+    requires std::same_as<MatrixFieldType<T>, Field>
+  Matrix& operator=(T&& other) {
+    // TODO: aliasing
+    // TODO: check that i, j don't go outside of range
+    rows_ = other.rows();
+    cols_ = other.cols();
+
+    data_.resize(rows_ * cols_);
+
+    for (size_t i = 0; i < rows_; ++i) {
+      for (size_t j = 0; j < cols_; ++j) {
+        (*this)[i, j] = other[i, j];
+      }
+    }
+
+    return *this;
+  }
+
   Matrix& operator=(const Matrix& other) {
     if (this != &other) {
       auto copy = other;

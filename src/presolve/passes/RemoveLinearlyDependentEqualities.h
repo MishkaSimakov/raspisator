@@ -18,7 +18,9 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
 
     const auto [n, d] = matrix.shape();
 
-    auto permutation = linalg::Permutation::id(n);
+    std::vector<size_t> permutation(n);
+    std::iota(permutation.begin(), permutation.end(), 0);
+
     size_t current_row = 0;
 
     for (size_t col = 0; col < d; ++col) {
@@ -26,7 +28,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
 
       for (size_t row = current_row; row < n; ++row) {
         if (rhs_bounds[row].is_fixed()) {
-          max_abs.record(row, abs(matrix[permutation.apply(row), col]));
+          max_abs.record(row, abs(matrix[permutation[row], col]));
         }
       }
 
@@ -35,29 +37,29 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
         continue;
       }
 
-      permutation.swap(max_abs->index, current_row);
+      std::swap(permutation[max_abs->index], permutation[current_row]);
 
-      const Field pivot = matrix[permutation.apply(current_row), col];
+      const Field pivot = matrix[permutation[current_row], col];
 
       for (size_t row = current_row + 1; row < n; ++row) {
-        if (!rhs_bounds[permutation.apply(row)].is_fixed()) {
+        if (!rhs_bounds[permutation[row]].is_fixed()) {
           continue;
         }
 
-        const Field value = matrix[permutation.apply(row), col];
+        const Field value = matrix[permutation[row], col];
 
         if (!FieldTraits<Field>::is_nonzero(value)) {
           continue;
         }
 
-        rhs_bounds[permutation.apply(row)] -=
-            rhs_bounds[permutation.apply(current_row)] * value / pivot;
+        rhs_bounds[permutation[row]] -=
+            rhs_bounds[permutation[current_row]] * value / pivot;
 
         for (size_t j = 0; j < d; ++j) {
-          matrix[permutation.apply(row), j] -=
-              matrix[permutation.apply(current_row), j] * value / pivot;
+          matrix[permutation[row], j] -=
+              matrix[permutation[current_row], j] * value / pivot;
         }
-        matrix[permutation.apply(row), col] = 0;
+        matrix[permutation[row], col] = 0;
       }
 
       ++current_row;

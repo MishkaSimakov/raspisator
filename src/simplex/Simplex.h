@@ -55,6 +55,12 @@ class Simplex {
   std::vector<VariableState> var_states_;
   Vector<Field> basic_point_;
 
+  Vector<Field> reduced_cost_;
+  Field objective_;
+
+  size_t iteration_;
+  bool intentional_repeat_;
+
   Config<Field> config_;
 
   template <typename F>
@@ -69,31 +75,32 @@ class Simplex {
   }
 
   template <typename T>
-  SimplexResult<Field> construct_result(StateView<Field> state) const {
+  SimplexResult<Field> construct_result() const {
     auto point = get_point();
+    Field objective = linalg::dot(problem_->cost, point);
 
     if constexpr (std::same_as<T, FiniteLPSolution<Field>>) {
       return SimplexResult<Field>{
-          .iterations_count = state.iteration,
+          .iterations_count = iteration_,
           .solution =
-              FiniteLPSolution{std::move(point), state.objective, state.states},
+              FiniteLPSolution{std::move(point), objective, var_states_},
       };
     }
     if constexpr (std::same_as<T, NoFeasibleElements>) {
       return SimplexResult<Field>{
-          .iterations_count = state.iteration,
+          .iterations_count = iteration_,
           .solution = NoFeasibleElements{},
       };
     }
     if constexpr (std::same_as<T, ReachedIterationsLimit<Field>>) {
       return SimplexResult<Field>{
-          .iterations_count = state.iteration,
-          .solution = ReachedIterationsLimit<Field>{state.objective},
+          .iterations_count = iteration_,
+          .solution = ReachedIterationsLimit<Field>{objective},
       };
     }
     if constexpr (std::same_as<T, Unbounded>) {
       return SimplexResult<Field>{
-          .iterations_count = state.iteration,
+          .iterations_count = iteration_,
           .solution = Unbounded{},
       };
     }
@@ -155,6 +162,9 @@ class Simplex {
     basic_vars_.clear();
     var_states_ = states;
 
+    iteration_ = 0;
+    intentional_repeat_ = false;
+
     for (size_t i = 0; i < d; ++i) {
       if (states[i] == VariableState::BASIC) {
         basic_vars_.push_back(i);
@@ -162,6 +172,7 @@ class Simplex {
     }
 
     lupa_->set_columns(basic_vars_);
+    recalculate_incremental();
   }
 
   std::optional<std::string> validate_states(
@@ -260,6 +271,142 @@ class Simplex {
     return false;
   }
 
+  enum class IterationResult {
+    FEASIBLE,
+    INFEASIBLE,
+    UNBOUNDED,
+    REFACTORIZE_REPEAT,
+    MOVED,
+  };
+
+  IterationResult primal_iteration() {
+    using std::abs;
+
+    basic_point_ =
+        lupa_->solve_linear(detail::get_adjusted_rhs(*problem_, var_states_));
+
+    if (violate_primal_bounds()) {
+      if (lupa_->get_changes_since_refactorization() > 0) {
+        return IterationResult::REFACTORIZE_REPEAT;
+      }
+
+      throw std::runtime_error(
+          "Point became primal infeasible. Not implemented.");
+    }
+
+    StateView<Field> state_view{
+        .problem = *problem_,
+        .lupa = *lupa_,
+        .iteration = iteration_,
+        .objective = objective_,
+        .basic_point = basic_point_,
+        .states = var_states_,
+        .basic_vars = basic_vars_,
+        .intentional_repeat = intentional_repeat_,
+        .tolerance = config_.tolerance,
+    };
+
+    if (config_.accountant) {
+      config_.accountant->iteration(state_view);
+    }
+
+    auto entering =
+        config_.primal_pricing->get_primal_entering(state_view, reduced_cost_);
+
+    if (!entering) {
+      return IterationResult::FEASIBLE;
+    }
+
+    const Vector pivot_col =
+        lupa_->solve_linear(problem_->matrix.get_column_as_matrix(*entering));
+
+    auto action = detail::primal_ratio_test(
+        *problem_, state_view, *entering, reduced_cost_[*entering], pivot_col);
+
+    if (auto* move = std::get_if<ChangeBasisMove<Field>>(&action)) {
+      // suspicious pivot, refactorize and try again
+      if (abs(pivot_col[move->leaving_index]) <
+              config_.tolerance.suspicious_pivot &&
+          lupa_->get_changes_since_refactorization() > 0) {
+        std::cout << iteration_ << " suspicious pivot" << std::endl;
+
+        return IterationResult::REFACTORIZE_REPEAT;
+      }
+
+      const Vector pivot_row = linalg::transpose(problem_->matrix) *
+                               lupa_->get_row(move->leaving_index);
+
+      // notify primal pricing
+      config_.primal_pricing->move(*move, state_view, pivot_row, pivot_col);
+
+      // incremental objective update
+      objective_ += reduced_cost_[move->entering_variable] * move->step_length;
+
+      // incremental reduced cost update
+      const Field entering_reduced_cost =
+          reduced_cost_[move->entering_variable];
+
+      reduced_cost_[basic_vars_[move->leaving_index]] =
+          -entering_reduced_cost / pivot_row[move->entering_variable];
+
+      for (size_t i = 0; i < problem_->matrix.cols(); ++i) {
+        if (i == basic_vars_[move->leaving_index]) {
+          continue;
+        }
+
+        if (var_states_[i] == VariableState::BASIC ||
+            i == move->entering_variable) {
+          reduced_cost_[i] = 0;
+        } else {
+          reduced_cost_[i] -= entering_reduced_cost * pivot_row[i] /
+                              pivot_row[move->entering_variable];
+        }
+      }
+
+      change_basis(move->leaving_index, move->entering_variable,
+                   move->new_state);
+
+      return IterationResult::MOVED;
+    }
+
+    if (auto* move = std::get_if<ToggleBoundMove<Field>>(&action)) {
+      config_.primal_pricing->move(*move, state_view);
+
+      // reduced cost doesn't change
+      objective_ += reduced_cost_[move->variable] * move->step_length;
+
+      change_bound(move->variable, move->new_state);
+
+      return IterationResult::MOVED;
+    }
+
+    return IterationResult::UNBOUNDED;
+  }
+
+  void recalculate_incremental() {
+    // recalculate incremental reduced cost
+    const Vector pi =
+        lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
+
+    reduced_cost_ = problem_->cost - linalg::transpose(problem_->matrix) * pi;
+
+    // recalculate incremental objective value
+    const Vector basic_point =
+        lupa_->solve_linear(detail::get_adjusted_rhs(*problem_, var_states_));
+
+    objective_ = detail::get_objective(problem_->cost, problem_->var_bounds,
+                                       var_states_, basic_vars_, basic_point);
+  }
+
+  void primal_refactorize() {
+    lupa_->refactorize();
+
+    recalculate_incremental();
+
+    config_.primal_pricing->post_refactorization(*problem_, *lupa_, var_states_,
+                                                 basic_vars_);
+  }
+
   // It is guaranteed, that after execution of this method, if finite LP
   // solution was found, then inside LUPA basic variables would be selected as
   // columns.
@@ -275,104 +422,42 @@ class Simplex {
     auto [n, d] = problem_->matrix.shape();
 
     initialize_state(states);
-    size_t iteration = 0;
 
-    Field prev_iteration_residue = 0;
-    bool intentional_repeat = false;
+    config_.primal_pricing->init(*problem_, *lupa_, var_states_, basic_vars_);
 
+    std::cout << "starting, objective is " << objective_ << std::endl;
+
+    //
     while (true) {
-      basic_point_ =
-          lupa_->solve_linear(detail::get_adjusted_rhs(*problem_, var_states_));
-
-      if (violate_primal_bounds()) {
-        lupa_->refactorize();
-
-        basic_point_ = lupa_->solve_linear(
-            detail::get_adjusted_rhs(*problem_, var_states_));
-
-        if (violate_primal_bounds()) {
-          throw std::runtime_error(
-              std::format("iteration #{}, not implemented.", iteration));
-        }
+      if (config_.max_iterations && iteration_ > *config_.max_iterations) {
+        return construct_result<ReachedIterationsLimit<Field>>();
       }
 
-      const Field objective =
-          detail::get_objective(problem_->cost, problem_->var_bounds,
-                                var_states_, basic_vars_, basic_point_);
+      const auto result = primal_iteration();
 
-      StateView<Field> state_view{
-          .iteration = iteration,
-          .objective = objective,
-          .basic_point = basic_point_,
-          .bounds = problem_->var_bounds,
-          .states = var_states_,
-          .basic_vars = basic_vars_,
-          .intentional_repeat = intentional_repeat,
-          .tolerance = config_.tolerance,
-      };
+      ++iteration_;
 
-      if (config_.accountant) {
-        config_.accountant->iteration(state_view);
+      switch (result) {
+        case IterationResult::FEASIBLE:
+          return construct_result<FiniteLPSolution<Field>>();
+        case IterationResult::UNBOUNDED:
+          return construct_result<Unbounded>();
+        case IterationResult::INFEASIBLE:
+          return construct_result<NoFeasibleElements>();
+        case IterationResult::MOVED:
+          intentional_repeat_ = false;
+          break;
+        case IterationResult::REFACTORIZE_REPEAT:
+          primal_refactorize();
+          intentional_repeat_ = true;
+          break;
+        default:
+          throw std::runtime_error("Unknown iteration result");
       }
 
-      if (config_.max_iterations && iteration >= config_.max_iterations) {
-        return construct_result<ReachedIterationsLimit<Field>>(state_view);
+      if (lupa_->get_changes_since_refactorization() > 250) {
+        primal_refactorize();
       }
-
-      const Vector pi =
-          lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
-
-      const Vector reduced_costs =
-          problem_->cost - linalg::transpose(problem_->matrix) * pi;
-
-      auto entering = config_.primal_pricing->get_primal_entering(
-          state_view, reduced_costs);
-
-      if (!entering) {
-        return construct_result<FiniteLPSolution<Field>>(state_view);
-      }
-
-      Vector column =
-          lupa_->solve_linear(problem_->matrix.get_column_as_matrix(*entering));
-
-      auto action = detail::primal_ratio_test(*problem_, state_view, *entering,
-                                              reduced_costs[*entering], column);
-
-      if (std::holds_alternative<detail::Unbounded>(action)) {
-        return construct_result<Unbounded>(state_view);
-      }
-
-      if (std::holds_alternative<detail::ChangeBasis>(action)) {
-        auto change = std::get<detail::ChangeBasis>(action);
-
-        // suspicious pivot, refactorize and try again
-        if (abs(column[change.leaving_index]) <
-                config_.tolerance.suspicious_pivot &&
-            lupa_->get_changes_since_refactorization() > 0) {
-          std::cout << "suspicious pivot" << iteration << std::endl;
-
-          lupa_->refactorize();
-          intentional_repeat = true;
-
-          continue;
-        }
-      }
-
-      intentional_repeat = false;
-
-      std::visit(Overload{
-                     [this](detail::ChangeBasis action) {
-                       change_basis(action.leaving_index,
-                                    action.entering_variable, action.new_state);
-                     },
-                     [this](detail::ToggleBound action) {
-                       change_bound(action.variable, action.new_state);
-                     },
-                     [](auto) { throw std::runtime_error("Invalid action."); },
-                 },
-                 action);
-
-      ++iteration;
     }
   }
 
@@ -397,10 +482,11 @@ class Simplex {
                                 var_states_, basic_vars_, basic_point_);
 
       StateView<Field> state_view{
+          .problem = *problem_,
+          .lupa = *lupa_,
           .iteration = iteration,
           .objective = objective,
           .basic_point = basic_point_,
-          .bounds = problem_->var_bounds,
           .states = var_states_,
           .basic_vars = basic_vars_,
           .tolerance = config_.tolerance,
@@ -411,12 +497,12 @@ class Simplex {
       }
 
       if (config_.max_iterations && iteration > *config_.max_iterations) {
-        return construct_result<ReachedIterationsLimit<Field>>(state_view);
+        return construct_result<ReachedIterationsLimit<Field>>();
       }
 
       auto leaving = config_.dual_pricing->get_dual_leaving(state_view);
       if (!leaving) {
-        return construct_result<FiniteLPSolution<Field>>(state_view);
+        return construct_result<FiniteLPSolution<Field>>();
       }
 
       const Vector pi =
@@ -433,7 +519,7 @@ class Simplex {
       auto entering =
           get_dual_entering_variable(*leaving, reduced_cost, leaving_row);
       if (!entering) {
-        return construct_result<NoFeasibleElements>(state_view);
+        return construct_result<NoFeasibleElements>();
       }
 
       change_basis(leaving->index, *entering, leaving->new_state);
@@ -445,6 +531,7 @@ class Simplex {
  public:
   explicit Simplex(Config<Field> config = {}) : config_(std::move(config)) {}
 
+  // config setters
   void set_problem(const problem::StandardLP<Field>& problem) {
     validate([&] -> std::optional<std::string> {
       problem.validate();
@@ -464,6 +551,16 @@ class Simplex {
   template <typename T, typename... Args>
   void set_accountant(Args&&... args) {
     config_.accountant = std::make_unique<T>(std::forward<Args>(args)...);
+  }
+
+  template <typename T, typename... Args>
+  void set_primal_pricing(Args&&... args) {
+    config_.primal_pricing = std::make_unique<T>(std::forward<Args>(args)...);
+  }
+
+  template <typename T, typename... Args>
+  void set_dual_pricing(Args&&... args) {
+    config_.dual_pricing = std::make_unique<T>(std::forward<Args>(args)...);
   }
 
   // Point associated with the given states must be dual feasible

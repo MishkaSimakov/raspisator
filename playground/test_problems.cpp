@@ -14,15 +14,20 @@
 
 #include "presolve/passes/Scaling.h"
 #include "problem/StandardMILP.h"
+#include "simplex/pricing/primal/SteepestEdge.h"
 
 using Field = double;
 
 int main() {
   std::unordered_set<std::string> problems = {// "SHELL"
                                               // "AFIRO",
-                                              // "ADLITTLE", "BANDM", "BLEND",
+                                              // "ADLITTLE",
+                                              // "BANDM",
+                                              // "BLEND",
                                               // "PILOT"
-                                              "PEROLD"};
+                                              // "PEROLD",
+                                              //"BNL2"
+                                              "D6CUBE"};
 
   auto problems_path = paths::resource("lp_problems");
   for (auto entry : std::filesystem::directory_iterator{problems_path}) {
@@ -35,9 +40,9 @@ int main() {
 
     auto problem_name = path.filename().string();
 
-    // if (!problems.contains(problem_name)) {
-    // continue;
-    // }
+    if (!problems.contains(problem_name)) {
+      continue;
+    }
 
     std::ifstream is(entry);
     if (!is) {
@@ -60,7 +65,8 @@ int main() {
         standard_problem,
         simplex::Config<Field>()
             .set_validate_input(true)
-            .set_accountant<simplex::LoggingAccountant<Field>>());
+            .set_accountant<simplex::LoggingAccountant<Field>>()
+            .set_primal_pricing<simplex::PrimalSteepestEdge<Field>>());
 
     if (!states) {
       std::println("  Failed to find primal feasible basis.");
@@ -69,23 +75,23 @@ int main() {
 
     std::println("  Found primal feasible basis, starting solving.");
 
-    auto solver = simplex::Simplex<Field>(
-        simplex::Config<Field>()
-            .set_accountant<simplex::LoggingAccountant<Field>>());
+    auto solver = simplex::Simplex<Field>();
 
     solver.set_validate_input(true);
     solver.set_problem(standard_problem);
+    solver.set_accountant<simplex::LoggingAccountant<Field>>();
+    solver.set_primal_pricing<simplex::PrimalSteepestEdge<Field>>();
 
-    auto solution = solver.primal(*states);
+    auto result = solver.primal(*states);
 
     std::visit(
         Overload{
-            [&optimizer,
-             &problem](const simplex::FiniteLPSolution<Field>& solution) {
+            [&](const simplex::FiniteLPSolution<Field>& solution) {
               auto objective =
                   linalg::dot(optimizer.inverse(solution.point), problem.cost);
 
-              std::println("  finite solution: {}", objective);
+              std::println("  finite solution: {} (iterations: {})", objective,
+                           result.iterations_count);
             },
             [](const simplex::NoFeasibleElements&) {
               std::println("  no feasible elements");
@@ -95,7 +101,7 @@ int main() {
             },
             [](const simplex::Unbounded&) { std::println("  unbounded"); },
         },
-        solution.solution);
+        result.solution);
   }
 
   return 0;

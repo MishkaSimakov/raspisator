@@ -60,6 +60,28 @@ struct Config {
     this->accountant = std::make_unique<T>(std::forward<Args>(args)...);
     return std::move(*this);
   }
+
+  template <typename T, typename... Args>
+  Config& set_primal_pricing(Args&&... args) & {
+    this->primal_pricing = std::make_unique<T>(std::forward<Args>(args)...);
+    return *this;
+  }
+  template <typename T, typename... Args>
+  Config&& set_primal_pricing(Args&&... args) && {
+    this->primal_pricing = std::make_unique<T>(std::forward<Args>(args)...);
+    return std::move(*this);
+  }
+
+  template <typename T, typename... Args>
+  Config& set_dual_pricing(Args&&... args) & {
+    this->dual_pricing = std::make_unique<T>(std::forward<Args>(args)...);
+    return *this;
+  }
+  template <typename T, typename... Args>
+  Config&& set_dual_pricing(Args&&... args) && {
+    this->dual_pricing = std::make_unique<T>(std::forward<Args>(args)...);
+    return std::move(*this);
+  }
 };
 
 }  // namespace simplex

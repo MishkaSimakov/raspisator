@@ -20,9 +20,9 @@ class DualDantzigPricing final : public DualPricing<Field> {
     ArgMaximum<BoundViolation<Field>> max_violation;
 
     for (size_t i = 0; i < simplex.basic_vars.size(); ++i) {
-      max_violation.record(i,
-                           simplex.bounds[simplex.basic_vars[i]].get_violation(
-                               simplex.basic_point[i]));
+      max_violation.record(
+          i, simplex.problem.var_bounds[simplex.basic_vars[i]].get_violation(
+                 simplex.basic_point[i]));
     }
 
     if (!max_violation.has_value()) {
@@ -48,7 +48,8 @@ class DualDantzigPricing final : public DualPricing<Field> {
 
     for (size_t i = 0; i < state.basic_vars.size(); ++i) {
       auto violation =
-          state.bounds[state.basic_vars[i]].get_violation(state.basic_point[i]);
+          state.problem.var_bounds[state.basic_vars[i]].get_violation(
+              state.basic_point[i]);
 
       if (violation.type == BoundViolationType::VIOLATE_LOWER_BOUND) {
         result.emplace_back(i, VariableState::AT_LOWER);

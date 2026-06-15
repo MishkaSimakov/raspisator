@@ -2,35 +2,24 @@
 
 #include <variant>
 
-#include "simplex/VariableState.h"
+#include "simplex/Move.h"
 #include "simplex/StateView.h"
+#include "simplex/VariableState.h"
 
 namespace simplex::detail {
 
-struct ChangeBasis {
-  size_t entering_variable;
-  size_t leaving_index;
-  VariableState new_state;
-};
-
-struct ToggleBound {
-  size_t variable;
-  VariableState new_state;  // should be either AT_UPPER or AT_LOWER
-};
-
-struct Unbounded {};
-
 template <typename Field>
-std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
-    const problem::StandardLP<Field>& problem, const StateView<Field>& simplex,
-    size_t entering_var, Field entering_reduced_cost,
-    const Vector<Field>& entering_col) {
+std::variant<ChangeBasisMove<Field>, ToggleBoundMove<Field>, UnboundedMove>
+primal_ratio_test(const problem::StandardLP<Field>& problem,
+                  const StateView<Field>& simplex, size_t entering_var,
+                  Field entering_reduced_cost,
+                  const Vector<Field>& entering_col) {
   using std::abs;
 
   const auto [n, d] = problem.matrix.shape();
 
   // theta is maximum entering variable change so that the point would not
-  // become primal infeasible for variable i,
+  // become primal infeasible for basic variable i,
   // change = | new_value - old_value |
   const auto get_variable_theta =
       [&](const size_t i, const Field epsilon = 0) -> std::optional<Field> {
@@ -124,13 +113,15 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
 
   if (!leaving_id) {
     if (entering_state == VariableState::AT_LOWER && entering_bound.upper) {
-      return ToggleBound{entering_var, VariableState::AT_UPPER};
+      return ToggleBoundMove{entering_var, VariableState::AT_UPPER,
+                             *entering_bound.upper - *entering_bound.lower};
     }
     if (entering_state == VariableState::AT_UPPER && entering_bound.lower) {
-      return ToggleBound{entering_var, VariableState::AT_LOWER};
+      return ToggleBoundMove{entering_var, VariableState::AT_LOWER,
+                             *entering_bound.lower - *entering_bound.upper};
     }
 
-    return Unbounded{};
+    return UnboundedMove{};
   }
 
   const auto leaving_state =
@@ -138,7 +129,24 @@ std::variant<ChangeBasis, ToggleBound, Unbounded> primal_ratio_test(
           ? VariableState::AT_UPPER
           : VariableState::AT_LOWER;
 
-  return ChangeBasis{entering_var, *leaving_id, leaving_state};
+  Field step_length = *get_variable_theta(*leaving_id);
+
+  switch (entering_state) {
+    case VariableState::AT_LOWER:
+      break;
+    case VariableState::AT_UPPER:
+      step_length *= -1;
+      break;
+    case VariableState::NONBASIC_FREE:
+      if (entering_reduced_cost < 0) {
+        step_length *= -1;
+      }
+      break;
+    default:
+      throw std::runtime_error("Unexpected variable state.");
+  }
+
+  return ChangeBasisMove{entering_var, *leaving_id, leaving_state, step_length};
 }
 
 }  // namespace simplex::detail

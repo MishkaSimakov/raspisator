@@ -56,6 +56,7 @@ class LUPA {
   UpdateResult forrest_tomlin_update(size_t current_column, size_t new_column) {
     auto [n, d] = A_.shape();
 
+    // TODO: this computation is duplicated in primal simplex.
     Vector column = A_.get_column_as_matrix(new_column);
 
     column = P_.apply(std::move(column));
@@ -221,7 +222,8 @@ class LUPA {
   Vector<Field> solve_linear(Vector<Field> b) const {
     guard_columns_set();
 
-    return linalg::solve_linear(std::move(b), P_, Q_, ls_, us_);
+    auto result = linalg::solve_linear(std::move(b), P_, Q_, ls_, us_);
+    return result;
   }
 
   Vector<Field> solve_linear_transposed(Vector<Field> b) const {

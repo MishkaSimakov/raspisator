@@ -48,7 +48,7 @@ inline double scale_factor(const Matrix<double>& b) {
 template <typename Field>
 Vector<Field> solve_linear(Vector<Field> b, const Permutation& P,
                            const Permutation& Q, const EtaFile<Field>& ls,
-                           const EtaFile<Field> us) {
+                           const EtaFile<Field>& us) {
   Vector<Field> result = P.apply(std::move(b));
 
   auto sf = scale_factor(result);
@@ -65,7 +65,7 @@ Vector<Field> solve_linear(Vector<Field> b, const Permutation& P,
   result = Q.apply(std::move(result));
   result *= sf;
 
-  return result;
+  return std::move(result);
 }
 
 // solves A^T x = b, where PAQ = LU
@@ -92,7 +92,7 @@ Vector<Field> solve_linear_transposed(Vector<Field> b, const Permutation& P,
   b = P.apply_transposed(std::move(b));
   b *= sf;
 
-  return b;
+  return std::move(b);
 }
 
 }  // namespace linalg
