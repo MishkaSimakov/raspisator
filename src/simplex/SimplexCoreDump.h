@@ -75,7 +75,7 @@ void dump_state(const problem::StandardLP<Field>& problem,
         os << "VariableState::NONBASIC_FREE, ";
         break;
       default:
-        throw std::runtime_error("Unknown variable state.");
+        std::unreachable();
     }
   }
   os << "};\n";

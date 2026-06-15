@@ -67,8 +67,8 @@ class Vector : public Matrix<Field> {
   //
   using Matrix<Field>::operator[];
 
-  Field& operator[](size_t row) { return (*this)[row, 0]; }
-  const Field& operator[](size_t row) const { return (*this)[row, 0]; }
+  Field& operator[](size_t row) { return this->data_[row]; }
+  const Field& operator[](size_t row) const { return this->data_[row]; }
 
   template <IndicesRange RowRange>
   auto operator[](RowRange&& rows) const {

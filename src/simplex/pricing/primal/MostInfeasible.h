@@ -31,7 +31,7 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
       case VariableState::NONBASIC_FREE:
         return abs(reduced_cost) <= tolerance;
       default:
-        throw std::runtime_error("Unknown variable state.");
+        std::unreachable();
     }
   }
 
@@ -65,12 +65,19 @@ class PrimalMostInfeasible final : public PrimalPricing<Field> {
 
   std::optional<size_t> most_infeasible_pricing(
       StateView<Field> simplex, const Vector<Field>& reduced_cost) {
+    using std::abs;
+
     ArgMaximum<Field> max_cost;
 
+    // this loading of loop-invariants can't be done by compiler due to
+    // short-circuiting and operator in the loop.
+    const auto& var_states = simplex.states;
+    const auto& var_bounds = simplex.problem.var_bounds;
+    const Field tolerance = simplex.tolerance.feasibility;
+
     for (size_t i = 0; i < reduced_cost.size(); ++i) {
-      if (!simplex.problem.var_bounds[i].is_fixed() &&
-          !is_feasible(simplex.states[i], reduced_cost[i],
-                       simplex.tolerance.feasibility)) {
+      if (!is_feasible(var_states[i], reduced_cost[i], tolerance) &&
+          !var_bounds[i].is_fixed()) {
         max_cost.record(i, abs(reduced_cost[i]));
       }
     }

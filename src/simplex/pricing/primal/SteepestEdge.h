@@ -27,7 +27,7 @@ class PrimalSteepestEdge final : public PrimalPricing<Field> {
       case VariableState::NONBASIC_FREE:
         return abs(reduced_cost) <= tolerance;
       default:
-        throw std::runtime_error("Unknown variable state.");
+        std::unreachable();
     }
   }
 

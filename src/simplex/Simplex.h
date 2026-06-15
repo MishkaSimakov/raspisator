@@ -219,7 +219,7 @@ class Simplex {
           ++basic_count;
           break;
         default:
-          throw std::runtime_error("Unknown variable state.");
+          std::unreachable();
       }
     }
 
@@ -269,7 +269,7 @@ class Simplex {
         case VariableState::BASIC:
           break;
         default:
-          throw std::runtime_error("Unknown variable state.");
+          std::unreachable();
       }
     }
 
@@ -507,7 +507,7 @@ class Simplex {
           intentional_repeat_ = true;
           break;
         default:
-          throw std::runtime_error("Unknown iteration result");
+          std::unreachable();
       }
 
       if (lupa_->get_changes_since_refactorization() > 250) {
@@ -716,7 +716,7 @@ class Simplex {
         case VariableState::BASIC:
           break;
         default:
-          throw std::runtime_error("Unknown variable state.");
+          std::unreachable();
       }
     }
 

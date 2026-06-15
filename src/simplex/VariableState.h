@@ -17,7 +17,7 @@ inline std::string to_string(VariableState state) {
     case VariableState::BASIC:
       return "BASIC";
     default:
-      throw std::runtime_error("Unknown variable state.");
+      std::unreachable();
   }
 }
 
