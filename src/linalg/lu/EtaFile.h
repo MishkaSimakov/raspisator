@@ -159,7 +159,8 @@ class EtaFile {
           .is_removed = false,
       });
 
-      new_values.append_range(entry.pivot_entries());
+      new_values.insert(new_values.end(), entry.pivot_entries().begin(),
+                        entry.pivot_entries().end());
     }
 
     values_ = std::move(new_values);

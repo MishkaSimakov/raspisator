@@ -43,7 +43,7 @@ int main() {
 
     std::println("{:02}/{} {}", index + 1, all_problems.size(), name);
 
-    std::ifstream is(all_problems[index]);
+    std::ifstream is(all_problems[index].path());
     if (!is) {
       std::println("  Failed to open problem file.");
       continue;

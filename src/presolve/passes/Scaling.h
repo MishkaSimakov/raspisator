@@ -17,6 +17,8 @@ class Scaling final : public Pass<Field> {
 
   static std::vector<Field> get_rows_scale_factor(
       const CSCMatrix<Field>& matrix) {
+    using std::abs;
+
     std::vector<GeometricMean<double>> scale_factors(matrix.rows());
 
     for (size_t col = 0; col < matrix.cols(); ++col) {

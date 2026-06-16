@@ -141,13 +141,13 @@ class Simplex {
   StateView<Field> get_state_view() {
     return StateView<Field>{
         .problem = *problem_,
-        .lupa = *lupa_,
         .iteration = iteration_,
+        .intentional_repeat = intentional_repeat_,
         .objective = objective_,
+        .lupa = *lupa_,
         .basic_point = basic_point_,
         .states = var_states_,
         .basic_vars = basic_vars_,
-        .intentional_repeat = intentional_repeat_,
         .tolerance = config_.tolerance,
     };
   }
@@ -509,7 +509,6 @@ class Simplex {
     auto [n, d] = problem_->matrix.shape();
 
     initialize_state(states);
-    size_t iteration = 0;
 
     while (true) {
       Vector rhs = detail::get_adjusted_rhs(*problem_, var_states_);
@@ -519,22 +518,13 @@ class Simplex {
           detail::get_objective(problem_->cost, problem_->var_bounds,
                                 var_states_, basic_vars_, basic_point_);
 
-      StateView<Field> state_view{
-          .problem = *problem_,
-          .lupa = *lupa_,
-          .iteration = iteration,
-          .objective = objective_,
-          .basic_point = basic_point_,
-          .states = var_states_,
-          .basic_vars = basic_vars_,
-          .tolerance = config_.tolerance,
-      };
+      auto state_view = get_state_view();
 
       if (config_.accountant) {
         config_.accountant->iteration(state_view);
       }
 
-      if (config_.max_iterations && iteration > *config_.max_iterations) {
+      if (config_.max_iterations && iteration_ > *config_.max_iterations) {
         return construct_result(Status::ITERATIONS_LIMIT);
       }
 
@@ -562,7 +552,7 @@ class Simplex {
 
       change_basis(leaving->index, *entering, leaving->new_state);
 
-      ++iteration;
+      ++iteration_;
     }
   }
 
