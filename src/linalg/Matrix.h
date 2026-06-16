@@ -6,6 +6,7 @@
 #include "Concepts.h"
 #include "expr/SubColsExpr.h"
 #include "expr/SubRowsExpr.h"
+#include "utils/PairFormatter.h"
 
 namespace linalg {
 
@@ -22,8 +23,7 @@ class Matrix {
   size_t get_index(size_t row, size_t col) const { return row * cols_ + col; }
 
   explicit Matrix(UninitializedTag, size_t rows, size_t cols)
-      : rows_(rows), cols_(cols), data_(rows * cols) {
-  }
+      : rows_(rows), cols_(cols), data_(rows * cols) {}
 
  public:
   using FieldType = Field;
@@ -32,8 +32,7 @@ class Matrix {
   Matrix() : Matrix(0, 0) {}
 
   Matrix(size_t rows, size_t cols, Field value = 0)
-      : rows_(rows), cols_(cols), data_(rows * cols, value) {
-  }
+      : rows_(rows), cols_(cols), data_(rows * cols, value) {}
 
   Matrix(std::initializer_list<std::initializer_list<Field>> values)
       : Matrix(UninitializedTag{}, values.size(), values.begin()->size()) {

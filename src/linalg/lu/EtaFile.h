@@ -115,7 +115,7 @@ class EtaFile {
                  const std::vector<std::pair<size_t, Field>>& values,
                  EtaMatrixType type = EtaMatrixType::COLUMN) {
     if (pivot_index >= matrix_size_) {
-      throw std::invalid_argument(std::format(""));
+      throw std::invalid_argument("Wrong pivot index.");
     }
 
     entries_.push_back(Entry{
