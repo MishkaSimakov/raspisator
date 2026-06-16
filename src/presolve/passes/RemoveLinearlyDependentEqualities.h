@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cmath>
 #include <vector>
 
 #include "linalg/Linalg.h"
 #include "linalg/Permutation.h"
-#include "linalg/Rank.h"
+#include "linalg/RRQR.h"
 #include "presolve/Pass.h"
 #include "utils/Accumulators.h"
 #include "utils/Logging.h"
@@ -16,7 +17,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
   const Field pivot_tolerance_;
   const Field feasibility_tolerance_;
 
-  // Performs the first part of row reduction. Ignores rows with non-zero range.
+  // Performs the first part of row reduction.
   void row_reduction(Matrix<Field>& matrix, std::vector<Field>& rhs_bounds) {
     using std::abs;
 
@@ -73,6 +74,22 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
     return true;
   }
 
+  static Vector<Field> solve(const Matrix<Field>& L, Vector<Field> rhs) {
+    const size_t rank = rhs.size();
+
+    for (size_t i = 0; i < rank; ++i) {
+      Field r = rhs[i];
+
+      for (size_t j = 0; j < i; ++j) {
+        r -= L[i, j] * rhs[j];
+      }
+
+      rhs[i] = r / L[i, i];
+    }
+
+    return std::move(rhs);
+  }
+
  public:
   explicit RemoveLinearlyDependentEqualities(Field pivot_tolerance = 1e-7,
                                              Field feasibility_tolerance = 1e-7)
@@ -95,7 +112,16 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
       }
     }
 
+    // submatrix formed by equalities
+    auto rhs = Vector<Field>::zeros(equalities_count);
     auto matrix = Matrix<Field>::zeros(equalities_count, d);
+
+    for (size_t row = 0; row < n; ++row) {
+      if (rows_mapping[row] != n) {
+        rhs[rows_mapping[row]] = *problem.rhs_bounds[row].lower;
+      }
+    }
+
     for (size_t col = 0; col < d; ++col) {
       for (const auto& [row, value] : problem.matrix.get_column(col)) {
         if (rows_mapping[row] != n) {
@@ -104,17 +130,34 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
       }
     }
 
-    // use Field instead of Bound<Field> because we are concerned only with
-    // equalities
-    std::vector<Field> bounds(equalities_count);
+    auto [permutation, rank] = linalg::rrqr(matrix, pivot_tolerance_);
 
-    for (size_t i = 0; i < n; ++i) {
-      if (rows_mapping[i] != n) {
-        bounds[rows_mapping[i]] = *problem.rhs_bounds[i].lower;
-      }
+    std::vector<size_t> inverse_permutation(equalities_count);
+    for (size_t i = 0; i < equalities_count; ++i) {
+      inverse_permutation[permutation[i]] = i;
     }
 
-    row_reduction(matrix, bounds);
+    // verify that rhs is feasible
+    Vector<Field> z(rank);
+
+    for (size_t i = 0; i < rank; ++i) {
+      z[i] = rhs[permutation[i]];
+    }
+
+    z = solve(matrix, std::move(z));
+
+    for (size_t i = rank; i < equalities_count; ++i) {
+      Field expected_rhs = 0;
+
+      for (size_t j = 0; j < rank; ++j) {
+        expected_rhs += matrix[i, j] * z[j];
+      }
+
+      if (abs(rhs[permutation[i]] - expected_rhs) > feasibility_tolerance_) {
+        problem.proven_infeasible = true;
+        return problem;
+      }
+    }
 
     // find linearly dependent rows using matrix after row reduction
     size_t new_rows_count = 0;
@@ -125,14 +168,9 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
         continue;
       }
 
-      if (!is_zero_row(matrix, rows_mapping[i])) {
+      if (inverse_permutation[rows_mapping[i]] < rank) {
         rows_mapping[i] = new_rows_count++;
         continue;
-      }
-
-      if (abs(bounds[rows_mapping[i]]) > feasibility_tolerance_) {
-        problem.proven_infeasible = true;
-        return problem;
       }
 
       rows_mapping[i] = n;

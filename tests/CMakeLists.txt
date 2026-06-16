@@ -42,6 +42,7 @@ target_sources(tests PUBLIC
         linalg/PermutationTests.cpp
         linalg/UseCasesTests.cpp
         linalg/RowBasisTests.cpp
+        linalg/RRQRTests.cpp
 
         linalg/lu/EtaFileTests.cpp
         linalg/lu/FullPivotingLUTests.cpp

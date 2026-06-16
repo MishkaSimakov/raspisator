@@ -59,7 +59,7 @@ void add_linearly_dependent_constraints(problem::MILP<Field>& problem,
 TEST(RemoveLinearlyDependentConstraintsTests,
      RemovesLinearlyDependentEqualities) {
   // matrix[2] = matrix[0] - matrix[1]
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<double>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
       {1, -2, 2, 2},
@@ -69,13 +69,13 @@ TEST(RemoveLinearlyDependentConstraintsTests,
 
   // ensure that all rows are equalities
   problem.rhs_bounds = {
-      Bound<Rational>{0, 0},
-      Bound<Rational>{0, 0},
-      Bound<Rational>{0, 0},
+      Bound<double>{0, 0},
+      Bound<double>{0, 0},
+      Bound<double>{0, 0},
   };
 
   auto new_problem =
-      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<double>().apply(problem);
   new_problem.validate();
 
   ASSERT_EQ(new_problem.matrix.rows(), 2);
@@ -83,7 +83,7 @@ TEST(RemoveLinearlyDependentConstraintsTests,
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, SmallTest) {
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<double>({
       {1, 2, 3},
       {2, 4, 6},
   });
@@ -91,12 +91,12 @@ TEST(RemoveLinearlyDependentConstraintsTests, SmallTest) {
   auto problem = feasible_from_matrix(matrix);
 
   problem.rhs_bounds = {
-      Bound<Rational>{1, 1},
-      Bound<Rational>{2, 2},
+      Bound<double>{1, 1},
+      Bound<double>{2, 2},
   };
 
   auto new_problem =
-      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<double>().apply(problem);
 
   ASSERT_EQ(new_problem.matrix.rows(), 1);
   ASSERT_EQ(new_problem.matrix.cols(), 3);
@@ -105,7 +105,7 @@ TEST(RemoveLinearlyDependentConstraintsTests, SmallTest) {
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, SmallTest2) {
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<double>({
       {1, 2, 3},
       {1, 2, 3},
       {2, 4, 6},
@@ -114,13 +114,13 @@ TEST(RemoveLinearlyDependentConstraintsTests, SmallTest2) {
   auto problem = feasible_from_matrix(matrix);
 
   problem.rhs_bounds = {
-      Bound<Rational>{1, 1},
-      Bound<Rational>{1, 1},
-      Bound<Rational>{2, 2},
+      Bound<double>{1, 1},
+      Bound<double>{1, 1},
+      Bound<double>{2, 2},
   };
 
   auto new_problem =
-      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<double>().apply(problem);
 
   ASSERT_EQ(new_problem.matrix.rows(), 1);
   ASSERT_EQ(new_problem.matrix.cols(), 3);
@@ -130,7 +130,7 @@ TEST(RemoveLinearlyDependentConstraintsTests, SmallTest2) {
 
 TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
   // matrix[2] = matrix[0] - matrix[1]
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<double>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
       {1, -2, 2, 2},
@@ -141,13 +141,13 @@ TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
   problem.row_names = {"r0", "r1", "r2"};
   // ensure that all rows are equalities
   problem.rhs_bounds = {
-      Bound<Rational>{0, 0},
-      Bound<Rational>{0, 0},
-      Bound<Rational>{0, 0},
+      Bound<double>{0, 0},
+      Bound<double>{0, 0},
+      Bound<double>{0, 0},
   };
 
   auto new_problem =
-      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<double>().apply(problem);
 
   std::set remaining_names(new_problem.row_names.begin(),
                            new_problem.row_names.end());
@@ -158,7 +158,7 @@ TEST(RemoveLinearlyDependentConstraintsTests, PreservesNames) {
 }
 
 TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection1) {
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<double>({
       {1, 2, 3},
       {2, 4, 6},
   });
@@ -166,12 +166,12 @@ TEST(RemoveLinearlyDependentConstraintsTests, InfeasibilityDetection1) {
   auto problem = feasible_from_matrix(matrix);
 
   problem.rhs_bounds = {
-      Bound<Rational>{1, 1},
-      Bound<Rational>{-3, -3},
+      Bound<double>{1, 1},
+      Bound<double>{-3, -3},
   };
 
   auto new_problem =
-      presolve::RemoveLinearlyDependentEqualities<Rational>().apply(problem);
+      presolve::RemoveLinearlyDependentEqualities<double>().apply(problem);
 
   ASSERT_TRUE(new_problem.proven_infeasible);
 }
