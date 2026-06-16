@@ -1,34 +1,21 @@
 #pragma once
 
+#include "Move.h"
 #include "StateView.h"
 
 namespace simplex {
-
-// TODO: log simplex action in accountant
-// struct NoLeaving {};
-// struct NoEntering {};
-//
-// struct ToggleBound {
-//   size_t variable_index;
-//   VariableState new_state;  // should be either AT_UPPER or AT_LOWER
-// };
-//
-// struct ChangeBasicVariable {
-//   size_t leaving_index;      // index of leaving variable in basic_variables
-//   size_t leaving_variable;   // index of leaving variable
-//   size_t entering_variable;  // index of entering variable
-//
-//   VariableState entering_old_state;  // should be either AT_UPPER or AT_LOWER
-//   VariableState leaving_new_state;   // should be either AT_UPPER or AT_LOWER
-// };
-//
-// using IterationAction =
-//     std::variant<NoLeaving, NoEntering, ToggleBound, ChangeBasicVariable>;
 
 template <typename Field>
 class Accountant {
  public:
   virtual void iteration(StateView<Field> simplex) {}
+
+  virtual void suspicious_pivot(StateView<Field> simplex,
+                                ChangeBasisMove<Field> move) {}
+
+  // @culprit is the index of violating variable in simplex.basic_vars array
+  virtual void violate_primal_bounds(StateView<Field> simplex, size_t culprit) {
+  }
 
   virtual ~Accountant() = default;
 };
@@ -55,12 +42,25 @@ class LoggingAccountant final : public Accountant<Field> {
           static_cast<double>(iterations_since_last_time_) /
           std::chrono::duration<double>(curr_time - last_time_).count();
 
-      std::println("{:.1f} itr/s, objective: {}, elapsed: {}", speed,
-                   simplex.objective, curr_time - last_time_);
+      std::println("  [{}] {:.1f} itr/s, objective: {}", simplex.iteration,
+                   speed, simplex.objective);
 
       last_time_ = curr_time;
       iterations_since_last_time_ = 0;
     }
+  }
+
+  void suspicious_pivot(StateView<Field> simplex,
+                        ChangeBasisMove<Field> move) override {
+    std::println("  [{}] suspicious pivot", simplex.iteration);
+  }
+
+  void violate_primal_bounds(StateView<Field> simplex,
+                             size_t culprit) override {
+    std::println("  [{}] primal violation: variable {} with value {} not in {}",
+                 simplex.problem.var_name(simplex.basic_vars[culprit]),
+                 simplex.basic_point[culprit],
+                 simplex.problem.var_bounds[simplex.basic_vars[culprit]]);
   }
 };
 

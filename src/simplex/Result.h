@@ -1,54 +1,37 @@
 #pragma once
 
-#include <variant>
-#include <vector>
-
-#include "linalg/Linalg.h"
-#include "simplex/VariableState.h"
+#include <optional>
+#include <string>
 
 namespace simplex {
 
-template <typename Field>
-struct FiniteLPSolution {
-  Vector<Field> point;
-  Field value;
-
-  std::vector<VariableState> variables;
-
-  std::vector<size_t> get_basic_variables() const {
-    std::vector<size_t> result;
-
-    for (size_t i = 0; i < variables.size(); ++i) {
-      if (variables[i] == VariableState::BASIC) {
-        result.push_back(i);
-      }
-    }
-
-    return result;
-  }
+enum class Status {
+  OPTIMAL,
+  INFEASIBLE,
+  UNBOUNDED,
+  ITERATIONS_LIMIT,
 };
 
-struct NoFeasibleElements {};
-
 template <typename Field>
-struct ReachedIterationsLimit {
-  // dual objective value on the last iteration
-  Field value;
-};
-
-struct Unbounded {};
-
-template <typename Field>
-struct SimplexResult {
+struct Result {
+  Status status;
   size_t iterations_count;
-
-  std::variant<FiniteLPSolution<Field>, NoFeasibleElements,
-               ReachedIterationsLimit<Field>, Unbounded>
-      solution;
-
-  bool is_feasible() const {
-    return std::holds_alternative<FiniteLPSolution<Field>>(solution);
-  }
+  std::optional<Field> objective;
 };
+
+inline std::string to_string(Status status) {
+  switch (status) {
+    case Status::OPTIMAL:
+      return "OPTIMAL";
+    case Status::INFEASIBLE:
+      return "INFEASIBLE";
+    case Status::UNBOUNDED:
+      return "UNBOUNDED";
+    case Status::ITERATIONS_LIMIT:
+      return "ITERATIONS_LIMIT";
+    default:
+      std::unreachable();
+  }
+}
 
 }  // namespace simplex

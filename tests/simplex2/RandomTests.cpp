@@ -35,11 +35,10 @@ TEST(Simplex2RandomTests, DualFeasible) {
 
     auto result = solver.dual(*states);
 
-    ASSERT_TRUE(result.is_feasible())
+    ASSERT_EQ(result.status, simplex::Status::OPTIMAL)
         << "Dual simplex failed to find solution at iteration " << i;
 
-    auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
-    ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(prob, sol))
+    ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(prob, solver))
         << "Solution validation failed at iteration " << i;
   }
 }
@@ -62,11 +61,10 @@ TEST(Simplex2RandomTests, PrimalFeasible) {
 
     auto result = solver.primal(primal_states);
 
-    ASSERT_TRUE(result.is_feasible())
+    ASSERT_EQ(result.status, simplex::Status::OPTIMAL)
         << "Primal simplex failed to find solution at iteration " << i;
 
-    auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
-    ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(prob, sol))
+    ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(prob, solver))
         << "Solution validation failed at iteration " << i;
   }
 }
@@ -92,8 +90,7 @@ TEST(Simplex2RandomTests, Infeasible) {
 
     auto result = solver.dual(*states);
 
-    EXPECT_TRUE(
-        std::holds_alternative<simplex::NoFeasibleElements>(result.solution))
+    ASSERT_EQ(result.status, simplex::Status::INFEASIBLE)
         << "Expected infeasible result at iteration " << i
         << " but got feasible solution";
   }
@@ -117,7 +114,7 @@ TEST(Simplex2RandomTests, Unbounded) {
 
     auto result = solver.primal(primal_states);
 
-    EXPECT_TRUE(std::holds_alternative<simplex::Unbounded>(result.solution))
+    EXPECT_EQ(result.status, simplex::Status::UNBOUNDED)
         << "Expected unbounded result at iteration " << i;
   }
 }

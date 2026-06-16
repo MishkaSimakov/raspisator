@@ -104,8 +104,8 @@ class ProblemGenerator {
 
     double cost_multiplier = 1;
     if (state.objective == ObjectiveType::MINIMIZE) {
-      std::cerr << "MPS objective is MINIMIZE, negating objective coefficients."
-                << std::endl;
+      // MPS objective is MINIMIZE, but problem::MILP assumes maximization
+      // problem so we need to negate objective coefficients.
 
       cost_multiplier = -1;
     }

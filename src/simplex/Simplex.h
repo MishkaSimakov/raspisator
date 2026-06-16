@@ -79,36 +79,13 @@ class Simplex {
     }
   }
 
-  template <typename T>
-  SimplexResult<Field> construct_result() const {
-    auto point = get_point();
-    Field objective = linalg::dot(problem_->cost, point);
-
-    if constexpr (std::same_as<T, FiniteLPSolution<Field>>) {
-      return SimplexResult<Field>{
-          .iterations_count = iteration_,
-          .solution =
-              FiniteLPSolution{std::move(point), objective, var_states_},
-      };
-    }
-    if constexpr (std::same_as<T, NoFeasibleElements>) {
-      return SimplexResult<Field>{
-          .iterations_count = iteration_,
-          .solution = NoFeasibleElements{},
-      };
-    }
-    if constexpr (std::same_as<T, ReachedIterationsLimit<Field>>) {
-      return SimplexResult<Field>{
-          .iterations_count = iteration_,
-          .solution = ReachedIterationsLimit<Field>{objective},
-      };
-    }
-    if constexpr (std::same_as<T, Unbounded>) {
-      return SimplexResult<Field>{
-          .iterations_count = iteration_,
-          .solution = Unbounded{},
-      };
-    }
+  Result<Field> construct_result(Status status) const {
+    return Result<Field>{
+        .status = status,
+        .iterations_count = iteration_,
+        .objective = status == Status::UNBOUNDED ? std::nullopt
+                                                 : std::optional{objective_},
+    };
   }
 
   std::optional<size_t> get_dual_entering_variable(
@@ -159,6 +136,20 @@ class Simplex {
 
     return min_ratio.has_value() ? std::optional{min_ratio->index}
                                  : std::nullopt;
+  }
+
+  StateView<Field> get_state_view() {
+    return StateView<Field>{
+        .problem = *problem_,
+        .lupa = *lupa_,
+        .iteration = iteration_,
+        .objective = objective_,
+        .basic_point = basic_point_,
+        .states = var_states_,
+        .basic_vars = basic_vars_,
+        .intentional_repeat = intentional_repeat_,
+        .tolerance = config_.tolerance,
+    };
   }
 
   void initialize_state(const std::vector<VariableState>& states) {
@@ -231,13 +222,14 @@ class Simplex {
     return std::nullopt;
   }
 
-  bool violate_primal_bounds() const {
+  bool violate_primal_bounds() {
     for (size_t i = 0; i < basic_point_.size(); ++i) {
-      const auto& bound = problem_->var_bounds[basic_vars_[i]];
+      if (!problem_->var_bounds[basic_vars_[i]].contains(
+              basic_point_[i], config_.tolerance.feasibility)) {
+        if (config_.accountant) {
+          config_.accountant->violate_primal_bounds(get_state_view(), i);
+        }
 
-      if (!bound.contains(basic_point_[i], config_.tolerance.feasibility)) {
-        std::println("infeasible: variable {} with value {} not in {}",
-                     basic_vars_[i], basic_point_[i], bound);
         return true;
       }
     }
@@ -289,6 +281,8 @@ class Simplex {
 
     basic_point_ = lupa_->solve_linear(adjusted_rhs_);
 
+    const auto state_view = get_state_view();
+
     if (violate_primal_bounds()) {
       if (lupa_->get_changes_since_refactorization() > 0) {
         return IterationResult::REFACTORIZE_REPEAT;
@@ -297,18 +291,6 @@ class Simplex {
       throw std::runtime_error(
           "Point became primal infeasible. Not implemented.");
     }
-
-    StateView<Field> state_view{
-        .problem = *problem_,
-        .lupa = *lupa_,
-        .iteration = iteration_,
-        .objective = objective_,
-        .basic_point = basic_point_,
-        .states = var_states_,
-        .basic_vars = basic_vars_,
-        .intentional_repeat = intentional_repeat_,
-        .tolerance = config_.tolerance,
-    };
 
     if (config_.accountant) {
       config_.accountant->iteration(state_view);
@@ -332,7 +314,9 @@ class Simplex {
       if (abs(pivot_col[move->leaving_index]) <
               config_.tolerance.suspicious_pivot &&
           lupa_->get_changes_since_refactorization() > 0) {
-        std::cout << iteration_ << " suspicious pivot" << std::endl;
+        if (config_.accountant) {
+          config_.accountant->suspicious_pivot(state_view, *move);
+        }
 
         return IterationResult::REFACTORIZE_REPEAT;
       }
@@ -467,7 +451,7 @@ class Simplex {
   // It is guaranteed, that after execution of this method, if finite LP
   // solution was found, then inside LUPA basic variables would be selected as
   // columns.
-  SimplexResult<Field> primal_implementation(
+  Result<Field> primal_implementation(
       const std::vector<VariableState>& states) {
     using std::abs;
 
@@ -485,7 +469,7 @@ class Simplex {
     //
     while (true) {
       if (config_.max_iterations && iteration_ > *config_.max_iterations) {
-        return construct_result<ReachedIterationsLimit<Field>>();
+        return construct_result(Status::ITERATIONS_LIMIT);
       }
 
       const auto result = primal_iteration();
@@ -494,11 +478,11 @@ class Simplex {
 
       switch (result) {
         case IterationResult::FEASIBLE:
-          return construct_result<FiniteLPSolution<Field>>();
+          return construct_result(Status::OPTIMAL);
         case IterationResult::UNBOUNDED:
-          return construct_result<Unbounded>();
+          return construct_result(Status::UNBOUNDED);
         case IterationResult::INFEASIBLE:
-          return construct_result<NoFeasibleElements>();
+          return construct_result(Status::INFEASIBLE);
         case IterationResult::MOVED:
           intentional_repeat_ = false;
           break;
@@ -516,8 +500,7 @@ class Simplex {
     }
   }
 
-  SimplexResult<Field> dual_implementation(
-      const std::vector<VariableState>& states) {
+  Result<Field> dual_implementation(const std::vector<VariableState>& states) {
     if (!config_.dual_pricing) {
       throw std::runtime_error(
           "Dual pricing must be specified in simplex config.");
@@ -532,7 +515,7 @@ class Simplex {
       Vector rhs = detail::get_adjusted_rhs(*problem_, var_states_);
       basic_point_ = lupa_->solve_linear(rhs);
 
-      Field objective =
+      objective_ =
           detail::get_objective(problem_->cost, problem_->var_bounds,
                                 var_states_, basic_vars_, basic_point_);
 
@@ -540,7 +523,7 @@ class Simplex {
           .problem = *problem_,
           .lupa = *lupa_,
           .iteration = iteration,
-          .objective = objective,
+          .objective = objective_,
           .basic_point = basic_point_,
           .states = var_states_,
           .basic_vars = basic_vars_,
@@ -552,12 +535,12 @@ class Simplex {
       }
 
       if (config_.max_iterations && iteration > *config_.max_iterations) {
-        return construct_result<ReachedIterationsLimit<Field>>();
+        return construct_result(Status::ITERATIONS_LIMIT);
       }
 
       auto leaving = config_.dual_pricing->get_dual_leaving(state_view);
       if (!leaving) {
-        return construct_result<FiniteLPSolution<Field>>();
+        return construct_result(Status::OPTIMAL);
       }
 
       const Vector pi =
@@ -574,7 +557,7 @@ class Simplex {
       auto entering =
           get_dual_entering_variable(*leaving, reduced_cost, leaving_row);
       if (!entering) {
-        return construct_result<NoFeasibleElements>();
+        return construct_result(Status::INFEASIBLE);
       }
 
       change_basis(leaving->index, *entering, leaving->new_state);
@@ -618,8 +601,11 @@ class Simplex {
     config_.dual_pricing = std::make_unique<T>(std::forward<Args>(args)...);
   }
 
+  // config getters
+  Tolerance<Field> get_tolerance() const { return config_.tolerance; }
+
   // Point associated with the given states must be dual feasible
-  SimplexResult<Field> dual(const std::vector<VariableState>& states) {
+  Result<Field> dual(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
       if (!is_dual_feasible(*problem_, states, config_.tolerance.feasibility)) {
         return "Initial point is not dual feasible.";
@@ -637,7 +623,7 @@ class Simplex {
   }
 
   // Point associated with the given states must be primal feasible
-  SimplexResult<Field> primal(const std::vector<VariableState>& states) {
+  Result<Field> primal(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
       if (!is_primal_feasible(*problem_, states,
                               config_.tolerance.feasibility)) {
@@ -692,7 +678,7 @@ class Simplex {
   }
 
   // current basis getters
-  std::vector<size_t> get_basic_vars() const { return basic_vars_; }
+  const std::vector<size_t>& get_basic_vars() const { return basic_vars_; }
 
   Vector<Field> get_point() const {
     const size_t n = var_states_.size();
@@ -723,7 +709,7 @@ class Simplex {
     return result;
   }
 
-  std::vector<VariableState> get_states() const { return var_states_; }
+  const std::vector<VariableState>& get_states() const { return var_states_; }
 
   Vector<Field> get_tableau_row(size_t row) const {
     return lupa_->get_row(row);

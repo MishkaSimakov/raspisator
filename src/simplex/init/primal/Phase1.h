@@ -4,22 +4,25 @@
 #include <vector>
 
 #include "linalg/CSCMatrix.h"
-#include "simplex/SimplexMath.h"
 #include "simplex/Simplex.h"
+#include "simplex/SimplexMath.h"
 
 namespace simplex {
 
 enum class Phase1Error {
   INFEASIBLE,
   LINEARLY_DEPENDENT_ROWS,
+  REACHED_ITERATIONS_LIMIT,
 };
 
-// Returns primal feasible basis or std::nullopt if problem is infeasible.
-// Note: algorithm is taken from
+// If iterations count is not nullptr, stores phase 1 simplex iterations count
+// in it.
+// Note: algorithm is taken from:
 // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
 template <typename Field>
 std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
-    const problem::StandardLP<Field>& problem, Config<Field> config = {}) {
+    const problem::StandardLP<Field>& problem, Config<Field> config = {},
+    size_t* iterations_count = nullptr) {
   using std::abs;
 
   const auto [n, old_d] = problem.matrix.shape();
@@ -66,22 +69,28 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     new_problem.cost[i] = -1;
   }
 
-  // save pivot tolerance, it will be needed later
-  const Field pivot_tolerance = config.tolerance.pivot;
+  // save tolerances, they will be needed later
+  const auto tolerance = config.tolerance;
 
   auto helper = Simplex<Field>(std::move(config));
   helper.set_problem(new_problem);
 
   const auto result = helper.primal(states);
 
-  if (!result.is_feasible()) {
+  if (iterations_count != nullptr) {
+    *iterations_count = result.iterations_count;
+  }
+
+  if (result.status == Status::ITERATIONS_LIMIT) {
+    return std::unexpected{Phase1Error::REACHED_ITERATIONS_LIMIT};
+  }
+
+  if (result.status != Status::OPTIMAL) {
     throw std::runtime_error("Something went wrong in primal implementation.");
   }
 
-  auto solution = std::get<FiniteLPSolution<Field>>(result.solution);
-
   // Case 1
-  if (FieldTraits<Field>::is_strictly_negative(solution.value)) {
+  if (result.objective < -tolerance.feasibility) {
     return std::unexpected{Phase1Error::INFEASIBLE};
   }
 
@@ -100,7 +109,7 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     ArgMaximum<Field> max_pivot;
 
     for (size_t j = 0; j < old_d; ++j) {
-      if (solution.variables[j] == VariableState::BASIC) {
+      if (helper.get_states()[j] == VariableState::BASIC) {
         continue;
       }
 
@@ -113,17 +122,17 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
       max_pivot.record(j, abs(coef.sum()));
     }
 
-    if (!max_pivot.has_value() || max_pivot->max <= pivot_tolerance) {
+    if (!max_pivot.has_value() || max_pivot->max <= tolerance.pivot) {
       // Problem contains linearly dependent rows.
       return std::unexpected{Phase1Error::LINEARLY_DEPENDENT_ROWS};
     }
 
-    solution.variables[max_pivot->index] = VariableState::BASIC;
     helper.change_basis(basic_index, max_pivot->index, VariableState::AT_LOWER);
   }
 
-  solution.variables.resize(old_d);
-  return solution.variables;
+  states = helper.get_states();
+  states.resize(old_d);
+  return states;
 }
 
 }  // namespace simplex

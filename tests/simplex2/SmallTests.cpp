@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <variant>
-
 #include "Assertions.h"
 #include "ConstructSparse.h"
 #include "field/BigInteger.h"
@@ -52,11 +50,10 @@ TEST(Simplex2SmallTests, StartingInSolution) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{0, 3, 4, 0}));
-  EXPECT_EQ(sol.value, Rational{7});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{0, 3, 4, 0}));
+  EXPECT_EQ(*result.objective, Rational{7});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, Simple1) {
@@ -74,11 +71,10 @@ TEST(Simplex2SmallTests, Simple1) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{0, 3, 4, 0}));
-  EXPECT_EQ(sol.value, Rational{7});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{0, 3, 4, 0}));
+  EXPECT_EQ(result.objective, Rational{7});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, Simple2) {
@@ -96,11 +92,10 @@ TEST(Simplex2SmallTests, Simple2) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{4, 0, 2, 0}));
-  EXPECT_EQ(sol.value, Rational{10});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{4, 0, 2, 0}));
+  EXPECT_EQ(result.objective, Rational{10});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, Simple3) {
@@ -115,11 +110,10 @@ TEST(Simplex2SmallTests, Simple3) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{0, 1}));
-  EXPECT_EQ(sol.value, Rational{2});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{0, 1}));
+  EXPECT_EQ(result.objective, Rational{2});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, Simple4) {
@@ -134,11 +128,10 @@ TEST(Simplex2SmallTests, Simple4) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{1, 0}));
-  EXPECT_EQ(sol.value, Rational{2});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{1, 0}));
+  EXPECT_EQ(result.objective, Rational{2});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, TrivialOneDimensional) {
@@ -153,10 +146,9 @@ TEST(Simplex2SmallTests, TrivialOneDimensional) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{3}));
-  EXPECT_EQ(sol.value, Rational{3});
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{3}));
+  EXPECT_EQ(result.objective, Rational{3});
 }
 
 TEST(Simplex2SmallTests, NonTrivialBounds) {
@@ -174,11 +166,10 @@ TEST(Simplex2SmallTests, NonTrivialBounds) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{0, 3, 4, 0}));
-  EXPECT_EQ(sol.value, Rational{7});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{0, 3, 4, 0}));
+  EXPECT_EQ(result.objective, Rational{7});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, NonTrivialBounds2) {
@@ -198,11 +189,10 @@ TEST(Simplex2SmallTests, NonTrivialBounds2) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
 
-  EXPECT_EQ(sol.point, (Vector<Rational>{1, 0, 0, 1, 1, 1}));
-  EXPECT_EQ(sol.value, Rational{4});
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{1, 0, 0, 1, 1, 1}));
+  EXPECT_EQ(result.objective, Rational{4});
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, InfeasibleDetected) {
@@ -218,8 +208,7 @@ TEST(Simplex2SmallTests, InfeasibleDetected) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  EXPECT_TRUE(
-      std::holds_alternative<simplex::NoFeasibleElements>(result.solution));
+  EXPECT_EQ(result.status, simplex::Status::INFEASIBLE);
 }
 
 TEST(Simplex2SmallTests, UnboundedDetected) {
@@ -239,7 +228,7 @@ TEST(Simplex2SmallTests, UnboundedDetected) {
   solver.set_problem(p);
 
   auto result = solver.primal(states);
-  EXPECT_TRUE(std::holds_alternative<simplex::Unbounded>(result.solution));
+  ASSERT_EQ(result.status, simplex::Status::UNBOUNDED);
 }
 
 TEST(Simplex2SmallTests, PrimalSimplex) {
@@ -272,12 +261,11 @@ TEST(Simplex2SmallTests, PrimalSimplex) {
   solver.set_problem(p);
 
   auto result = solver.primal(states);
-  ASSERT_TRUE(result.is_feasible());
+  ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
 
-  auto& sol = std::get<simplex::FiniteLPSolution<Rational>>(result.solution);
-  EXPECT_EQ(sol.point,
+  EXPECT_EQ(solver.get_point(),
             (Vector<Rational>{0, Rational{14} / 5, Rational{17} / 5, 0, 0, 3}));
-  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, sol));
+  ASSERT_NO_FATAL_FAILURE(validate_simplex_solution(p, solver));
 }
 
 TEST(Simplex2SmallTests, SetProblemTwice) {
@@ -298,15 +286,13 @@ TEST(Simplex2SmallTests, SetProblemTwice) {
   auto s1 = dual_init(p1);
   ASSERT_TRUE(s1.has_value());
   auto r1 = solver.dual(*s1);
-  EXPECT_EQ(std::get<simplex::FiniteLPSolution<Rational>>(r1.solution).value,
-            Rational{2});
+  EXPECT_EQ(r1.objective, Rational{2});
 
   // Solve p2 with the same solver
   solver.set_problem(p2);
   auto s2 = dual_init(p2);
   ASSERT_TRUE(s2.has_value());
   auto r2 = solver.dual(*s2);
-  auto& sol2 = std::get<simplex::FiniteLPSolution<Rational>>(r2.solution);
-  EXPECT_EQ(sol2.point, (Vector<Rational>{0, 1}));
-  EXPECT_EQ(sol2.value, Rational{2});
+  EXPECT_EQ(solver.get_point(), (Vector<Rational>{0, 1}));
+  EXPECT_EQ(r2.objective, Rational{2});
 }

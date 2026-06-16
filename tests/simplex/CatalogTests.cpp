@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <variant>
-
 #include "faker/Catalog.h"
 #include "simplex/Simplex.h"
 #include "simplex/init/dual/ReducedCost.h"
@@ -27,14 +25,10 @@ TEST(CatalogTests, Dual) {
     solver.set_problem(problem);
     solver.set_validate_input(true);
 
-    auto solution = solver.dual(*states).solution;
+    auto result = solver.dual(*states);
 
-    ASSERT_TRUE(
-        std::holds_alternative<simplex::FiniteLPSolution<Rational>>(solution));
-
-    ASSERT_EQ(std::get<simplex::FiniteLPSolution<Rational>>(solution).value,
-              *instance.optimal_objective);
-
+    ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
+    ASSERT_EQ(*result.objective, *instance.optimal_objective);
     ASSERT_TRUE(simplex::is_primal_feasible(problem, solver.get_states()));
   }
 }
@@ -57,9 +51,9 @@ TEST(CatalogTests, UnboundedPrimal) {
     solver.set_problem(problem);
     solver.set_validate_input(true);
 
-    auto solution = solver.primal(*states).solution;
+    auto result = solver.primal(*states);
 
-    ASSERT_TRUE(std::holds_alternative<simplex::Unbounded>(solution));
+    ASSERT_EQ(result.status, simplex::Status::UNBOUNDED);
   }
 }
 
@@ -82,14 +76,10 @@ TEST(CatalogTests, FeasiblePrimal) {
     solver.set_problem(problem);
     solver.set_validate_input(true);
 
-    auto solution = solver.primal(*states).solution;
+    auto result = solver.primal(*states);
 
-    ASSERT_TRUE(
-        std::holds_alternative<simplex::FiniteLPSolution<Rational>>(solution));
-
-    ASSERT_EQ(std::get<simplex::FiniteLPSolution<Rational>>(solution).value,
-              *instance.optimal_objective);
-
+    ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
+    ASSERT_EQ(*result.objective, *instance.optimal_objective);
     ASSERT_TRUE(simplex::is_primal_feasible(problem, solver.get_states()));
   }
 }

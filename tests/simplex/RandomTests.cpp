@@ -38,17 +38,13 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
 
     ASSERT_TRUE(states.has_value());
 
-    auto run_result = solver.dual(*states);
+    auto result = solver.dual(*states);
 
     // check solution
-    ASSERT_TRUE(run_result.is_feasible());
+    ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
 
-    auto final_states =
-        std::get<simplex::FiniteLPSolution<Rational>>(run_result.solution)
-            .variables;
-
-    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, final_states));
-    ASSERT_TRUE(simplex::is_dual_feasible(standard_lp, final_states));
+    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, solver.get_states()));
+    ASSERT_TRUE(simplex::is_dual_feasible(standard_lp, solver.get_states()));
   }
 }
 
@@ -76,16 +72,12 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
     auto solver = simplex::Simplex<Rational>();
     solver.set_problem(standard_lp);
 
-    auto run_result = solver.primal(*states);
+    auto result = solver.primal(*states);
 
     // check solution
-    ASSERT_TRUE(run_result.is_feasible());
+    ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
 
-    auto final_states =
-        std::get<simplex::FiniteLPSolution<Rational>>(run_result.solution)
-            .variables;
-
-    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, final_states));
-    ASSERT_TRUE(simplex::is_dual_feasible(standard_lp, final_states));
+    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, solver.get_states()));
+    ASSERT_TRUE(simplex::is_dual_feasible(standard_lp, solver.get_states()));
   }
 }

@@ -45,7 +45,7 @@ TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
 
   // Run to a feasible basis
   auto result = solver.dual(*states);
-  ASSERT_TRUE(result.is_feasible());
+  ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
 
   const auto basic_vars_before = solver.get_basic_vars();
   const auto states_before = solver.get_states();
@@ -111,7 +111,7 @@ TEST(Simplex2TraversalTests, ChangeBoundFlipsState) {
   ASSERT_TRUE(states.has_value());
 
   auto result = solver.dual(*states);
-  ASSERT_TRUE(result.is_feasible());
+  ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
 
   const auto states_after_solve = solver.get_states();
   const size_t d = states_after_solve.size();
