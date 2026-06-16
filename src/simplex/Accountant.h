@@ -58,6 +58,7 @@ class LoggingAccountant final : public Accountant<Field> {
   void violate_primal_bounds(StateView<Field> simplex,
                              size_t culprit) override {
     std::println("  [{}] primal violation: variable {} with value {} not in {}",
+                 simplex.iteration,
                  simplex.problem.var_name(simplex.basic_vars[culprit]),
                  simplex.basic_point[culprit],
                  simplex.problem.var_bounds[simplex.basic_vars[culprit]]);
