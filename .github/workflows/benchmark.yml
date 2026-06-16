@@ -1,0 +1,64 @@
+name: Benchmark
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  simplex-primal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Checkout LP test problems
+        uses: actions/checkout@v6
+        with:
+          repository: YimingYAN/LP-Test-Problems
+          ref: master
+          path: lp-dataset
+
+      - name: Stage dataset
+        run: |
+          mkdir -p resources/lp_problems log
+          cp lp-dataset/MPS_Files/*.SIF resources/lp_problems/
+          echo "Staged $(ls resources/lp_problems/*.SIF | wc -l) problems."
+
+      - name: Install Clang
+        uses: egor-tensin/setup-clang@v2
+        with:
+          version: latest
+          platform: x64
+
+      - name: Cache fetched dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('cmake/load_libraries.cmake') }}
+
+      - name: Configure
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build benchmark
+        run: cmake --build build --target benchmark_simplex_primal
+
+      - name: Run benchmark
+        run: ./build/benchmark/benchmark_simplex_primal
+
+      - name: Report results
+        run: python3 .github/scripts/benchmark_report.py
+
+      - name: Upload raw results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: benchmark-simplex-primal
+          path: log/benchmark_simplex_primal.csv

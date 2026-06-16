@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+"""Classify simplex benchmark results and render a Markdown summary.
+
+Joins the benchmark output (`log/benchmark_simplex_primal.csv`) with the
+committed reference optima (`.github/data/lp_optimal_values.csv`) and writes a
+results table to `$GITHUB_STEP_SUMMARY` (and stdout for local runs).
+
+Classification per problem:
+  SOLVED        status OPTIMAL and |obj - ref| / max(1, |ref|) < TOL
+  WRONG         status OPTIMAL but objective disagrees with the reference
+  NO_REFERENCE  no reference optimum available (e.g. STANDGUB)
+  <status>      any non-OPTIMAL status, passed through as a failure bucket
+                (INFEASIBLE / UNBOUNDED / ITERATIONS_LIMIT / PHASE1_ERROR /
+                 EXCEPTION)
+
+Timing is reported but never used to gate or classify -- shared CI runners are
+too noisy. Iteration count is the deterministic performance proxy.
+"""
+
+import csv
+import os
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+REFERENCE_CSV = REPO_ROOT / ".github" / "data" / "lp_optimal_values.csv"
+BENCHMARK_CSV = REPO_ROOT / "log" / "benchmark_simplex_primal.csv"
+
+# Relative tolerance ~ 7 significant digits (see plan / user decision).
+TOL = 1e-7
+
+EMOJI = {
+    "SOLVED": "✅",
+    "WRONG": "❌",
+    "NO_REFERENCE": "➖",
+}
+FAIL_EMOJI = "❌"
+
+
+def load_references(path):
+    refs = {}
+    with path.open(newline="") as f:
+        for row in csv.DictReader(f):
+            refs[row["name"]] = (float(row["optimal"]), row["source"])
+    return refs
+
+
+def rel_error(obj, ref):
+    return abs(obj - ref) / max(1.0, abs(ref))
+
+
+def classify(status, objective, ref):
+    """Return (category, rel_err_or_None)."""
+    if status != "OPTIMAL":
+        return status, None
+    if ref is None:
+        return "NO_REFERENCE", None
+    err = rel_error(objective, ref[0])
+    return ("SOLVED" if err < TOL else "WRONG"), err
+
+
+def fmt_num(x):
+    return f"{x:.10g}"
+
+
+def fmt_err(err):
+    return "—" if err is None else f"{err:.2e}"
+
+
+def main():
+    if not BENCHMARK_CSV.exists():
+        sys.exit(f"Benchmark output not found: {BENCHMARK_CSV}")
+
+    refs = load_references(REFERENCE_CSV)
+
+    rows = []
+    with BENCHMARK_CSV.open(newline="") as f:
+        for r in csv.DictReader(f):
+            name = r["name"]
+            status = r["status"]
+            objective = float(r["objective"])
+            ref = refs.get(name)
+            category, err = classify(status, objective, ref)
+            rows.append({
+                "name": name,
+                "status": status,
+                "category": category,
+                "objective": objective,
+                "ref": ref,
+                "err": err,
+                "iterations": int(r["iterations"]),
+                "time_s": int(r["time"]) / 1e9,
+            })
+
+    rows.sort(key=lambda r: r["name"])
+
+    total = len(rows)
+    solved = sum(1 for r in rows if r["category"] == "SOLVED")
+    wrong = sum(1 for r in rows if r["category"] == "WRONG")
+    no_ref = sum(1 for r in rows if r["category"] == "NO_REFERENCE")
+    failed = total - solved - wrong - no_ref
+
+    # Per-status breakdown of the failure buckets, for the summary line.
+    fail_statuses = {}
+    for r in rows:
+        if r["category"] not in ("SOLVED", "WRONG", "NO_REFERENCE"):
+            fail_statuses[r["category"]] = fail_statuses.get(r["category"], 0) + 1
+    fail_detail = ", ".join(f"{k} {v}" for k, v in sorted(fail_statuses.items()))
+
+    out = []
+    out.append("## Simplex primal benchmark\n")
+    out.append(
+        f"**Solved {solved} / {total}** · "
+        f"Wrong {wrong} · Failed {failed} · No-ref {no_ref}\n"
+    )
+    if fail_detail:
+        out.append(f"<sub>Failures: {fail_detail}</sub>\n")
+    out.append("")
+    out.append("| | Problem | Result | Status | Objective | Reference | Rel. err | Iters | Time (s) |")
+    out.append("|---|---|---|---|---:|---:|---:|---:|---:|")
+    for r in rows:
+        mark = EMOJI.get(r["category"], FAIL_EMOJI)
+        ref_str = fmt_num(r["ref"][0]) if r["ref"] else "—"
+        obj_str = fmt_num(r["objective"]) if r["status"] == "OPTIMAL" else "—"
+        out.append(
+            f"| {mark} | {r['name']} | {r['category']} | {r['status']} | "
+            f"{obj_str} | {ref_str} | {fmt_err(r['err'])} | "
+            f"{r['iterations']} | {r['time_s']:.3f} |"
+        )
+    report = "\n".join(out) + "\n"
+
+    print(report)
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        with open(summary_path, "a") as f:
+            f.write(report)
+
+
+if __name__ == "__main__":
+    main()
