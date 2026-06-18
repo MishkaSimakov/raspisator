@@ -5,7 +5,7 @@
 
 #include "linalg/CSCMatrix.h"
 #include "linalg/Matrix.h"
-#include "linalg/rrqr.h"
+#include "linalg/RRQR.h"
 #include "linalg/RRQRAssertions.h"
 
 using namespace linalg;

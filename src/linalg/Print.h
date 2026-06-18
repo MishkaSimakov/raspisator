@@ -8,7 +8,6 @@
 
 namespace linalg {
 
-// TODO: doesn't work for MatrixRange with repeated entries.
 template <MatrixRange T>
 std::ostream& operator<<(std::ostream& os, T&& matrix) {
   using std::to_string;
@@ -16,20 +15,23 @@ std::ostream& operator<<(std::ostream& os, T&& matrix) {
 
   auto [n, m] = matrix.shape();
 
+  Matrix<Field> dense = matrix;
   std::vector<std::string> result(n * m, "-");
 
   Maximum<size_t> max_length;
   max_length.record(1);
 
-  matrix.entries([&](size_t row, size_t col, Field value) {
-    if constexpr (std::is_convertible_v<Field, std::string>) {
-      result[row * m + col] = value;
-    } else {
-      result[row * m + col] = to_string(value);
-    }
+  for (size_t row = 0; row < n; ++row) {
+    for (size_t col = 0; col < m; ++col) {
+      if constexpr (std::is_convertible_v<Field, std::string>) {
+        result[row * m + col] = dense[row, col];
+      } else {
+        result[row * m + col] = to_string(dense[row, col]);
+      }
 
-    max_length.record(result[row * m + col].size());
-  });
+      max_length.record(result[row * m + col].size());
+    }
+  }
 
   for (size_t i = 0; i < n; ++i) {
     os << "{";

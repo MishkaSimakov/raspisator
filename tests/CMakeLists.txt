@@ -8,7 +8,7 @@ target_sources(tests PUBLIC
         field/BigIntegerTests.cpp
 
         schedule/SolutionCheckingTests.cpp
-#        schedule/FullProblemSolvingTests.cpp
+        #        schedule/FullProblemSolvingTests.cpp
 
         problem/ProblemBuilderTests.cpp
         problem/BoundsTests.cpp
@@ -46,6 +46,7 @@ target_sources(tests PUBLIC
         linalg/RowBasisTests.cpp
         linalg/RRQRTests.cpp
         linalg/SparseRRQRTests.cpp
+        linalg/PrintTests.cpp
 
         linalg/lu/EtaFileTests.cpp
         linalg/lu/FullPivotingLUTests.cpp
