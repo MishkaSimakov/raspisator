@@ -12,7 +12,6 @@
 
 using std::vector, std::strong_ordering, std::string;
 
-// TODO: Small Object Optimization
 class BigInteger {
  private:
   bool is_positive_;

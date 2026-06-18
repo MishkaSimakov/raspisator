@@ -92,7 +92,7 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
   }
 
   // Case 1
-  if (result.objective < -tolerance.feasibility) {
+  if (*result.objective < -tolerance.feasibility) {
     return std::unexpected{Phase1Error::INFEASIBLE};
   }
 

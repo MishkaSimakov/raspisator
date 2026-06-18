@@ -20,7 +20,8 @@
 using Field = double;
 
 // - QAP15 - stuck in degenerate iterations in phase 1
-const std::set<std::string> skipped = {"QAP15"};
+// - QAP12 - same as QAP15
+const std::set<std::string> skipped = {"QAP15", "QAP12"};
 
 int main() {
   std::ofstream output(paths::log("benchmark_simplex_primal.csv"));

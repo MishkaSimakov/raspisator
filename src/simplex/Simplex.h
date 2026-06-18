@@ -10,23 +10,18 @@
 #include <unordered_map>
 #include <variant>
 
-#include "Accountant.h"
 #include "Config.h"
-#include "CyclingDetector.h"
 #include "Feasibility.h"
 #include "SimplexCoreDump.h"
 #include "SimplexMath.h"
 #include "Tolerance.h"
-#include "linalg/Matrix.h"
-#include "linalg/NPY.h"
-#include "linalg/Norm.h"
+#include "linalg/Linalg.h"
 #include "linalg/RowBasis.h"
 #include "linalg/lu/LUPA.h"
 #include "problem/StandardLP.h"
 #include "ratio/primal/Harris.h"
 #include "simplex/Result.h"
 #include "utils/Accumulators.h"
-#include "utils/Variant.h"
 
 namespace simplex {
 
@@ -478,6 +473,10 @@ class Simplex {
 
       switch (result) {
         case IterationResult::FEASIBLE:
+          // refactorize before leaving so that incrementally updated values are
+          // more precise.
+          // TODO: validate result after refactorization
+          primal_refactorize();
           return construct_result(Status::OPTIMAL);
         case IterationResult::UNBOUNDED:
           return construct_result(Status::UNBOUNDED);
@@ -597,6 +596,10 @@ class Simplex {
   // Point associated with the given states must be dual feasible
   Result<Field> dual(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
       if (!is_dual_feasible(*problem_, states, config_.tolerance.feasibility)) {
         return "Initial point is not dual feasible.";
       }
@@ -615,6 +618,10 @@ class Simplex {
   // Point associated with the given states must be primal feasible
   Result<Field> primal(const std::vector<VariableState>& states) {
     validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
       if (!is_primal_feasible(*problem_, states,
                               config_.tolerance.feasibility)) {
         return "Initial point is not primal feasible.";
@@ -634,6 +641,27 @@ class Simplex {
   // traversal in problem space
   void change_basis(size_t leaving_index, size_t entering_variable,
                     VariableState leaving_state) {
+    validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
+      if (entering_variable >= problem_->matrix.cols()) {
+        return std::format(
+            "Variable {} is out of bounds for problem with {} variables.",
+            entering_variable, problem_->matrix.cols());
+      }
+
+      if (leaving_index >= problem_->matrix.rows()) {
+        return std::format(
+            "Basic variable index {} is out of bounds for problem with {} "
+            "rows.",
+            leaving_index, problem_->matrix.rows());
+      }
+
+      return std::nullopt;
+    });
+
     lupa_->change_column(leaving_index, entering_variable);
 
     var_states_[entering_variable] = VariableState::BASIC;
@@ -644,6 +672,16 @@ class Simplex {
 
   void change_bound(size_t variable_index, VariableState new_bound) {
     validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
+      if (variable_index >= problem_->matrix.cols()) {
+        return std::format(
+            "Variable {} is out of bounds for problem with {} variables.",
+            variable_index, problem_->matrix.cols());
+      }
+
       if (new_bound != VariableState::AT_LOWER &&
           new_bound != VariableState::AT_UPPER) {
         return "new_bound must be either AT_LOWER or AT_UPPER.";
@@ -671,6 +709,14 @@ class Simplex {
   const std::vector<size_t>& get_basic_vars() const { return basic_vars_; }
 
   Vector<Field> get_point() const {
+    validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
+      return std::nullopt;
+    });
+
     const size_t n = var_states_.size();
 
     Vector<Field> result(n);
@@ -699,9 +745,27 @@ class Simplex {
     return result;
   }
 
-  const std::vector<VariableState>& get_states() const { return var_states_; }
+  const std::vector<VariableState>& get_states() const {
+    validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
+      return std::nullopt;
+    });
+
+    return var_states_;
+  }
 
   Vector<Field> get_tableau_row(size_t row) const {
+    validate([&] -> std::optional<std::string> {
+      if (problem_ == nullptr) {
+        return "Problem is not set.";
+      }
+
+      return std::nullopt;
+    });
+
     return lupa_->get_row(row);
   }
 };
