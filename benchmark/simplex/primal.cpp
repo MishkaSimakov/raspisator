@@ -14,6 +14,7 @@
 
 #include "presolve/passes/Scaling.h"
 #include "problem/StandardMILP.h"
+#include "problem/mutations/RemoveRows.h"
 #include "simplex/pricing/primal/SteepestEdge.h"
 
 using Field = double;
@@ -85,6 +86,9 @@ int main() {
                      0);
         continue;
       }
+
+      standard_problem = problem::remove_rows(std::move(standard_problem),
+                                              phase1->redundant_rows);
 
       auto solver = simplex::Simplex<Field>();
 

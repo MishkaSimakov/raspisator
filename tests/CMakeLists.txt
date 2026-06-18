@@ -13,7 +13,7 @@ target_sources(tests PUBLIC
         problem/ProblemBuilderTests.cpp
         problem/BoundsTests.cpp
 
-        simplex/Phase1Tests.cpp
+        simplex/PrimalPhase1Tests.cpp
         simplex/CatalogTests.cpp
         simplex/RandomTests.cpp
 

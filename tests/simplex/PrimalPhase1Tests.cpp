@@ -4,10 +4,14 @@
 #include "field/BigInteger.h"
 #include "linalg/RRQR.h"
 #include "linalg/Rank.h"
+#include "presolve/obfuscators/AddLinearlyDependentRows.h"
+#include "presolve/obfuscators/ShuffleRows.h"
+#include "presolve/passes/TransformToEqualities.h"
 #include "problem/mutations/RemoveRows.h"
 #include "simplex/Feasibility.h"
 #include "simplex/init/primal/Phase1.h"
 #include "support/Highs.h"
+#include "support/RandomProblem.h"
 
 TEST(PrimalPhase1Tests, CatalogProblems) {
   const auto problems = faker::catalog<Rational>()
@@ -62,7 +66,8 @@ TEST(PrimalPhase1Tests, CatalogProblemsWithLinearlyDependentRows) {
 
     auto new_problem = problem::remove_rows(problem, result->redundant_rows);
 
-    ASSERT_EQ(linalg::rank(Matrix(new_problem.matrix)), new_problem.matrix.rows());
+    ASSERT_EQ(linalg::rank(Matrix(new_problem.matrix)),
+              new_problem.matrix.rows());
 
     auto new_solution =
         highs::solve(highs::from_milp(problem::MILP(new_problem)));
@@ -71,5 +76,36 @@ TEST(PrimalPhase1Tests, CatalogProblemsWithLinearlyDependentRows) {
     ASSERT_EQ(new_solution.status, HighsModelStatus::kOptimal);
 
     ASSERT_DOUBLE_EQ(old_solution.objective, new_solution.objective);
+  }
+}
+
+TEST(PrimalPhase1Tests, RandomProblems) {
+  constexpr size_t kIterations = 1'000;
+  constexpr size_t kSize = 5;
+  constexpr int kElementMagnitude = 10;
+
+  std::default_random_engine engine(0);
+
+  for (size_t iteration = 0; iteration < kIterations; ++iteration) {
+    std::cout << "#" << iteration << std::endl;
+
+    auto problem =
+        random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+
+    add_linearly_dependent_rows(problem, engine);
+    shuffle_rows(problem, engine);
+
+    problem = presolve::TransformToEqualities<Rational>().apply(problem);
+
+    problem::StandardLP<Rational> standard_lp(problem);
+
+    auto phase1 = simplex::primal_phase1(standard_lp);
+
+    ASSERT_TRUE(phase1.has_value());
+
+    standard_lp =
+        problem::remove_rows(std::move(standard_lp), phase1->redundant_rows);
+
+    ASSERT_TRUE(simplex::is_primal_feasible(standard_lp, phase1->states));
   }
 }

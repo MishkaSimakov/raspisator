@@ -31,7 +31,7 @@ StandardLP<Field> remove_rows(StandardLP<Field> problem,
   problem.matrix.resize(new_rows_count, d);
 
   // update rhs
-  for (size_t row = 0; row < new_rows_count; ++row) {
+  for (size_t row = 0; row < n; ++row) {
     if (rows_mapping[row] < n) {
       problem.rhs[rows_mapping[row]] = problem.rhs[row];
     }
@@ -39,7 +39,7 @@ StandardLP<Field> remove_rows(StandardLP<Field> problem,
   problem.rhs.resize(new_rows_count);
 
   // update row names
-  for (size_t row = 0; row < new_rows_count; ++row) {
+  for (size_t row = 0; row < n; ++row) {
     if (rows_mapping[row] < n) {
       problem.row_names[rows_mapping[row]] = problem.row_names[row];
     }

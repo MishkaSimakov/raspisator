@@ -34,7 +34,7 @@ class TransformToEqualities final : public Pass<Field> {
         problem.implied_var_bounds.push_back(slack_bound);
         problem.rhs_bounds[row] = Bound<Field>{0, 0};
 
-        problem.var_names.push_back(problem.row_names[row] + "_range");
+        problem.var_names.push_back(problem.row_name(row) + "_range");
 
         ++added_slack_count_;
       }
