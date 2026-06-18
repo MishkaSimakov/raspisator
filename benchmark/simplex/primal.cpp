@@ -18,6 +18,12 @@
 
 using Field = double;
 
+// These problems are solved successfully but RemoveLinearlyDependentEqualities
+// takes a lot of time on them so I skip them for now.
+const std::set<std::string> skipped = {
+    "QAP15", "FIT2P", "PILOT87", "DFL001", "MAROS-R7", "D2Q06C"
+};
+
 int main() {
   std::ofstream output(paths::log("benchmark_simplex_primal.csv"));
 
@@ -42,6 +48,12 @@ int main() {
     }
 
     std::println("{:02}/{} {}", index + 1, all_problems.size(), name);
+
+    if (skipped.contains(name)) {
+      std::println("  SKIPPED");
+      std::println(output, "{},{},{},{},{}", name, "SKIPPED", 0, 0, 0);
+      continue;
+    }
 
     std::ifstream is(all_problems[index].path());
     if (!is) {

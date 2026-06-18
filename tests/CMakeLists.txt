@@ -3,6 +3,8 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
+        utils/MergeSortedRangeTests.cpp
+
         field/BigIntegerTests.cpp
 
         schedule/SolutionCheckingTests.cpp
@@ -43,6 +45,7 @@ target_sources(tests PUBLIC
         linalg/UseCasesTests.cpp
         linalg/RowBasisTests.cpp
         linalg/RRQRTests.cpp
+        linalg/SparseRRQRTests.cpp
 
         linalg/lu/EtaFileTests.cpp
         linalg/lu/FullPivotingLUTests.cpp

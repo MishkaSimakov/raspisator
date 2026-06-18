@@ -18,12 +18,8 @@
 
 using Field = double;
 
-// - WOOD1P fails to find primal feasible in phase1 because row reduction is not
-// numerically stable enough
-// - QAP15 RemoveLinearlyDependentEqualities takes a lot of time, and phase1
-// gets stuck in degenerate iterations
 int main() {
-  const std::string problem_name = "QAP15";
+  const std::string problem_name = "WOOD1P";
 
   auto path = paths::resource(std::format("lp_problems/{}.SIF", problem_name));
 

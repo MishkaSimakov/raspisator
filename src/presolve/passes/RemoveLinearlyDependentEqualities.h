@@ -130,30 +130,31 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
       }
     }
 
-    auto [permutation, rank] = linalg::rrqr(matrix, pivot_tolerance_);
+    auto rrqr_result = linalg::rrqr(matrix, pivot_tolerance_);
 
     std::vector<size_t> inverse_permutation(equalities_count);
     for (size_t i = 0; i < equalities_count; ++i) {
-      inverse_permutation[permutation[i]] = i;
+      inverse_permutation[rrqr_result.permutation[i]] = i;
     }
 
     // verify that rhs is feasible
-    Vector<Field> z(rank);
+    Vector<Field> z(rrqr_result.rank);
 
-    for (size_t i = 0; i < rank; ++i) {
-      z[i] = rhs[permutation[i]];
+    for (size_t i = 0; i < rrqr_result.rank; ++i) {
+      z[i] = rhs[rrqr_result.permutation[i]];
     }
 
-    z = solve(matrix, std::move(z));
+    z = solve(rrqr_result.R, std::move(z));
 
-    for (size_t i = rank; i < equalities_count; ++i) {
+    for (size_t i = rrqr_result.rank; i < equalities_count; ++i) {
       Field expected_rhs = 0;
 
-      for (size_t j = 0; j < rank; ++j) {
-        expected_rhs += matrix[i, j] * z[j];
+      for (size_t j = 0; j < rrqr_result.rank; ++j) {
+        expected_rhs += rrqr_result.R[i, j] * z[j];
       }
 
-      if (abs(rhs[permutation[i]] - expected_rhs) > feasibility_tolerance_) {
+      if (abs(rhs[rrqr_result.permutation[i]] - expected_rhs) >
+          feasibility_tolerance_) {
         problem.proven_infeasible = true;
         return problem;
       }
@@ -168,7 +169,7 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
         continue;
       }
 
-      if (inverse_permutation[rows_mapping[i]] < rank) {
+      if (inverse_permutation[rows_mapping[i]] < rrqr_result.rank) {
         rows_mapping[i] = new_rows_count++;
         continue;
       }

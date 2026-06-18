@@ -8,6 +8,7 @@
 
 namespace linalg {
 
+// TODO: doesn't work for MatrixRange with repeated entries.
 template <MatrixRange T>
 std::ostream& operator<<(std::ostream& os, T&& matrix) {
   using std::to_string;
