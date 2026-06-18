@@ -120,26 +120,41 @@ class ProblemGenerator {
     }
 
     // fill in constraints matrix
-    // TODO: exclude objective row
-    result.matrix.resize(state.rows.size(), 0);
-    std::vector<std::tuple<size_t, size_t, Field>> triplets;
+    // exclude objective row from constraints
+    result.matrix.resize(state.rows.size() - 1, 0);
 
     for (size_t col = 0; col < state.cols.size(); ++col) {
-      result.matrix.add_column(state.cols[col].values);
+      result.matrix.add_column();
+
+      for (const auto& [row, value] : state.cols[col].values) {
+        if (row < objective_row_index) {
+          result.matrix.push_to_last_column(row, value);
+        } else if (row > objective_row_index) {
+          result.matrix.push_to_last_column(row - 1, value);
+        }
+      }
     }
 
     // constraints names
-    result.row_names.resize(state.rows.size());
+    result.row_names.resize(state.rows.size() - 1);
 
     for (size_t row = 0; row < state.rows.size(); ++row) {
-      result.row_names[row] = state.rows[row].name;
+      if (row < objective_row_index) {
+        result.row_names[row] = state.rows[row].name;
+      } else if (row > objective_row_index) {
+        result.row_names[row - 1] = state.rows[row].name;
+      }
     }
 
     // fill in rhs bounds
-    result.rhs_bounds.resize(state.rows.size());
+    result.rhs_bounds.resize(state.rows.size() - 1);
 
-    for (size_t i = 0; i < state.rows.size(); ++i) {
-      result.rhs_bounds[i] = get_rhs_bound(state.rows[i]);
+    for (size_t row = 0; row < state.rows.size(); ++row) {
+      if (row < objective_row_index) {
+        result.rhs_bounds[row] = get_rhs_bound(state.rows[row]);
+      } else if (row > objective_row_index) {
+        result.rhs_bounds[row - 1] = get_rhs_bound(state.rows[row]);
+      }
     }
 
     // copy implied bounds and integrality

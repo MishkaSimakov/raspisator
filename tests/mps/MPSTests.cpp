@@ -13,16 +13,6 @@ static problem::MILP<double> parse(std::string_view text) {
   return read<double>(ss, Format::FREE);
 }
 
-// Counts rows that are actual constraints (non-free rhs bound).
-// The objective row has a free bound {nullopt, nullopt} and is excluded.
-static size_t constraint_count(const problem::MILP<double>& p) {
-  size_t count = 0;
-  for (const auto& b : p.rhs_bounds) {
-    if (!b.is_free()) ++count;
-  }
-  return count;
-}
-
 TEST(MPSTests, MinimalProblem) {
   const auto problem = parse(
       "NAME minimal\n"
@@ -34,9 +24,11 @@ TEST(MPSTests, MinimalProblem) {
       "   RHS obj 0\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.var_names.size(), 1u);
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{0, 1}));
+
+  ASSERT_EQ(problem.var_names.size(), 1);
   ASSERT_EQ(problem.var_names[0], "x1");
-  ASSERT_EQ(constraint_count(problem), 0u);
+  ASSERT_EQ(problem.row_names.size(), 0);
 }
 
 TEST(MPSTests, MultipleVariablesAndConstraints) {
@@ -53,8 +45,10 @@ TEST(MPSTests, MultipleVariablesAndConstraints) {
       "   RHS c1 10  c2 3\n"
       "ENDATA");
 
-  ASSERT_EQ(problem.var_names.size(), 2u);
-  ASSERT_EQ(constraint_count(problem), 2u);
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{2, 2}));
+
+  ASSERT_EQ(problem.var_names.size(), 2);
+  ASSERT_EQ(problem.row_names.size(), 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -73,8 +67,8 @@ TEST(MPSTests, LessThanConstraint) {
       "   RHS c1 5\n"
       "ENDATA");
 
-  ASSERT_EQ(constraint_count(problem), 1u);
-  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{std::nullopt, 5.0}));
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{1, 1}));
+  ASSERT_EQ(problem.rhs_bounds[0], (Bound<double>{std::nullopt, 5.0}));
 }
 
 TEST(MPSTests, GreaterThanConstraint) {
@@ -89,8 +83,8 @@ TEST(MPSTests, GreaterThanConstraint) {
       "   RHS c1 5\n"
       "ENDATA");
 
-  ASSERT_EQ(constraint_count(problem), 1u);
-  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{5.0, std::nullopt}));
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{1, 1}));
+  ASSERT_EQ(problem.rhs_bounds[0], (Bound<double>{5.0, std::nullopt}));
 }
 
 TEST(MPSTests, EqualityConstraint) {
@@ -105,8 +99,8 @@ TEST(MPSTests, EqualityConstraint) {
       "   RHS c1 7\n"
       "ENDATA");
 
-  ASSERT_EQ(constraint_count(problem), 1u);
-  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{7.0, 7.0}));
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{1, 1}));
+  ASSERT_EQ(problem.rhs_bounds[0], (Bound<double>{7.0, 7.0}));
 }
 
 TEST(MPSTests, DefaultRealBound) {
@@ -121,6 +115,7 @@ TEST(MPSTests, DefaultRealBound) {
       "   RHS obj 0\n"
       "ENDATA");
 
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{0, 1}));
   ASSERT_FALSE(problem.is_integer[0]);
   ASSERT_EQ(problem.var_bounds[0], (Bound<double>{0.0, std::nullopt}));
 }
@@ -227,8 +222,8 @@ TEST(MPSTests, RangeConstraint) {
       "   RNG c1 4\n"
       "ENDATA");
 
-  ASSERT_EQ(constraint_count(problem), 1u);
-  ASSERT_EQ(problem.rhs_bounds[1], (Bound<double>{6.0, 10.0}));
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{1, 1}));
+  ASSERT_EQ(problem.rhs_bounds[0], (Bound<double>{6.0, 10.0}));
 }
 
 TEST(MPSTests, FixedFormatEndToEnd) {
@@ -246,10 +241,10 @@ TEST(MPSTests, FixedFormatEndToEnd) {
   std::stringstream ss(mps);
   const auto problem = read<double>(ss, Format::FIXED);
 
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{1, 1}));
   ASSERT_EQ(problem.var_names.size(), 1u);
   ASSERT_EQ(problem.var_names[0], "X1      ");
   ASSERT_EQ(problem.var_bounds[0], (Bound<double>{0.0, std::nullopt}));
-  ASSERT_EQ(constraint_count(problem), 1u);
 }
 
 TEST(MPSTests, MultipleObjectiveRows) {
@@ -268,8 +263,8 @@ TEST(MPSTests, MultipleObjectiveRows) {
       "   RHS c1 10\n"
       "ENDATA");
 
+  ASSERT_EQ(problem.matrix.shape(), (std::pair{2, 1}));
   ASSERT_EQ(problem.var_names.size(), 1u);
-  ASSERT_EQ(constraint_count(problem), 1u);
 }
 
 TEST(MPSTests, DataRowsInObjectSection) {
