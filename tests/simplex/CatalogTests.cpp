@@ -42,18 +42,17 @@ TEST(CatalogTests, UnboundedPrimal) {
   for (const auto& instance : problems) {
     problem::StandardLP problem(instance.problem);
 
-    auto states = simplex::primal_phase1(problem);
+    auto phase1 = simplex::primal_phase1(problem);
 
-    ASSERT_TRUE(states.has_value());
+    ASSERT_TRUE(phase1.has_value());
+    ASSERT_TRUE(phase1->redundant_rows.empty());
 
     simplex::Simplex<Rational> solver;
 
     solver.set_problem(problem);
     solver.set_validate_input(true);
 
-    auto result = solver.primal(*states);
-
-    ASSERT_EQ(result.status, simplex::Status::UNBOUNDED);
+    ASSERT_EQ(solver.primal(phase1->states).status, simplex::Status::UNBOUNDED);
   }
 }
 
@@ -67,16 +66,17 @@ TEST(CatalogTests, FeasiblePrimal) {
   for (const auto& instance : problems) {
     problem::StandardLP problem(instance.problem);
 
-    auto states = simplex::primal_phase1(problem);
+    auto phase1 = simplex::primal_phase1(problem);
 
-    ASSERT_TRUE(states.has_value());
+    ASSERT_TRUE(phase1.has_value());
+    ASSERT_TRUE(phase1->redundant_rows.empty());
 
     simplex::Simplex<Rational> solver;
 
     solver.set_problem(problem);
     solver.set_validate_input(true);
 
-    auto result = solver.primal(*states);
+    auto result = solver.primal(phase1->states);
 
     ASSERT_EQ(result.status, simplex::Status::OPTIMAL);
     ASSERT_EQ(*result.objective, *instance.optimal_objective);

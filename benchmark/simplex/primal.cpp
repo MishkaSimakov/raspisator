@@ -18,11 +18,8 @@
 
 using Field = double;
 
-// These problems are solved successfully but RemoveLinearlyDependentEqualities
-// takes a lot of time on them so I skip them for now.
-const std::set<std::string> skipped = {
-    "QAP15", "FIT2P", "PILOT87", "DFL001", "MAROS-R7", "D2Q06C"
-};
+// - QAP15 - stuck in degenerate iterations in phase 1
+const std::set<std::string> skipped = {"QAP15"};
 
 int main() {
   std::ofstream output(paths::log("benchmark_simplex_primal.csv"));
@@ -31,7 +28,8 @@ int main() {
     throw std::runtime_error("Failed to open output file.");
   }
 
-  std::println(output, "name,status,objective,iterations,time");
+  std::println(
+      output, "name,status,objective,phase1_iterations,phase2_iterations,time");
 
   auto problems_path = paths::resource("lp_problems");
 
@@ -51,7 +49,7 @@ int main() {
 
     if (skipped.contains(name)) {
       std::println("  SKIPPED");
-      std::println(output, "{},{},{},{},{}", name, "SKIPPED", 0, 0, 0);
+      std::println(output, "{},{},{},{},{},{}", name, "SKIPPED", 0, 0, 0, 0);
       continue;
     }
 
@@ -68,27 +66,23 @@ int main() {
     try {
       auto start = std::chrono::steady_clock::now();
 
-      auto optimizer =
-          presolve::Chain<Field>()
-              .add<presolve::TransformToEqualities<Field>>()
-              .add<presolve::RemoveLinearlyDependentEqualities<Field>>()
-              .add<presolve::Scaling<Field>>();
+      auto optimizer = presolve::Chain<Field>()
+                           .add<presolve::Scaling<Field>>()
+                           .add<presolve::TransformToEqualities<Field>>();
 
-      problem::StandardMILP standard_problem(optimizer.apply(problem));
+      problem::StandardLP standard_problem(optimizer.apply(problem));
 
-      size_t phase1_iterations;
-      auto states = simplex::primal_phase1(
+      auto phase1 = simplex::primal_phase1(
           standard_problem,
           simplex::Config<Field>()
               .set_validate_input(true)
-              // .set_accountant<simplex::LoggingAccountant<Field>>()
               .set_primal_pricing<simplex::PrimalMostInfeasible<Field>>()
-              .set_max_iterations(100'000),
-          &phase1_iterations);
+              .set_max_iterations(100'000));
 
-      if (!states) {
+      if (!phase1) {
         std::println("  Failed to find primal feasible basis.");
-        std::println(output, "{},{},{},{},{}", name, "PHASE1_ERROR", 0, 0, 0);
+        std::println(output, "{},{},{},{},{},{}", name, "PHASE1_ERROR", 0, 0, 0,
+                     0);
         continue;
       }
 
@@ -96,16 +90,15 @@ int main() {
 
       solver.set_validate_input(true);
       solver.set_problem(standard_problem);
-      // solver.set_accountant<simplex::LoggingAccountant<Field>>();
       solver.set_primal_pricing<simplex::PrimalMostInfeasible<Field>>();
       solver.set_max_iterations(100'000);
 
-      auto result = solver.primal(*states);
+      auto result = solver.primal(phase1->states);
 
       auto end = std::chrono::steady_clock::now();
       std::println("  status: {}, time: {}, iterations: {}",
                    to_string(result.status), end - start,
-                   result.iterations_count + phase1_iterations);
+                   result.iterations_count + phase1->iterations_count);
 
       Field objective = 0;
 
@@ -120,12 +113,12 @@ int main() {
       }
 
       std::println(
-          output, "{},{},{},{},{}", name, to_string(result.status), objective,
-          result.iterations_count + phase1_iterations,
+          output, "{},{},{},{},{},{}", name, to_string(result.status),
+          objective, phase1->iterations_count, result.iterations_count,
           std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
               .count());
     } catch (std::exception& error) {
-      std::println(output, "{},{},{},{},{}", name, "EXCEPTION", 0, 0, 0);
+      std::println(output, "{},{},{},{},{},{}", name, "EXCEPTION", 0, 0, 0, 0);
       std::println("  failed: {}", error.what());
     }
 

@@ -65,14 +65,15 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
 
     problem::StandardLP<Rational> standard_lp(problem);
 
-    auto states = simplex::primal_phase1(standard_lp);
+    auto phase1 = simplex::primal_phase1(standard_lp);
 
-    ASSERT_TRUE(states.has_value());
+    ASSERT_TRUE(phase1.has_value());
+    ASSERT_TRUE(phase1->redundant_rows.empty());
 
     auto solver = simplex::Simplex<Rational>();
     solver.set_problem(standard_lp);
 
-    auto result = solver.primal(*states);
+    auto result = solver.primal(phase1->states);
 
     // check solution
     ASSERT_EQ(result.status, simplex::Status::OPTIMAL);

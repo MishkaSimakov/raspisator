@@ -14,12 +14,13 @@
 
 #include "presolve/passes/Scaling.h"
 #include "problem/StandardMILP.h"
+#include "problem/mutations/RemoveRows.h"
 #include "simplex/pricing/primal/SteepestEdge.h"
 
 using Field = double;
 
 int main() {
-  const std::string problem_name = "WOOD1P";
+  const std::string problem_name = "BORE3D";
 
   auto path = paths::resource(std::format("lp_problems/{}.SIF", problem_name));
 
@@ -37,25 +38,25 @@ int main() {
   auto optimizer =
       presolve::Chain<Field>()
           .add<presolve::Scaling<Field>>()
-          .add<presolve::RemoveLinearlyDependentEqualities<Field>>()
           .add<presolve::TransformToEqualities<Field>>();
 
-  problem::StandardMILP standard_problem(optimizer.apply(problem));
+  problem::StandardLP standard_problem(optimizer.apply(problem));
 
-  size_t phase1_iterations;
-  auto states = simplex::primal_phase1(
+  auto phase1 = simplex::primal_phase1(
       standard_problem,
       simplex::Config<Field>()
           .set_validate_input(true)
           .set_accountant<simplex::LoggingAccountant<Field>>()
           .set_primal_pricing<simplex::PrimalMostInfeasible<Field>>()
-          .set_max_iterations(100'000),
-      &phase1_iterations);
+          .set_max_iterations(100'000));
 
-  if (!states) {
+  if (!phase1) {
     std::println("Failed to find primal feasible basis.");
     return 0;
   }
+
+  standard_problem =
+      problem::remove_rows(std::move(standard_problem), phase1->redundant_rows);
 
   auto solver = simplex::Simplex<Field>();
 
@@ -65,11 +66,11 @@ int main() {
   solver.set_primal_pricing<simplex::PrimalMostInfeasible<Field>>();
   solver.set_max_iterations(100'000);
 
-  auto result = solver.primal(*states);
+  auto result = solver.primal(phase1->states);
 
   auto end = std::chrono::steady_clock::now();
   std::println("status: {}, time: {}, iterations: {}", to_string(result.status),
-               end - start, result.iterations_count + phase1_iterations);
+               end - start, result.iterations_count + phase1->iterations_count);
 
   if (result.status == simplex::Status::OPTIMAL) {
     const auto objective =

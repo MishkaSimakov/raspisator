@@ -3,11 +3,20 @@
 #include <expected>
 #include <vector>
 
-#include "linalg/CSCMatrix.h"
+#include "linalg/Linalg.h"
 #include "simplex/Simplex.h"
 #include "simplex/SimplexMath.h"
 
 namespace simplex {
+
+struct Phase1Result {
+  std::vector<VariableState> states;
+  std::vector<size_t> redundant_rows;
+
+  // Phase 1 uses simplex to find primal feasible basis. This is internal
+  // simplex method iterations count.
+  size_t iterations_count;
+};
 
 enum class Phase1Error {
   INFEASIBLE,
@@ -15,14 +24,11 @@ enum class Phase1Error {
   REACHED_ITERATIONS_LIMIT,
 };
 
-// If iterations count is not nullptr, stores phase 1 simplex iterations count
-// in it.
 // Note: algorithm is taken from:
 // https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
 template <typename Field>
-std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
-    const problem::StandardLP<Field>& problem, Config<Field> config = {},
-    size_t* iterations_count = nullptr) {
+std::expected<Phase1Result, Phase1Error> primal_phase1(
+    const problem::StandardLP<Field>& problem, Config<Field> config = {}) {
   using std::abs;
 
   const auto [n, old_d] = problem.matrix.shape();
@@ -77,10 +83,6 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
 
   const auto result = helper.primal(states);
 
-  if (iterations_count != nullptr) {
-    *iterations_count = result.iterations_count;
-  }
-
   if (result.status == Status::ITERATIONS_LIMIT) {
     return std::unexpected{Phase1Error::REACHED_ITERATIONS_LIMIT};
   }
@@ -93,6 +95,8 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
   if (result.objective < -tolerance.feasibility) {
     return std::unexpected{Phase1Error::INFEASIBLE};
   }
+
+  std::vector<size_t> redundant_rows;
 
   // Case 2: try to eliminate artificial variables from basic variables (if
   // there are any) using pivot operation
@@ -123,8 +127,9 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
     }
 
     if (!max_pivot.has_value() || max_pivot->max <= tolerance.pivot) {
-      // Problem contains linearly dependent rows.
-      return std::unexpected{Phase1Error::LINEARLY_DEPENDENT_ROWS};
+      // Row associated with the current slack variable is linearly dependent.
+      redundant_rows.push_back(i - old_d);
+      continue;
     }
 
     helper.change_basis(basic_index, max_pivot->index, VariableState::AT_LOWER);
@@ -132,7 +137,12 @@ std::expected<std::vector<VariableState>, Phase1Error> primal_phase1(
 
   states = helper.get_states();
   states.resize(old_d);
-  return states;
+
+  return Phase1Result{
+      .states = std::move(states),
+      .redundant_rows = std::move(redundant_rows),
+      .iterations_count = result.iterations_count,
+  };
 }
 
 }  // namespace simplex
