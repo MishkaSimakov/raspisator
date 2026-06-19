@@ -50,7 +50,7 @@ def load_references(path):
     refs = {}
     with path.open(newline="") as f:
         for row in csv.DictReader(f):
-            refs[row["name"]] = (float(row["optimal"]), row["source"])
+            refs[row["name"]] = float(row["optimal"])
     return refs
 
 
@@ -65,7 +65,7 @@ def classify(status, objective, ref):
         return status, None
     if ref is None:
         return "NO_REFERENCE", None
-    err = rel_error(objective, ref[0])
+    err = rel_error(objective, ref)
     return ("SOLVED" if err < TOL else "WRONG"), err
 
 
@@ -138,7 +138,7 @@ def main():
     out.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for r in rows:
         mark = EMOJI.get(r["category"], FAIL_EMOJI)
-        ref_str = fmt_num(r["ref"][0]) if r["ref"] else "—"
+        ref_str = fmt_num(r["ref"]) if r["ref"] is not None else "—"
         obj_str = fmt_num(r["objective"]) if r["status"] == "OPTIMAL" else "—"
         if r["category"] == "SKIPPED":
             p1_str = p2_str = sum_str = time_str = "—"
