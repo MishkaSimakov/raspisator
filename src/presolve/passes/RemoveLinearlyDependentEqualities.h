@@ -7,6 +7,7 @@
 #include "linalg/Permutation.h"
 #include "linalg/RRQR.h"
 #include "presolve/Pass.h"
+#include "problem/mutations/RemoveRows.h"
 #include "utils/Accumulators.h"
 #include "utils/Logging.h"
 
@@ -90,6 +91,34 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
     return std::move(rhs);
   }
 
+  bool is_rhs_feasible(const linalg::RRQRResult<Field>& rrqr_result,
+                       const Vector<Field>& rhs) const {
+    using std::abs;
+
+    Vector<Field> z(rrqr_result.rank);
+
+    for (size_t i = 0; i < rrqr_result.rank; ++i) {
+      z[i] = rhs[rrqr_result.permutation[i]];
+    }
+
+    z = solve(rrqr_result.R, std::move(z));
+
+    for (size_t i = rrqr_result.rank; i < rrqr_result.R.rows(); ++i) {
+      Field expected_rhs = 0;
+
+      for (size_t j = 0; j < rrqr_result.rank; ++j) {
+        expected_rhs += rrqr_result.R[i, j] * z[j];
+      }
+
+      if (abs(rhs[rrqr_result.permutation[i]] - expected_rhs) >
+          feasibility_tolerance_) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
  public:
   explicit RemoveLinearlyDependentEqualities(Field pivot_tolerance = 1e-7,
                                              Field feasibility_tolerance = 1e-7)
@@ -97,8 +126,6 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
         feasibility_tolerance_(feasibility_tolerance) {}
 
   problem::MILP<Field> apply(problem::MILP<Field> problem) override {
-    using std::abs;
-
     this->register_apply();
 
     const auto [n, d] = problem.matrix.shape();
@@ -132,70 +159,27 @@ class RemoveLinearlyDependentEqualities final : public Pass<Field> {
 
     auto rrqr_result = linalg::rrqr(matrix, pivot_tolerance_);
 
+    if (!is_rhs_feasible(rrqr_result, rhs)) {
+      problem.proven_infeasible = true;
+      return problem;
+    }
+
+    // find linearly dependent rows using matrix after row reduction
     std::vector<size_t> inverse_permutation(equalities_count);
     for (size_t i = 0; i < equalities_count; ++i) {
       inverse_permutation[rrqr_result.permutation[i]] = i;
     }
 
-    // verify that rhs is feasible
-    Vector<Field> z(rrqr_result.rank);
-
-    for (size_t i = 0; i < rrqr_result.rank; ++i) {
-      z[i] = rhs[rrqr_result.permutation[i]];
-    }
-
-    z = solve(rrqr_result.R, std::move(z));
-
-    for (size_t i = rrqr_result.rank; i < equalities_count; ++i) {
-      Field expected_rhs = 0;
-
-      for (size_t j = 0; j < rrqr_result.rank; ++j) {
-        expected_rhs += rrqr_result.R[i, j] * z[j];
-      }
-
-      if (abs(rhs[rrqr_result.permutation[i]] - expected_rhs) >
-          feasibility_tolerance_) {
-        problem.proven_infeasible = true;
-        return problem;
-      }
-    }
-
-    // find linearly dependent rows using matrix after row reduction
-    size_t new_rows_count = 0;
+    std::vector<size_t> dependent_rows;
 
     for (size_t i = 0; i < n; ++i) {
-      if (!problem.rhs_bounds[i].is_fixed()) {
-        rows_mapping[i] = new_rows_count++;
-        continue;
-      }
-
-      if (inverse_permutation[rows_mapping[i]] < rrqr_result.rank) {
-        rows_mapping[i] = new_rows_count++;
-        continue;
-      }
-
-      rows_mapping[i] = n;
-    }
-
-    // construct new problem
-    for (size_t col = 0; col < d; ++col) {
-      for (auto& [row, value] : problem.matrix.get_column(col)) {
-        row = rows_mapping[row];
-      }
-    }
-    problem.matrix.resize(new_rows_count, d);
-
-    for (size_t row = 0; row < n; ++row) {
-      if (rows_mapping[row] != n) {
-        problem.rhs_bounds[rows_mapping[row]] = problem.rhs_bounds[row];
-        problem.row_names[rows_mapping[row]] = problem.row_names[row];
+      if (problem.rhs_bounds[i].is_fixed() &&
+          inverse_permutation[rows_mapping[i]] >= rrqr_result.rank) {
+        dependent_rows.push_back(i);
       }
     }
 
-    problem.rhs_bounds.resize(new_rows_count);
-    problem.row_names.resize(new_rows_count);
-
-    return problem;
+    return problem::remove_rows(std::move(problem), dependent_rows);
   }
 
   Vector<Field> inverse(Vector<Field> solution) const override {
