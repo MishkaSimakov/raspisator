@@ -46,9 +46,9 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
   for (size_t col = 0; col < d; ++col) {
     // if variable has singleton column, tentatively make it basic
     if (problem.matrix.get_column(col).size() == 1) {
-      const size_t row = problem.matrix.get_column(col).front().first;
+      const auto [row, coef] = problem.matrix.get_column(col).front();
 
-      if (!slacks[row]) {
+      if (abs(coef) > tolerance.pivot && !slacks[row]) {
         slacks[row] = col;
         states[col] = VariableState::BASIC;
 
