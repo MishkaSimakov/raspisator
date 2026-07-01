@@ -271,6 +271,19 @@ class Simplex {
     MOVED,
   };
 
+  static Status iteration_result_to_status(IterationResult result) {
+    switch (result) {
+      case IterationResult::FEASIBLE:
+        return Status::OPTIMAL;
+      case IterationResult::INFEASIBLE:
+        return Status::INFEASIBLE;
+      case IterationResult::UNBOUNDED:
+        return Status::UNBOUNDED;
+      default:
+        std::unreachable();
+    }
+  }
+
   IterationResult primal_iteration() {
     using std::abs;
 
@@ -283,8 +296,14 @@ class Simplex {
         return IterationResult::REFACTORIZE_REPEAT;
       }
 
-      throw std::runtime_error(
-          "Point became primal infeasible. Not implemented.");
+      // TODO: control violation magnitude
+      // Basic variable value violates primal bounds. This may be either due to
+      // LUPA numerical problems or due to basis primal infeasibility. Solver
+      // continues primal iterations in hope that the first option is true. But
+      // it should somehow observe that this violations don't go haywire.
+      if (config_.accountant) {
+        config_.accountant->continue_with_primal_violation(state_view);
+      }
     }
 
     if (config_.accountant) {
@@ -455,11 +474,19 @@ class Simplex {
           "Primal pricing must be specified in simplex config.");
     }
 
-    auto [n, d] = problem_->matrix.shape();
+    const auto [n, d] = problem_->matrix.shape();
+    const auto feasibility_tolerance = config_.tolerance.feasibility;
+
+    // Increase feasibility tolerance to find tentative answer.
+    // Then it will be dropped back to its initial value.
+    const auto tentative_feasibility_tolerance = feasibility_tolerance * 100;
+    config_.tolerance.feasibility = tentative_feasibility_tolerance;
 
     initialize_state(states);
 
     config_.primal_pricing->init(*problem_, *lupa_, var_states_, basic_vars_);
+
+    std::optional<Status> tentative_answer;
 
     //
     while (true) {
@@ -473,15 +500,27 @@ class Simplex {
 
       switch (result) {
         case IterationResult::FEASIBLE:
-          // refactorize before leaving so that incrementally updated values are
-          // more precise.
-          // TODO: validate result after refactorization
-          primal_refactorize();
-          return construct_result(Status::OPTIMAL);
         case IterationResult::UNBOUNDED:
-          return construct_result(Status::UNBOUNDED);
         case IterationResult::INFEASIBLE:
-          return construct_result(Status::INFEASIBLE);
+          if (tentative_answer &&
+              *tentative_answer == iteration_result_to_status(result)) {
+            if (violate_primal_bounds()) {
+              // TODO: probably should run dual simplex
+              throw std::runtime_error(
+                  "Point is primal infeasible in the end. Not implemented.");
+            }
+
+            return construct_result(*tentative_answer);
+          }
+
+          // refactorize before returning the answer and verify that the answer
+          // is correct using more strict feasibility tolerance
+
+          config_.tolerance.feasibility = feasibility_tolerance;
+          tentative_answer = iteration_result_to_status(result);
+          primal_refactorize();
+
+          break;
         case IterationResult::MOVED:
           intentional_repeat_ = false;
           break;
@@ -491,6 +530,11 @@ class Simplex {
           break;
         default:
           std::unreachable();
+      }
+
+      if (tentative_answer && (result == IterationResult::MOVED ||
+                               result == IterationResult::REFACTORIZE_REPEAT)) {
+        tentative_answer = std::nullopt;
       }
 
       if (lupa_->get_changes_since_refactorization() > 250) {

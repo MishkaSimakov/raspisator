@@ -17,6 +17,8 @@ class Accountant {
   virtual void violate_primal_bounds(StateView<Field> simplex, size_t culprit) {
   }
 
+  virtual void continue_with_primal_violation(StateView<Field> simplex) {}
+
   virtual ~Accountant() = default;
 };
 
@@ -62,6 +64,10 @@ class LoggingAccountant final : public Accountant<Field> {
                  simplex.problem.var_name(simplex.basic_vars[culprit]),
                  simplex.basic_point[culprit],
                  simplex.problem.var_bounds[simplex.basic_vars[culprit]]);
+  }
+
+  void continue_with_primal_violation(StateView<Field> simplex) override {
+    std::println("  [{}] continuing with primal violation", simplex.iteration);
   }
 };
 
