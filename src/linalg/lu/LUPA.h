@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "EtaFile.h"
-#include "SCC.h"
 #include "linalg/lu/FullPivotingLU.h"
 #include "linalg/lu/Solve.h"
 #include "utils/Accumulators.h"

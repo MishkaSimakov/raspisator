@@ -31,53 +31,89 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
     const problem::StandardLP<Field>& problem, Config<Field> config = {}) {
   using std::abs;
 
-  const auto [n, old_d] = problem.matrix.shape();
-  const size_t new_d = old_d + n;
-
-  std::vector<VariableState> states(new_d);
-
-  auto new_problem = problem;
-  new_problem.var_bounds.resize(new_d);
-  new_problem.var_names.resize(new_d);
-
-  for (size_t i = 0; i < old_d; ++i) {
-    if (problem.var_bounds[i].lower) {
-      states[i] = VariableState::AT_LOWER;
-    } else if (problem.var_bounds[i].upper) {
-      states[i] = VariableState::AT_UPPER;
-    } else {
-      states[i] = VariableState::NONBASIC_FREE;
-    }
-  }
-
-  for (size_t i = old_d; i < new_d; ++i) {
-    states[i] = VariableState::BASIC;
-    new_problem.var_bounds[i] = {0, std::nullopt};
-    new_problem.var_names[i] = "phase1_slack" + std::to_string(i);
-  }
-
-  // add additional slack variable to each constraint
-  const auto rhs = detail::get_adjusted_rhs(problem, states);
-
-  for (size_t i = 0; i < n; ++i) {
-    new_problem.matrix.add_column();
-
-    if (rhs[i, 0] > 0) {
-      new_problem.matrix.push_to_last_column(i, 1);
-    } else {
-      new_problem.matrix.push_to_last_column(i, -1);
-    }
-  }
-
-  new_problem.cost = Vector<Field>::zeros(new_d);
-
-  for (size_t i = old_d; i < new_d; ++i) {
-    new_problem.cost[i] = -1;
-  }
-
   // save tolerances, they will be needed later
   const auto tolerance = config.tolerance;
 
+  const auto [n, d] = problem.matrix.shape();
+
+  std::vector<VariableState> states(d);
+
+  auto new_problem = problem;
+
+  // slack variable for each row (if row has any)
+  std::vector<std::optional<size_t>> slacks(n);
+
+  for (size_t col = 0; col < d; ++col) {
+    // if variable has singleton column, tentatively make it basic
+    if (problem.matrix.get_column(col).size() == 1) {
+      const size_t row = problem.matrix.get_column(col).front().first;
+
+      if (!slacks[row]) {
+        slacks[row] = col;
+        states[col] = VariableState::BASIC;
+
+        continue;
+      }
+    }
+
+    if (problem.var_bounds[col].lower) {
+      states[col] = VariableState::AT_LOWER;
+    } else if (problem.var_bounds[col].upper) {
+      states[col] = VariableState::AT_UPPER;
+    } else {
+      states[col] = VariableState::NONBASIC_FREE;
+    }
+  }
+
+  // add additional slack variable to each constraint that needs it
+  auto rhs = detail::get_adjusted_rhs(problem, states);
+
+  for (size_t row = 0; row < n; ++row) {
+    if (slacks[row]) {
+      const size_t col = *slacks[row];
+      const Field coef = problem.matrix.get_column(col).front().second;
+
+      // if constraint is feasible, then no need to add new slacks
+      if (problem.var_bounds[col].contains(rhs[row] / coef,
+                                           tolerance.feasibility)) {
+        continue;
+      }
+
+      // otherwise set existing slack to one of its bounds
+      if (problem.var_bounds[col].lower) {
+        states[col] = VariableState::AT_LOWER;
+        rhs[row] -= coef * *problem.var_bounds[col].lower;
+      } else if (problem.var_bounds[col].upper) {
+        states[col] = VariableState::AT_UPPER;
+        rhs[row] -= coef * *problem.var_bounds[col].upper;
+      } else {
+        states[col] = VariableState::NONBASIC_FREE;
+      }
+    }
+
+    // add a new slack variable to account for constraint infeasibility
+    new_problem.var_names.push_back(std::format("phase1_slack_{}", row));
+    new_problem.matrix.add_column();
+
+    if (rhs[row] > 0) {
+      new_problem.matrix.push_to_last_column(row, 1);
+    } else {
+      new_problem.matrix.push_to_last_column(row, -1);
+    }
+  }
+
+  // add information about new slack variables
+  const size_t new_d = new_problem.matrix.cols();
+  new_problem.cost = Vector<Field>::zeros(new_d);
+
+  for (size_t i = d; i < new_d; ++i) {
+    new_problem.cost[i] = -1;
+  }
+
+  new_problem.var_bounds.resize(new_d, Bound<Field>{0, std::nullopt});
+  states.resize(new_d, VariableState::BASIC);
+
+  // solve phase 1 problem
   auto helper = Simplex<Field>(std::move(config));
   helper.set_problem(new_problem);
 
@@ -103,7 +139,7 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
   for (size_t basic_index = 0; basic_index < n; ++basic_index) {
     const size_t i = helper.get_basic_vars()[basic_index];
 
-    if (i < old_d) {
+    if (i < d) {
       continue;
     }
 
@@ -112,7 +148,7 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
     // try to find replacement for i among non-artificial variables
     ArgMaximum<Field> max_pivot;
 
-    for (size_t j = 0; j < old_d; ++j) {
+    for (size_t j = 0; j < d; ++j) {
       if (helper.get_states()[j] == VariableState::BASIC) {
         continue;
       }
@@ -128,7 +164,7 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
 
     if (!max_pivot.has_value() || max_pivot->max <= tolerance.pivot) {
       // Row associated with the current slack variable is linearly dependent.
-      redundant_rows.push_back(i - old_d);
+      redundant_rows.push_back(new_problem.matrix.get_column(i).front().first);
       continue;
     }
 
@@ -136,7 +172,7 @@ std::expected<Phase1Result, Phase1Error> primal_phase1(
   }
 
   states = helper.get_states();
-  states.resize(old_d);
+  states.resize(d);
 
   return Phase1Result{
       .states = std::move(states),

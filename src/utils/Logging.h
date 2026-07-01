@@ -47,6 +47,13 @@ void npy(const Matrix<Field>& matrix, std::string_view filename) {
   linalg::to_npy(os, matrix);
 }
 
+template <typename Field>
+void npy_columns(const CSCMatrix<Field>& matrix,
+                 const std::vector<size_t>& columns,
+                 std::string_view filename) {
+  logging::npy(Matrix(matrix.select_columns(columns)), filename);
+}
+
 inline void string(std::string_view text, std::string_view filename) {
   auto os = get_log_fstream(filename);
   os << text;
