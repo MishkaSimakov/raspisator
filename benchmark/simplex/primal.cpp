@@ -21,7 +21,17 @@ using Field = double;
 
 // - QAP15 - stuck in degenerate iterations in phase 1
 // - QAP12 - same as QAP15
-const std::set<std::string> skipped = {"QAP15", "QAP12"};
+//
+// The remaining entries are the largest Netlib instances by rows*cols, which is
+// the cost driver for PrimalSteepestEdge::recalculate_weights (a dense
+// n x (d-n) block solve rebuilt every refactorization). They are skipped so the
+// steepest-edge weight-error experiment stays tractable. QAP15/QAP12 also fall
+// in this top-20 by size.
+const std::set<std::string> skipped = {
+    "QAP15",    "QAP12",    "STOCFOR3", "DFL001",  "FIT2P",
+    "MAROS-R7", "80BAU3B",  "GREENBEA", "GREENBEB", "D2Q06C",
+    "PILOT87",  "WOODW",    "TRUSS",    "BNL2",    "SHIP12L",
+    "CYCLE",    "PILOT",    "STOCFOR2", "SCTAP3",  "SHIP08L"};
 
 int main() {
   std::ofstream output(paths::log("benchmark_simplex_primal.csv"));
@@ -78,7 +88,7 @@ int main() {
           standard_problem,
           simplex::Config<Field>()
               .set_validate_input(true)
-              .set_primal_pricing<simplex::PrimalMostInfeasible<Field>>()
+              .set_primal_pricing<simplex::PrimalSteepestEdge<Field>>()
               .set_max_iterations(100'000));
 
       if (!phase1) {
@@ -88,40 +98,40 @@ int main() {
         continue;
       }
 
-      standard_problem = problem::remove_rows(std::move(standard_problem),
-                                              phase1->redundant_rows);
+      // standard_problem = problem::remove_rows(std::move(standard_problem),
+                                              // phase1->redundant_rows);
 
-      auto solver = simplex::Simplex<Field>();
-
-      solver.set_validate_input(true);
-      solver.set_problem(standard_problem);
-      solver.set_primal_pricing<simplex::PrimalMostInfeasible<Field>>();
-      solver.set_max_iterations(100'000);
-
-      auto result = solver.primal(phase1->states);
-
-      auto end = std::chrono::steady_clock::now();
-      std::println("  status: {}, time: {}, iterations: {}",
-                   to_string(result.status), end - start,
-                   result.iterations_count + phase1->iterations_count);
-
-      Field objective = 0;
-
-      if (result.status == simplex::Status::OPTIMAL) {
-        // final objective value is negated because all problems in the
-        // benchmark are minimization problems, but solver works with
-        // maximization problems and cost coefficients are negated.
-        objective =
-            -linalg::dot(optimizer.inverse(solver.get_point()), problem.cost);
-
-        std::println("  objective: {}", objective);
-      }
-
-      std::println(
-          output, "{},{},{},{},{},{}", name, to_string(result.status),
-          objective, phase1->iterations_count, result.iterations_count,
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-              .count());
+      // auto solver = simplex::Simplex<Field>();
+      //
+      // solver.set_validate_input(true);
+      // solver.set_problem(standard_problem);
+      // solver.set_primal_pricing<simplex::PrimalSteepestEdge<Field>>();
+      // solver.set_max_iterations(100'000);
+      //
+      // auto result = solver.primal(phase1->states);
+      //
+      // auto end = std::chrono::steady_clock::now();
+      // std::println("  status: {}, time: {}, iterations: {}",
+      //              to_string(result.status), end - start,
+      //              result.iterations_count + phase1->iterations_count);
+      //
+      // Field objective = 0;
+      //
+      // if (result.status == simplex::Status::OPTIMAL) {
+      //   // final objective value is negated because all problems in the
+      //   // benchmark are minimization problems, but solver works with
+      //   // maximization problems and cost coefficients are negated.
+      //   objective =
+      //       -linalg::dot(optimizer.inverse(solver.get_point()), problem.cost);
+      //
+      //   std::println("  objective: {}", objective);
+      // }
+      //
+      // std::println(
+      //     output, "{},{},{},{},{},{}", name, to_string(result.status),
+      //     objective, phase1->iterations_count, result.iterations_count,
+      //     std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+      //         .count());
     } catch (std::exception& error) {
       std::println(output, "{},{},{},{},{},{}", name, "EXCEPTION", 0, 0, 0, 0);
       std::println("  failed: {}", error.what());
