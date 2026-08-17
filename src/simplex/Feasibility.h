@@ -1,5 +1,7 @@
 #pragma once
 
+#include <format>
+
 #include "linalg/CSCMatrix.h"
 #include "linalg/lu/LUPA.h"
 #include "problem/StandardLP.h"
@@ -7,15 +9,17 @@
 
 namespace simplex {
 
-// This function does not check whether matrix formed by basic columns is
-// invertible.
+// Returns empty string if basis is dual feasible, otherwise returns string
+// description of the dual infeasibility reason.
+// Note: This function does not check whether a matrix formed by basic columns
+// is invertible.
 template <typename Field>
 std::string get_dual_infeasibility_reason(
     const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
     const std::vector<Bound<Field>>& bounds,
     const std::vector<VariableState>& states,
     Field tolerance = FieldTraits<Field>::tolerance) {
-  auto [n, d] = A.shape();
+  const auto [n, d] = A.shape();
 
   std::vector<size_t> basic_variables;
   for (size_t i = 0; i < states.size(); ++i) {
@@ -54,7 +58,7 @@ std::string get_dual_infeasibility_reason(
     }
   }
 
-  // point is dual feasible
+  // the point is dual feasible
   return "";
 }
 
@@ -78,15 +82,17 @@ std::string get_dual_infeasibility_reason(
                                        tolerance);
 }
 
-// This function does not check whether matrix formed by basic columns is
-// invertible.
+// Returns empty string if basis is primal feasible, otherwise returns string
+// description of the primal infeasibility reason.
+// Note: This function does not check whether a matrix formed by basic columns
+// is invertible.
 template <typename Field>
-bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
-                        const Vector<Field>& c,
-                        const std::vector<Bound<Field>>& bounds,
-                        const std::vector<VariableState>& states,
-                        Field tolerance = FieldTraits<Field>::tolerance) {
-  auto [n, d] = A.shape();
+std::string get_primal_infeasibility_reason(
+    const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
+    const std::vector<Bound<Field>>& bounds,
+    const std::vector<VariableState>& states,
+    Field tolerance = FieldTraits<Field>::tolerance) {
+  const auto [n, d] = A.shape();
 
   std::vector<size_t> basic_variables;
   for (size_t i = 0; i < states.size(); ++i) {
@@ -96,7 +102,7 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
   }
 
   if (basic_variables.size() != n) {
-    return false;
+    return "Wrong basic variables count.";
   }
 
   auto rhs = detail::get_adjusted_rhs(A, b, bounds, states);
@@ -107,19 +113,34 @@ bool is_primal_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
 
   for (size_t i = 0; i < n; ++i) {
     if (!bounds[basic_variables[i]].contains(basic_point[i], tolerance)) {
-      return false;
+      return std::format("Variable {} is outside of its bound: {} \\notin {}.",
+                         basic_variables[i], basic_point[i],
+                         bounds[basic_variables[i]]);
     }
   }
 
-  return true;
+  // the point is primal feasible
+  return "";
 }
 
 template <typename Field>
 bool is_primal_feasible(const problem::StandardLP<Field>& problem,
                         const std::vector<VariableState>& states,
                         Field tolerance = FieldTraits<Field>::tolerance) {
-  return is_primal_feasible(problem.matrix, problem.rhs, problem.cost,
-                            problem.var_bounds, states, tolerance);
+  return get_primal_infeasibility_reason(problem.matrix, problem.rhs,
+                                         problem.cost, problem.var_bounds,
+                                         states, tolerance)
+      .empty();
+}
+
+template <typename Field>
+bool get_primal_infeasibility_reason(
+    const problem::StandardLP<Field>& problem,
+    const std::vector<VariableState>& states,
+    Field tolerance = FieldTraits<Field>::tolerance) {
+  return get_primal_infeasibility_reason(problem.matrix, problem.rhs,
+                                         problem.cost, problem.var_bounds,
+                                         states, tolerance);
 }
 
 }  // namespace simplex
