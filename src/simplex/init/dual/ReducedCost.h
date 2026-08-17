@@ -12,8 +12,8 @@
 namespace simplex {
 
 // Algorithm for finding initial dual feasible point.
-// It is fast, but may fail. It is guaranteed to work when all variables have
-// both upper and lower bounds.
+// It is fast, but may fail. It is guaranteed to work when all variables are
+// boxed.
 template <typename Field>
 std::optional<std::vector<VariableState>> try_init_dual_by_reduced_cost(
     const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,

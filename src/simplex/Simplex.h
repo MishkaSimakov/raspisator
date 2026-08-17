@@ -86,29 +86,30 @@ class Simplex {
   std::optional<size_t> get_dual_entering_variable(
       LeavingVariable leaving, const Vector<Field>& reduced_cost,
       const Vector<Field>& leaving_row) const {
-    auto [n, d] = problem_->matrix.shape();
+    const auto [n, d] = problem_->matrix.shape();
 
     ArgMinimum<Field> min_ratio;
+
+    const auto transformed_row =
+        linalg::transpose(leaving_row) * problem_->matrix;
 
     for (size_t i = 0; i < d; ++i) {
       if (var_states_[i] == VariableState::BASIC) {
         continue;
       }
 
-      Field coef = 0;
-      for (const auto& [row, value] : problem_->matrix.get_column(i)) {
-        coef += leaving_row[row] * value;
-      }
+      const Field coef = transformed_row[0, i];
 
       if (!FieldTraits<Field>::is_nonzero(coef)) {
         continue;
       }
 
       // TODO: think about drop tolerance
-      const Field cost =
-          FieldTraits<Field>::is_nonzero(reduced_cost[i]) ? reduced_cost[i] : 0;
+      // const Field cost =
+      //     FieldTraits<Field>::is_nonzero(reduced_cost[i]) ? reduced_cost[i] :
+      //     0;
 
-      Field ratio = cost / coef;
+      Field ratio = reduced_cost[i] / coef;
 
       if (leaving.new_state == VariableState::AT_UPPER) {
         ratio *= -1;

@@ -120,6 +120,10 @@ struct Bound {
     }
   }
 
+  bool is_boxed() const {
+    return lower && upper;
+  }
+
   bool is_fixed() const {
     return lower && upper && !FieldTraits<Field>::is_nonzero(*lower - *upper);
   }

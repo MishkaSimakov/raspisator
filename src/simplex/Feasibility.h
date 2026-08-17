@@ -10,11 +10,11 @@ namespace simplex {
 // This function does not check whether matrix formed by basic columns is
 // invertible.
 template <typename Field>
-bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
-                      const Vector<Field>& c,
-                      const std::vector<Bound<Field>>& bounds,
-                      const std::vector<VariableState>& states,
-                      Field tolerance = FieldTraits<Field>::tolerance) {
+std::string get_dual_infeasibility_reason(
+    const CSCMatrix<Field>& A, const Vector<Field>& b, const Vector<Field>& c,
+    const std::vector<Bound<Field>>& bounds,
+    const std::vector<VariableState>& states,
+    Field tolerance = FieldTraits<Field>::tolerance) {
   auto [n, d] = A.shape();
 
   std::vector<size_t> basic_variables;
@@ -25,7 +25,7 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
   }
 
   if (basic_variables.size() != n) {
-    return false;
+    return "Wrong basic variables count.";
   }
 
   linalg::LUPA<Field> lupa(A);
@@ -39,28 +39,43 @@ bool is_dual_feasible(const CSCMatrix<Field>& A, const Vector<Field>& b,
       // infeasible if variable value can be increased
       if (!bounds[i].upper ||
           states[i] == VariableState::AT_LOWER && !bounds[i].is_fixed()) {
-        return false;
+        return std::format(
+            "Variable {} has reduced cost > 0 and can be increased.", i);
       }
     }
 
-    if (reduced_costs[i] < tolerance) {
+    if (reduced_costs[i] < -tolerance) {
       // infeasible if variable value can be decreased
       if (!bounds[i].lower ||
           states[i] == VariableState::AT_UPPER && !bounds[i].is_fixed()) {
-        return false;
+        return std::format(
+            "Variable {} has reduced cost < 0 and can be decreased.", i);
       }
     }
   }
 
-  return true;
+  // point is dual feasible
+  return "";
 }
 
 template <typename Field>
 bool is_dual_feasible(const problem::StandardLP<Field>& problem,
                       const std::vector<VariableState>& states,
                       Field tolerance = FieldTraits<Field>::tolerance) {
-  return is_dual_feasible(problem.matrix, problem.rhs, problem.cost,
-                          problem.var_bounds, states, tolerance);
+  return get_dual_infeasibility_reason(problem.matrix, problem.rhs,
+                                       problem.cost, problem.var_bounds, states,
+                                       tolerance)
+      .empty();
+}
+
+template <typename Field>
+std::string get_dual_infeasibility_reason(
+    const problem::StandardLP<Field>& problem,
+    const std::vector<VariableState>& states,
+    Field tolerance = FieldTraits<Field>::tolerance) {
+  return get_dual_infeasibility_reason(problem.matrix, problem.rhs,
+                                       problem.cost, problem.var_bounds, states,
+                                       tolerance);
 }
 
 // This function does not check whether matrix formed by basic columns is

@@ -13,7 +13,9 @@ target_sources(tests PUBLIC
         problem/ProblemBuilderTests.cpp
         problem/BoundsTests.cpp
 
-        simplex/PrimalPhase1Tests.cpp
+        simplex/init/primal/PrimalPhase1Tests.cpp
+        simplex/init/dual/DualSubproblemPhase1Tests.cpp
+        simplex/init/dual/ReducedCostTests.cpp
         simplex/CatalogTests.cpp
         simplex/RandomTests.cpp
 

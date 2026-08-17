@@ -3,8 +3,8 @@
 #include <numeric>
 #include <vector>
 
-#include "../field/FieldTraits.h"
 #include "Matrix.h"
+#include "field/FieldTraits.h"
 #include "utils/Accumulators.h"
 
 namespace linalg {
