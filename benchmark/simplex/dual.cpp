@@ -15,6 +15,7 @@
 #include "presolve/passes/Scaling.h"
 #include "problem/StandardMILP.h"
 #include "problem/mutations/RemoveRows.h"
+#include "simplex/init/dual/ReducedCost.h"
 #include "simplex/pricing/primal/SteepestEdge.h"
 
 using Field = double;
@@ -34,7 +35,7 @@ const std::set<std::string> skipped = {
     "CYCLE",    "PILOT",   "STOCFOR2", "SCTAP3",   "SHIP08L"};
 
 int main() {
-  std::ofstream output(paths::log("benchmark_simplex_primal.csv"));
+  std::ofstream output(paths::log("benchmark_simplex_dual.csv"));
 
   if (!output) {
     throw std::runtime_error("Failed to open output file.");
@@ -84,36 +85,28 @@ int main() {
 
       problem::StandardLP standard_problem(optimizer.apply(problem));
 
-      auto phase1 = simplex::primal_phase1(
-          standard_problem,
-          simplex::Config<Field>()
-              .set_validate_input(true)
-              .set_primal_pricing<simplex::PrimalMostInfeasible<Field>>()
-              .set_max_iterations(100'000));
+      auto phase1 = simplex::try_init_dual_by_reduced_cost(standard_problem);
 
       if (!phase1) {
-        std::println("  Failed to find primal feasible basis.");
+        std::println("  Failed to find dual feasible basis.");
         std::println(output, "{},{},{},{},{},{}", name, "PHASE1_ERROR", 0, 0, 0,
                      0);
         continue;
       }
 
-      standard_problem = problem::remove_rows(std::move(standard_problem),
-                                              phase1->redundant_rows);
-
       auto solver = simplex::Simplex<Field>();
 
       solver.set_validate_input(true);
       solver.set_problem(standard_problem);
-      solver.set_primal_pricing<simplex::PrimalMostInfeasible<Field>>();
+      solver.set_dual_pricing<simplex::DualDantzigPricing<Field>>();
       solver.set_max_iterations(100'000);
 
-      auto result = solver.primal(phase1->states);
+      auto result = solver.dual(*phase1);
 
       auto end = std::chrono::steady_clock::now();
       std::println("  status: {}, time: {}, iterations: {}",
                    to_string(result.status), end - start,
-                   result.iterations_count + phase1->iterations_count);
+                   result.iterations_count);
 
       Field objective = 0;
 
@@ -129,7 +122,7 @@ int main() {
 
       std::println(
           output, "{},{},{},{},{},{}", name, to_string(result.status),
-          objective, phase1->iterations_count, result.iterations_count,
+          objective, 0, result.iterations_count,
           std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
               .count());
     } catch (std::exception& error) {

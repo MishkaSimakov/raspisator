@@ -12,7 +12,7 @@
 // fast and stable implementation"
 namespace simplex {
 
-struct Phase1Result {
+struct SubproblemPhase1Result {
   std::vector<VariableState> states;
 
   // Phase 1 uses simplex to find primal feasible basis. This is internal
@@ -20,15 +20,15 @@ struct Phase1Result {
   size_t iterations_count;
 };
 
-enum class Phase1Error {
+enum class SubproblemPhase1Error {
   INFEASIBLE,
-  LINEARLY_DEPENDENT_ROWS,
   REACHED_ITERATIONS_LIMIT,
 };
 
 template <typename Field>
-std::expected<Phase1Result, Phase1Error> subproblem_dual_phase1(
-    const problem::StandardLP<Field>& problem, Config<Field> config = {}) {
+std::expected<SubproblemPhase1Result, SubproblemPhase1Error>
+subproblem_dual_phase1(const problem::StandardLP<Field>& problem,
+                       Config<Field> config = {}) {
   using std::abs;
 
   // save tolerances, they will be needed later
@@ -41,15 +41,17 @@ std::expected<Phase1Result, Phase1Error> subproblem_dual_phase1(
   for (size_t i = 0; i < d; ++i) {
     const auto bound = problem.var_bounds[i];
 
+    new_problem.cost[i] = -new_problem.cost[i];
+
     if (bound.lower && bound.upper) {
-      // boxed variable, exclude from phase 1
-      new_problem.cost[i] = 0;
+      // boxed variable
+      new_problem.var_bounds[i] = {0, 0};
     } else if (!bound.lower && bound.upper) {
       // J_u
-      new_problem.var_bounds[i] = {-1, 0};
+      new_problem.var_bounds[i] = {0, 1};
     } else if (bound.lower && !bound.upper) {
       // J_l
-      new_problem.var_bounds[i] = {0, 1};
+      new_problem.var_bounds[i] = {-1, 0};
     } else {
       // J_f
       new_problem.var_bounds[i] = {-1, 1};
@@ -69,7 +71,7 @@ std::expected<Phase1Result, Phase1Error> subproblem_dual_phase1(
   const auto result = helper.dual(*init_states);
 
   if (result.status == Status::ITERATIONS_LIMIT) {
-    return std::unexpected{Phase1Error::REACHED_ITERATIONS_LIMIT};
+    return std::unexpected{SubproblemPhase1Error::REACHED_ITERATIONS_LIMIT};
   }
 
   if (result.status != Status::OPTIMAL) {
@@ -78,19 +80,10 @@ std::expected<Phase1Result, Phase1Error> subproblem_dual_phase1(
 
   // Case 1, problem is dual infeasible
   if (*result.objective < -tolerance.feasibility) {
-    return std::unexpected{Phase1Error::INFEASIBLE};
+    return std::unexpected{SubproblemPhase1Error::INFEASIBLE};
   }
 
-  auto states = helper.get_states();
-  for (size_t i = 0; i < d; ++i) {
-    const auto bound = problem.var_bounds[i];
-
-    if (bound.lower && bound.upper) {
-      states[i] = (*init_states)[i];
-    }
-  }
-
-  return Phase1Result{
+  return SubproblemPhase1Result{
       .states = helper.get_states(),
       .iterations_count = result.iterations_count,
   };
