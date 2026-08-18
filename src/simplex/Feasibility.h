@@ -44,7 +44,8 @@ std::string get_dual_infeasibility_reason(
       if (!bounds[i].upper ||
           states[i] == VariableState::AT_LOWER && !bounds[i].is_fixed()) {
         return std::format(
-            "Variable {} has reduced cost > 0 and can be increased.", i);
+            "Variable {} has reduced cost {} > 0 and can be increased.", i,
+            reduced_costs[i]);
       }
     }
 
@@ -53,7 +54,8 @@ std::string get_dual_infeasibility_reason(
       if (!bounds[i].lower ||
           states[i] == VariableState::AT_UPPER && !bounds[i].is_fixed()) {
         return std::format(
-            "Variable {} has reduced cost < 0 and can be decreased.", i);
+            "Variable {} has reduced cost {} < 0 and can be decreased.", i,
+            reduced_costs[i]);
       }
     }
   }

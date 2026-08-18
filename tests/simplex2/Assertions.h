@@ -6,6 +6,7 @@
 #include "linalg/lu/FullPivotingLU.h"
 #include "linalg/lu/Solve.h"
 #include "problem/StandardLP.h"
+#include "simplex/Feasibility.h"
 #include "simplex/Result.h"
 #include "simplex/Simplex.h"
 
@@ -80,3 +81,9 @@ void validate_simplex_solution(const problem::StandardLP<Field>& problem,
         << ", reduced_cost=" << reduced_cost[i] << ")";
   }
 }
+
+#define ASSERT_PRIMAL_FEASIBLE(problem, states) \
+  ASSERT_EQ(simplex::get_primal_infeasibility_reason(problem, states), "");
+
+#define ASSERT_DUAL_FEASIBLE(problem, states) \
+  ASSERT_EQ(simplex::get_dual_infeasibility_reason(problem, states), "");
