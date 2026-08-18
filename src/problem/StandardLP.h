@@ -23,7 +23,8 @@ struct StandardLP : CoreLP<Field> {
   StandardLP(size_t rows, size_t cols) : CoreLP<Field>(rows, cols), rhs(rows) {}
 
   explicit StandardLP(const LP<Field>& other)
-      : CoreLP<Field>(other), rhs(other.rhs_bounds.size()) {
+      : CoreLP<Field>(other),
+        rhs(other.rhs_bounds.size()) {
     for (size_t i = 0; i < other.rhs_bounds.size(); ++i) {
       if (!other.rhs_bounds[i].is_fixed()) {
         throw std::invalid_argument(
@@ -67,7 +68,7 @@ std::ostream& operator<<(std::ostream& os, const StandardLP<Field>& problem) {
   {
     detail::ExpressionPrinter printer{os};
 
-    printer.name(problem.cost_name);
+    printer.name("max " + problem.safe_cost_name());
 
     for (size_t i = 0; i < problem.cost.size(); ++i) {
       if (abs(problem.cost[i]) > FieldTraits<Field>::tolerance) {

@@ -58,6 +58,10 @@ struct CoreLP {
       throw std::runtime_error("Wrong row names vector size.");
     }
   }
+  
+  std::string safe_cost_name() const {
+    return cost_name.empty() ? "z" : cost_name;
+  }
 
   std::string row_name(size_t index) const {
     return row_names[index].empty() ? "r" + std::to_string(index)
