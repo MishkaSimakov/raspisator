@@ -21,7 +21,7 @@ struct SubproblemPhase1Result {
 };
 
 enum class SubproblemPhase1Error {
-  INFEASIBLE,
+  DUAL_INFEASIBLE,
   REACHED_ITERATIONS_LIMIT,
 };
 
@@ -41,17 +41,15 @@ subproblem_dual_phase1(const problem::StandardLP<Field>& problem,
   for (size_t i = 0; i < d; ++i) {
     const auto bound = problem.var_bounds[i];
 
-    new_problem.cost[i] = -new_problem.cost[i];
-
     if (bound.lower && bound.upper) {
       // boxed variable
       new_problem.var_bounds[i] = {0, 0};
     } else if (!bound.lower && bound.upper) {
       // J_u
-      new_problem.var_bounds[i] = {0, 1};
+      new_problem.var_bounds[i] = {-1, 0};
     } else if (bound.lower && !bound.upper) {
       // J_l
-      new_problem.var_bounds[i] = {-1, 0};
+      new_problem.var_bounds[i] = {0, 1};
     } else {
       // J_f
       new_problem.var_bounds[i] = {-1, 1};
@@ -79,8 +77,8 @@ subproblem_dual_phase1(const problem::StandardLP<Field>& problem,
   }
 
   // Case 1, problem is dual infeasible
-  if (*result.objective < -tolerance.feasibility) {
-    return std::unexpected{SubproblemPhase1Error::INFEASIBLE};
+  if (*result.objective > tolerance.feasibility) {
+    return std::unexpected{SubproblemPhase1Error::DUAL_INFEASIBLE};
   }
 
   return SubproblemPhase1Result{

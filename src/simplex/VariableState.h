@@ -1,6 +1,10 @@
 #pragma once
 
+#include <algorithm>
+#include <ranges>
 #include <string>
+
+#include "utils/String.h"
 
 namespace simplex {
 
@@ -19,6 +23,13 @@ inline std::string to_string(VariableState state) {
     default:
       std::unreachable();
   }
+}
+
+inline std::string to_string(std::span<const VariableState> states) {
+  return str::join(states | std::views::transform([](VariableState state) {
+                     return to_string(state);
+                   }),
+                   " ");
 }
 
 }  // namespace simplex

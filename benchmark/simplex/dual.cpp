@@ -16,6 +16,7 @@
 #include "problem/StandardMILP.h"
 #include "problem/mutations/RemoveRows.h"
 #include "simplex/init/dual/ReducedCost.h"
+#include "simplex/init/dual/Subproblem.h"
 #include "simplex/pricing/primal/SteepestEdge.h"
 
 using Field = double;
@@ -79,13 +80,15 @@ int main() {
     try {
       auto start = std::chrono::steady_clock::now();
 
-      auto optimizer = presolve::Chain<Field>()
-                           .add<presolve::Scaling<Field>>()
-                           .add<presolve::TransformToEqualities<Field>>();
+      auto optimizer =
+          presolve::Chain<Field>()
+              .add<presolve::Scaling<Field>>()
+              .add<presolve::RemoveLinearlyDependentEqualities<Field>>()
+              .add<presolve::TransformToEqualities<Field>>();
 
       problem::StandardLP standard_problem(optimizer.apply(problem));
 
-      auto phase1 = simplex::try_init_dual_by_reduced_cost(standard_problem);
+      auto phase1 = simplex::subproblem_dual_phase1(standard_problem);
 
       if (!phase1) {
         std::println("  Failed to find dual feasible basis.");
@@ -101,7 +104,7 @@ int main() {
       solver.set_dual_pricing<simplex::DualDantzigPricing<Field>>();
       solver.set_max_iterations(100'000);
 
-      auto result = solver.dual(*phase1);
+      auto result = solver.dual(phase1->states);
 
       auto end = std::chrono::steady_clock::now();
       std::println("  status: {}, time: {}, iterations: {}",
