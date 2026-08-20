@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Classify simplex benchmark results and render a Markdown summary.
 
-Joins the benchmark output (`log/benchmark_simplex_primal.csv`) with the
+Usage: benchmark_report.py [variant]   # variant: primal (default) | dual
+
+Joins the benchmark output (`log/benchmark_simplex_<variant>.csv`) with the
 committed reference optima (`.github/data/lp_optimal_values.csv`) and writes a
 results table to `$GITHUB_STEP_SUMMARY` (and stdout for local runs).
 
@@ -29,7 +31,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REFERENCE_CSV = REPO_ROOT / ".github" / "data" / "lp_optimal_values.csv"
-BENCHMARK_CSV = REPO_ROOT / "log" / "benchmark_simplex_primal.csv"
+VARIANTS = ("primal", "dual")
 
 # Relative tolerance ~ 7 significant digits (see plan / user decision).
 TOL = 1e-7
@@ -78,13 +80,18 @@ def fmt_err(err):
 
 
 def main():
-    if not BENCHMARK_CSV.exists():
-        sys.exit(f"Benchmark output not found: {BENCHMARK_CSV}")
+    variant = sys.argv[1] if len(sys.argv) > 1 else "primal"
+    if variant not in VARIANTS:
+        sys.exit(f"Unknown variant {variant!r}, expected one of {VARIANTS}.")
+
+    benchmark_csv = REPO_ROOT / "log" / f"benchmark_simplex_{variant}.csv"
+    if not benchmark_csv.exists():
+        sys.exit(f"Benchmark output not found: {benchmark_csv}")
 
     refs = load_references(REFERENCE_CSV)
 
     rows = []
-    with BENCHMARK_CSV.open(newline="") as f:
+    with benchmark_csv.open(newline="") as f:
         for r in csv.DictReader(f):
             name = r["name"]
             status = r["status"]
@@ -126,7 +133,7 @@ def main():
     fail_detail = ", ".join(f"{k} {v}" for k, v in sorted(fail_statuses.items()))
 
     out = []
-    out.append("## Simplex primal benchmark\n")
+    out.append(f"## Simplex {variant} benchmark\n")
     out.append(
         f"**Solved {solved} / {attempted}** · "
         f"Wrong {wrong} · Failed {failed} · No-ref {no_ref} · Skipped {skipped}\n"

@@ -7,9 +7,16 @@ permissions:
   contents: read
 
 jobs:
-  simplex-primal:
+  simplex:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [primal, dual]
+
+    name: simplex-${{ matrix.variant }}
 
     steps:
       - name: Checkout repository
@@ -48,17 +55,17 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build benchmark
-        run: cmake --build build --target benchmark_simplex_primal
+        run: cmake --build build --target benchmark_simplex_${{ matrix.variant }}
 
       - name: Run benchmark
-        run: ./build/benchmark/benchmark_simplex_primal
+        run: ./build/benchmark/benchmark_simplex_${{ matrix.variant }}
 
       - name: Report results
-        run: python3 .github/scripts/benchmark_report.py
+        run: python3 .github/scripts/benchmark_report.py ${{ matrix.variant }}
 
       - name: Upload raw results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: benchmark-simplex-primal
-          path: log/benchmark_simplex_primal.csv
+          name: benchmark-simplex-${{ matrix.variant }}
+          path: log/benchmark_simplex_${{ matrix.variant }}.csv
