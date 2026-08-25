@@ -85,39 +85,36 @@ class Simplex {
 
   std::optional<size_t> get_dual_entering_variable(
       LeavingVariable leaving, const Vector<Field>& reduced_cost,
-      const Vector<Field>& leaving_row) const {
+      const Vector<Field>& pivot_row) const {
     const auto [n, d] = problem_->matrix.shape();
 
     ArgMinimum<Field> min_ratio;
-
-    const auto transformed_row =
-        linalg::transpose(leaving_row) * problem_->matrix;
 
     auto get_breakpoint = [&](size_t i) -> std::optional<Field> {
       if (var_states_[i] == VariableState::BASIC) {
         return std::nullopt;
       }
 
-      const Field coef = transformed_row[0, i];
+      const Field pivot = pivot_row[i];
 
-      if (abs(coef) < config_.tolerance.pivot) {
+      if (abs(pivot) < config_.tolerance.pivot) {
         return std::nullopt;
       }
 
-      Field ratio = reduced_cost[i] / coef;
+      Field ratio = reduced_cost[i] / pivot;
 
       if (leaving.new_state == VariableState::AT_UPPER) {
         ratio *= -1;
       }
 
       if (leaving.new_state == VariableState::AT_LOWER) {
-        if (var_states_[i] == VariableState::AT_LOWER && coef > Field(0) ||
-            var_states_[i] == VariableState::AT_UPPER && coef < Field(0)) {
+        if (var_states_[i] == VariableState::AT_LOWER && pivot > Field(0) ||
+            var_states_[i] == VariableState::AT_UPPER && pivot < Field(0)) {
           return std::nullopt;
         }
       } else {
-        if (var_states_[i] == VariableState::AT_LOWER && coef < Field(0) ||
-            var_states_[i] == VariableState::AT_UPPER && coef > Field(0)) {
+        if (var_states_[i] == VariableState::AT_LOWER && pivot < Field(0) ||
+            var_states_[i] == VariableState::AT_UPPER && pivot > Field(0)) {
           return std::nullopt;
         }
       }
@@ -140,7 +137,7 @@ class Simplex {
       const auto t = get_breakpoint(i);
 
       if (t && *t == min_ratio->min) {
-        max_pivot.record(i, transformed_row[0, i]);
+        max_pivot.record(i, pivot_row[i]);
       }
     }
 
@@ -589,12 +586,27 @@ class Simplex {
       }
     }
 
-    const Vector leaving_row = lupa_->get_row(leaving->index);
+    const Vector pivot_row =
+        linalg::transpose(problem_->matrix) * lupa_->get_row(leaving->index);
 
     auto entering =
-        get_dual_entering_variable(*leaving, reduced_cost_, leaving_row);
+        get_dual_entering_variable(*leaving, reduced_cost_, pivot_row);
     if (!entering) {
       return IterationResult::UNBOUNDED;
+    }
+
+    if (abs(pivot_row[*entering]) < config_.tolerance.suspicious_pivot &&
+        lupa_->get_changes_since_refactorization() > 0) {
+      if (config_.accountant) {
+        config_.accountant->suspicious_pivot(
+            state_view, ChangeBasisMove<Field>{
+                            .entering_variable = *entering,
+                            .leaving_index = leaving->index,
+                            .new_state = leaving->new_state,
+                        });
+      }
+
+      return IterationResult::REFACTORIZE_REPEAT;
     }
 
     change_basis(leaving->index, *entering, leaving->new_state);
