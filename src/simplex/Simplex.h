@@ -93,21 +93,16 @@ class Simplex {
     const auto transformed_row =
         linalg::transpose(leaving_row) * problem_->matrix;
 
-    for (size_t i = 0; i < d; ++i) {
+    auto get_breakpoint = [&](size_t i) -> std::optional<Field> {
       if (var_states_[i] == VariableState::BASIC) {
-        continue;
+        return std::nullopt;
       }
 
       const Field coef = transformed_row[0, i];
 
-      if (!FieldTraits<Field>::is_nonzero(coef)) {
-        continue;
+      if (abs(coef) < config_.tolerance.pivot) {
+        return std::nullopt;
       }
-
-      // TODO: think about drop tolerance
-      // const Field cost =
-      //     FieldTraits<Field>::is_nonzero(reduced_cost[i]) ? reduced_cost[i] :
-      //     0;
 
       Field ratio = reduced_cost[i] / coef;
 
@@ -118,20 +113,39 @@ class Simplex {
       if (leaving.new_state == VariableState::AT_LOWER) {
         if (var_states_[i] == VariableState::AT_LOWER && coef > Field(0) ||
             var_states_[i] == VariableState::AT_UPPER && coef < Field(0)) {
-          continue;
+          return std::nullopt;
         }
       } else {
         if (var_states_[i] == VariableState::AT_LOWER && coef < Field(0) ||
             var_states_[i] == VariableState::AT_UPPER && coef > Field(0)) {
-          continue;
+          return std::nullopt;
         }
       }
 
-      min_ratio.record(i, ratio);
+      return ratio;
+    };
+
+    for (size_t i = 0; i < d; ++i) {
+      min_ratio.record(i, get_breakpoint(i));
     }
 
-    return min_ratio.has_value() ? std::optional{min_ratio->index}
-                                 : std::nullopt;
+    if (!min_ratio.has_value()) {
+      return std::nullopt;
+    }
+
+    // among possible entering variables select one with the largest pivot
+    ArgMaximum<Field> max_pivot;
+
+    for (size_t i = 0; i < d; ++i) {
+      const auto t = get_breakpoint(i);
+
+      if (t && *t == min_ratio->min) {
+        max_pivot.record(i, transformed_row[0, i]);
+      }
+    }
+
+    assert(max_pivot.has_value());
+    return max_pivot->index;
   }
 
   StateView<Field> get_state_view() {
@@ -144,6 +158,7 @@ class Simplex {
         .basic_point = basic_point_,
         .states = var_states_,
         .basic_vars = basic_vars_,
+        .reduced_cost = reduced_cost_,
         .tolerance = config_.tolerance,
     };
   }
@@ -233,31 +248,22 @@ class Simplex {
     return false;
   }
 
-  bool violate_dual_bounds(const Vector<Field>& reduced_cost) const {
+  bool violate_dual_bounds() {
     using std::abs;
     const auto [n, d] = problem_->matrix.shape();
 
     for (size_t i = 0; i < d; ++i) {
-      switch (var_states_[i]) {
-        case VariableState::AT_LOWER:
-          if (reduced_cost[i] > config_.tolerance.feasibility) {
-            return true;
-          }
-          break;
-        case VariableState::AT_UPPER:
-          if (reduced_cost[i] < -config_.tolerance.feasibility) {
-            return true;
-          }
-          break;
-        case VariableState::NONBASIC_FREE:
-          if (abs(reduced_cost[i]) > config_.tolerance.feasibility) {
-            return true;
-          }
-          break;
-        case VariableState::BASIC:
-          break;
-        default:
-          std::unreachable();
+      if ((var_states_[i] == VariableState::AT_LOWER &&
+           reduced_cost_[i] > config_.tolerance.feasibility) ||
+          (var_states_[i] == VariableState::AT_UPPER &&
+           reduced_cost_[i] < -config_.tolerance.feasibility) ||
+          (var_states_[i] == VariableState::NONBASIC_FREE &&
+           abs(reduced_cost_[i]) > config_.tolerance.feasibility)) {
+        if (config_.accountant) {
+          config_.accountant->violate_dual_bounds(get_state_view(), i);
+        }
+
+        return true;
       }
     }
 
@@ -265,7 +271,7 @@ class Simplex {
   }
 
   enum class IterationResult {
-    FEASIBLE,
+    OPTIMAL,
     INFEASIBLE,
     UNBOUNDED,
     REFACTORIZE_REPEAT,
@@ -274,7 +280,7 @@ class Simplex {
 
   static Status iteration_result_to_status(IterationResult result) {
     switch (result) {
-      case IterationResult::FEASIBLE:
+      case IterationResult::OPTIMAL:
         return Status::OPTIMAL;
       case IterationResult::INFEASIBLE:
         return Status::INFEASIBLE;
@@ -315,7 +321,7 @@ class Simplex {
         config_.primal_pricing->get_primal_entering(state_view, reduced_cost_);
 
     if (!entering) {
-      return IterationResult::FEASIBLE;
+      return IterationResult::OPTIMAL;
     }
 
     const Vector pivot_col =
@@ -463,19 +469,18 @@ class Simplex {
                                                  basic_vars_);
   }
 
+  void dual_refactorize() { lupa_->refactorize(); }
+
   // It is guaranteed, that after execution of this method, if finite LP
   // solution was found, then inside LUPA basic variables would be selected as
   // columns.
   Result<Field> primal_implementation(
       const std::vector<VariableState>& states) {
-    using std::abs;
-
     if (!config_.primal_pricing) {
       throw std::logic_error(
           "Primal pricing must be specified in simplex config.");
     }
 
-    const auto [n, d] = problem_->matrix.shape();
     const auto feasibility_tolerance = config_.tolerance.feasibility;
 
     // Increase feasibility tolerance to find tentative answer.
@@ -500,7 +505,7 @@ class Simplex {
       ++iteration_;
 
       switch (result) {
-        case IterationResult::FEASIBLE:
+        case IterationResult::OPTIMAL:
         case IterationResult::UNBOUNDED:
         case IterationResult::INFEASIBLE:
           if (tentative_answer &&
@@ -544,59 +549,128 @@ class Simplex {
     }
   }
 
+  IterationResult dual_iteration() {
+    using std::abs;
+
+    adjusted_rhs_ = detail::get_adjusted_rhs(*problem_, var_states_);
+    basic_point_ = lupa_->solve_linear(adjusted_rhs_);
+
+    objective_ = detail::get_objective(problem_->cost, problem_->var_bounds,
+                                       var_states_, basic_vars_, basic_point_);
+
+    auto state_view = get_state_view();
+
+    if (config_.accountant) {
+      config_.accountant->iteration(state_view);
+    }
+
+    auto leaving = config_.dual_pricing->get_dual_leaving(state_view);
+    if (!leaving) {
+      return IterationResult::OPTIMAL;
+    }
+
+    const Vector pi =
+        lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
+    reduced_cost_ = problem_->cost - linalg::transpose(problem_->matrix) * pi;
+
+    if (violate_dual_bounds()) {
+      if (lupa_->get_changes_since_refactorization() > 0) {
+        return IterationResult::REFACTORIZE_REPEAT;
+      }
+
+      // TODO: control violation magnitude
+      // Basic variable value violates primal bounds. This may be either due
+      // to LUPA numerical problems or due to basis primal infeasibility.
+      // Solver continues primal iterations in hope that the first option is
+      // true. But it should somehow observe that this violations don't go
+      // haywire.
+      if (config_.accountant) {
+        config_.accountant->continue_with_primal_violation(state_view);
+      }
+    }
+
+    const Vector leaving_row = lupa_->get_row(leaving->index);
+
+    auto entering =
+        get_dual_entering_variable(*leaving, reduced_cost_, leaving_row);
+    if (!entering) {
+      return IterationResult::UNBOUNDED;
+    }
+
+    change_basis(leaving->index, *entering, leaving->new_state);
+
+    return IterationResult::MOVED;
+  }
+
   Result<Field> dual_implementation(const std::vector<VariableState>& states) {
     if (!config_.dual_pricing) {
-      throw std::runtime_error(
+      throw std::logic_error(
           "Dual pricing must be specified in simplex config.");
     }
 
-    auto [n, d] = problem_->matrix.shape();
+    const auto feasibility_tolerance = config_.tolerance.feasibility;
+
+    // Increase feasibility tolerance to find tentative answer.
+    // Then it will be dropped back to its initial value.
+    const auto tentative_feasibility_tolerance = feasibility_tolerance * 100;
+    config_.tolerance.feasibility = tentative_feasibility_tolerance;
 
     initialize_state(states);
 
+    std::optional<Status> tentative_answer;
+
+    //
     while (true) {
-      Vector rhs = detail::get_adjusted_rhs(*problem_, var_states_);
-      basic_point_ = lupa_->solve_linear(rhs);
-
-      objective_ =
-          detail::get_objective(problem_->cost, problem_->var_bounds,
-                                var_states_, basic_vars_, basic_point_);
-
-      auto state_view = get_state_view();
-
-      if (config_.accountant) {
-        config_.accountant->iteration(state_view);
-      }
-
       if (config_.max_iterations && iteration_ > *config_.max_iterations) {
         return construct_result(Status::ITERATIONS_LIMIT);
       }
 
-      auto leaving = config_.dual_pricing->get_dual_leaving(state_view);
-      if (!leaving) {
-        return construct_result(Status::OPTIMAL);
-      }
-
-      const Vector pi =
-          lupa_->solve_linear_transposed(Vector(problem_->cost[basic_vars_]));
-      const Vector reduced_cost =
-          problem_->cost - linalg::transpose(problem_->matrix) * pi;
-
-      if (violate_dual_bounds(reduced_cost)) {
-        throw std::runtime_error("Not implemented.");
-      }
-
-      const Vector leaving_row = lupa_->get_row(leaving->index);
-
-      auto entering =
-          get_dual_entering_variable(*leaving, reduced_cost, leaving_row);
-      if (!entering) {
-        return construct_result(Status::INFEASIBLE);
-      }
-
-      change_basis(leaving->index, *entering, leaving->new_state);
+      const auto result = dual_iteration();
 
       ++iteration_;
+
+      switch (result) {
+        case IterationResult::OPTIMAL:
+        case IterationResult::UNBOUNDED:
+        case IterationResult::INFEASIBLE:
+          if (tentative_answer &&
+              *tentative_answer == iteration_result_to_status(result)) {
+            if (violate_dual_bounds()) {
+              // TODO: probably should run primal simplex
+              throw std::runtime_error(
+                  "Point is dual infeasible in the end. Not implemented.");
+            }
+
+            return construct_result(*tentative_answer);
+          }
+
+          // refactorize before returning the answer and verify that the answer
+          // is correct using more strict feasibility tolerance
+
+          config_.tolerance.feasibility = feasibility_tolerance;
+          tentative_answer = iteration_result_to_status(result);
+          dual_refactorize();
+
+          break;
+        case IterationResult::MOVED:
+          intentional_repeat_ = false;
+          break;
+        case IterationResult::REFACTORIZE_REPEAT:
+          dual_refactorize();
+          intentional_repeat_ = true;
+          break;
+        default:
+          std::unreachable();
+      }
+
+      if (tentative_answer && (result == IterationResult::MOVED ||
+                               result == IterationResult::REFACTORIZE_REPEAT)) {
+        tentative_answer = std::nullopt;
+      }
+
+      if (lupa_->get_changes_since_refactorization() > 250) {
+        dual_refactorize();
+      }
     }
   }
 

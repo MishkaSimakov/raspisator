@@ -66,24 +66,45 @@ subproblem_dual_phase1(const problem::StandardLP<Field>& problem,
   auto helper = Simplex<Field>(std::move(config));
   helper.set_problem(new_problem);
 
-  const auto result = helper.dual(*init_states);
+  const auto subproblem_result = helper.dual(*init_states);
 
-  if (result.status == Status::ITERATIONS_LIMIT) {
+  if (subproblem_result.status == Status::ITERATIONS_LIMIT) {
     return std::unexpected{SubproblemPhase1Error::REACHED_ITERATIONS_LIMIT};
   }
 
-  if (result.status != Status::OPTIMAL) {
+  if (subproblem_result.status != Status::OPTIMAL) {
     throw std::runtime_error("Something went wrong in dual implementation.");
   }
 
   // Case 1, problem is dual infeasible
-  if (*result.objective > tolerance.feasibility) {
+  if (*subproblem_result.objective > tolerance.feasibility) {
     return std::unexpected{SubproblemPhase1Error::DUAL_INFEASIBLE};
   }
 
+  // Case 2, problem is feasible
+  auto result = helper.get_states();
+
+  // If problem is degenerate, infeasibility minimisation can assign AT_LOWER
+  // state to lower unbounded variable and AT_UPPER to upper unbounded. In this
+  // case reduced cost of such variable must be 0, so we can safely toggle its
+  // state.
+  for (size_t i = 0; i < d; ++i) {
+    if (result[i] == VariableState::BASIC) {
+      continue;
+    }
+
+    if (problem.var_bounds[i].is_free()) {
+      result[i] = VariableState::NONBASIC_FREE;
+    } else if (!problem.var_bounds[i].lower) {
+      result[i] = VariableState::AT_UPPER;
+    } else if (!problem.var_bounds[i].upper) {
+      result[i] = VariableState::AT_LOWER;
+    }
+  }
+
   return SubproblemPhase1Result{
-      .states = helper.get_states(),
-      .iterations_count = result.iterations_count,
+      .states = result,
+      .iterations_count = subproblem_result.iterations_count,
   };
 }
 

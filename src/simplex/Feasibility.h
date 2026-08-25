@@ -136,7 +136,7 @@ bool is_primal_feasible(const problem::StandardLP<Field>& problem,
 }
 
 template <typename Field>
-bool get_primal_infeasibility_reason(
+std::string get_primal_infeasibility_reason(
     const problem::StandardLP<Field>& problem,
     const std::vector<VariableState>& states,
     Field tolerance = FieldTraits<Field>::tolerance) {

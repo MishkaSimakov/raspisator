@@ -17,6 +17,9 @@ class Accountant {
   virtual void violate_primal_bounds(StateView<Field> simplex, size_t culprit) {
   }
 
+  // @culprit is the index of violating variable
+  virtual void violate_dual_bounds(StateView<Field> simplex, size_t culprit) {}
+
   virtual void continue_with_primal_violation(StateView<Field> simplex) {}
 
   virtual ~Accountant() = default;
@@ -64,6 +67,13 @@ class LoggingAccountant final : public Accountant<Field> {
                  simplex.problem.var_name(simplex.basic_vars[culprit]),
                  simplex.basic_point[culprit],
                  simplex.problem.var_bounds[simplex.basic_vars[culprit]]);
+  }
+
+  void violate_dual_bounds(StateView<Field> simplex, size_t culprit) override {
+    std::println(
+        "  [{}] dual violation: variable {} with state {} has reduced cost {}",
+        simplex.iteration, simplex.problem.var_name(culprit),
+        to_string(simplex.states[culprit]), simplex.reduced_cost[culprit]);
   }
 
   void continue_with_primal_violation(StateView<Field> simplex) override {

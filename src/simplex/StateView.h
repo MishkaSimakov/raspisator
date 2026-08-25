@@ -30,6 +30,8 @@ struct StateView {
   const std::vector<VariableState>& states;
   const std::vector<size_t>& basic_vars;
 
+  const Vector<Field>& reduced_cost;
+
   Tolerance<Field> tolerance;
 };
 

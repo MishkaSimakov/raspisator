@@ -88,7 +88,10 @@ int main() {
 
       problem::StandardLP standard_problem(optimizer.apply(problem));
 
-      auto phase1 = simplex::subproblem_dual_phase1(standard_problem);
+      auto phase1 = simplex::subproblem_dual_phase1(
+          standard_problem,
+          simplex::Config<Field>{}
+              .set_accountant<simplex::LoggingAccountant<Field>>());
 
       if (!phase1) {
         std::println("  Failed to find dual feasible basis.");
@@ -103,6 +106,7 @@ int main() {
       solver.set_problem(standard_problem);
       solver.set_dual_pricing<simplex::DualDantzigPricing<Field>>();
       solver.set_max_iterations(100'000);
+      solver.set_accountant<simplex::LoggingAccountant<Field>>();
 
       auto result = solver.dual(phase1->states);
 
