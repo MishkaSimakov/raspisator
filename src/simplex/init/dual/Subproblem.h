@@ -73,7 +73,10 @@ subproblem_dual_phase1(const problem::StandardLP<Field>& problem,
   }
 
   if (subproblem_result.status != Status::OPTIMAL) {
-    throw std::runtime_error("Something went wrong in dual implementation.");
+    throw std::runtime_error(
+        std::format("Dual simplex solution for subproblem is wrong. Expected "
+                    "OPTIMAL status, got {}.",
+                    to_string(subproblem_result.status)));
   }
 
   // Case 1, problem is dual infeasible
