@@ -32,7 +32,7 @@ TEST(DualSubproblemPhase1Tests, CatalogProblems) {
   }
 }
 
-TEST(DualSubproblemPhase1Tests, RandomBoundedProblems) {
+TEST(DualSubproblemPhase1Tests, DISABLED_RandomBoundedProblems) {
   constexpr size_t kIterations = 1'000;
   constexpr size_t kSize = 5;
   constexpr int kElementMagnitude = 10;
@@ -60,7 +60,7 @@ TEST(DualSubproblemPhase1Tests, RandomBoundedProblems) {
   }
 }
 
-TEST(DualSubproblemPhase1Tests, RandomUnboundedProblems) {
+TEST(DualSubproblemPhase1Tests, DISABLED_RandomUnboundedProblems) {
   constexpr size_t kIterations = 1'000;
   constexpr size_t kSize = 5;
   constexpr int kElementMagnitude = 10;

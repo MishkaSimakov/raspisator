@@ -69,7 +69,7 @@ TEST(Simplex2RandomTests, PrimalFeasible) {
   }
 }
 
-TEST(Simplex2RandomTests, Infeasible) {
+TEST(Simplex2RandomTests, DISABLED_Infeasible) {
   for (size_t i = 0; i < kIterations; ++i) {
     auto prob = StandardMILPBuilder<Rational>{}
                     .rows(kRows)

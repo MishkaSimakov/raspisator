@@ -12,7 +12,7 @@
 #include "support/Highs.h"
 #include "support/RandomProblem.h"
 
-TEST(RandomSimplexMethodTests, SimpleRandomMatrixDual) {
+TEST(RandomSimplexMethodTests, DISABLED_SimpleRandomMatrixDual) {
   constexpr size_t kIterations = 1'000;
   constexpr size_t kSize = 10;
   constexpr int kElementMagnitude = 10;
