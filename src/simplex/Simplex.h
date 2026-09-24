@@ -741,7 +741,7 @@ class Simplex {
     try {
       return dual_implementation(states);
     } catch (...) {
-      dump_state(*problem_, var_states_);
+      dump_state(*problem_, states, var_states_);
       throw;
     }
   }
@@ -764,7 +764,7 @@ class Simplex {
     try {
       return primal_implementation(states);
     } catch (...) {
-      dump_state(*problem_, var_states_);
+      dump_state(*problem_, states, var_states_);
       throw;
     }
   }

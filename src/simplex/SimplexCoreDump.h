@@ -14,11 +14,22 @@ static size_t get_dump_id() {
          std::chrono::milliseconds(1);
 }
 
+static void dump_states(std::ostream& os, std::string_view name,
+                        std::span<const VariableState> states) {
+  os << "std::vector<simplex::VariableState> " << name << " = {"
+     << str::join(states | std::views::transform([](VariableState state) {
+                    return "simplex::VariableState::" + to_string(state);
+                  }),
+                  ", ")
+     << "};\n";
+}
+
 }  // namespace detail
 
 template <typename Field>
 void dump_state(const problem::StandardLP<Field>& problem,
-                const std::vector<VariableState>& var_states) {
+                const std::vector<VariableState>& init_states,
+                const std::vector<VariableState>& last_states) {
   const size_t dump_id = detail::get_dump_id();
   std::string dump_name = std::format("simplex_core_dump_{}.h", dump_id);
 
@@ -36,7 +47,7 @@ void dump_state(const problem::StandardLP<Field>& problem,
 
   std::vector<std::string> string_bounds(problem.var_bounds.size());
   for (size_t i = 0; i < problem.var_bounds.size(); ++i) {
-    std::string bound = "std::pair{";
+    std::string bound = "Bound<Field>(";
 
     if (problem.var_bounds[i].lower) {
       bound += std::format("{}", *problem.var_bounds[i].lower);
@@ -44,7 +55,7 @@ void dump_state(const problem::StandardLP<Field>& problem,
       bound += "std::nullopt";
     }
 
-    bound += ",";
+    bound += ", ";
 
     if (problem.var_bounds[i].upper) {
       bound += std::format("{}", *problem.var_bounds[i].upper);
@@ -52,35 +63,16 @@ void dump_state(const problem::StandardLP<Field>& problem,
       bound += "std::nullopt";
     }
 
-    bound += "}";
+    bound += ")";
 
     string_bounds[i] = bound;
   }
 
-  os << "Bounds<Field> bounds = {" << str::join(string_bounds, ", ") << "};\n";
+  os << "std::vector<Bound<Field>> bounds = {" << str::join(string_bounds, ", ")
+     << "};\n";
 
-  os << "std::vector<VariableState> last_states = {";
-  for (auto var : var_states) {
-    switch (var) {
-      case VariableState::BASIC:
-        os << "VariableState::BASIC, ";
-        break;
-      case VariableState::AT_LOWER:
-        os << "VariableState::AT_LOWER, ";
-        break;
-      case VariableState::AT_UPPER:
-        os << "VariableState::AT_UPPER, ";
-        break;
-      case VariableState::NONBASIC_FREE:
-        os << "VariableState::NONBASIC_FREE, ";
-        break;
-      default:
-        std::unreachable();
-    }
-  }
-  os << "};\n";
-
-  os << "};";
+  detail::dump_states(os, "init_states", init_states);
+  detail::dump_states(os, "last_states", last_states);
 
   os << "}\n";
 
