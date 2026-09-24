@@ -34,4 +34,9 @@ inline std::string to_string(Status status) {
   }
 }
 
+// custom printer for GoogleTest
+inline void PrintTo(Status status, std::ostream* os) {
+  *os << "simplex::Status::" << to_string(status);
+}
+
 }  // namespace simplex
