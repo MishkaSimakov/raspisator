@@ -1,17 +1,9 @@
-#include <gtest/gtest.h>
 #include <gmpxx.h>
+#include <gtest/gtest.h>
 
 #include "support/GMPRational.h"
 
 using Traits = FieldTraits<GMPRational>;
-
-TEST(GMPTest, ItWorks) {
-  mpz_class x = 123;
-
-  x += 321;
-
-  ASSERT_EQ(x, 444);
-}
 
 TEST(GMPTest, Arithmetic) {
   const GMPRational third = GMPRational(1) / 3;

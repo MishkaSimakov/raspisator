@@ -3,7 +3,7 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        GMPTests.cpp
+        field/GMPRationalTests.cpp
 
         utils/MergeSortedRangeTests.cpp
 
