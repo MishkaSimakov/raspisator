@@ -23,8 +23,7 @@ add_subdirectory(benchmark)
 add_subdirectory(playground)
 
 if (ENABLE_TESTS)
-    set(GMP_FIND_REQUIRED True)
-    include(FindGMP)
+    find_package(GMP REQUIRED)
 
     include(FetchGTest)
     include(FetchHiGHS)

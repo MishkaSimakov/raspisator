@@ -66,12 +66,8 @@ target_sources(tests PUBLIC
         simplex2/RandomTests.cpp
         simplex2/TraversalTests.cpp
 )
-target_link_libraries(tests GTest::gtest_main highs raspisator)
+target_link_libraries(tests GTest::gtest_main GMP::gmpxx highs raspisator)
 target_include_directories(tests PUBLIC .)
-
-# GMP
-target_include_directories(tests PUBLIC ${GMP_INCLUDE_DIR})
-target_link_libraries(tests ${GMP_LIBRARY} ${GMPXX_LIBRARY})
 
 include(GoogleTest)
 gtest_discover_tests(tests)

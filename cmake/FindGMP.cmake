@@ -1,24 +1,25 @@
-set(GMP_PREFIX "" CACHE PATH "GMP path prefix")
+# Provides imported targets:
+#   GMP::gmp    - the C library
+#   GMP::gmpxx  - the C++ bindings (links GMP::gmp)
 
-find_path(GMP_INCLUDE_DIR gmp.h gmpxx.h
-        PATHS ${GMP_PREFIX}/include /usr/include /usr/local/include)
+find_path(GMP_INCLUDE_DIR NAMES gmpxx.h)
+find_library(GMP_LIBRARY NAMES gmp)
+find_library(GMPXX_LIBRARY NAMES gmpxx)
 
-find_library(GMP_LIBRARY NAMES gmp libgmp
-        PATHS ${GMP_PREFIX}/lib /usr/lib /usr/local/lib)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(GMP
+        REQUIRED_VARS GMP_LIBRARY GMPXX_LIBRARY GMP_INCLUDE_DIR)
 
-find_library(GMPXX_LIBRARY NAMES gmpxx libgmpxx
-        PATHS ${GMP_PREFIX}/lib /usr/lib /usr/local/lib)
+if (GMP_FOUND AND NOT TARGET GMP::gmp)
+    add_library(GMP::gmp UNKNOWN IMPORTED)
+    set_target_properties(GMP::gmp PROPERTIES
+            IMPORTED_LOCATION "${GMP_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${GMP_INCLUDE_DIR}")
 
-if (GMP_INCLUDE_DIR AND GMP_LIBRARY AND GMPXX_LIBRARY)
-    set(GMP_FOUND TRUE)
+    add_library(GMP::gmpxx UNKNOWN IMPORTED)
+    set_target_properties(GMP::gmpxx PROPERTIES
+            IMPORTED_LOCATION "${GMPXX_LIBRARY}"
+            INTERFACE_LINK_LIBRARIES GMP::gmp)
 endif ()
 
-if (GMP_FOUND)
-    if (NOT GMP_FIND_QUIETLY)
-        message(STATUS "Found GMP: ${GMP_LIBRARY} ${GMPXX_LIBRARY}")
-    endif ()
-else ()
-    if (GMP_FIND_REQUIRED)
-        message(FATAL_ERROR "Could not find GMP")
-    endif ()
-endif ()
+mark_as_advanced(GMP_INCLUDE_DIR GMP_LIBRARY GMPXX_LIBRARY)
