@@ -3,17 +3,17 @@
 #include <random>
 #include <vector>
 
-#include "../../../src/field/BigInteger.h"
 #include "linalg/Linalg.h"
+#include "support/GMPRational.h"
 
 using linalg::Matrix;
 
-inline Matrix<Rational> unity_matrix(size_t N) {
-  return Matrix<Rational>::identity(N);
+inline Matrix<GMPRational> unity_matrix(size_t N) {
+  return Matrix<GMPRational>::identity(N);
 }
 
-inline Matrix<Rational> big_dense_matrix(size_t N) {
-  Matrix<Rational> A(N, N);
+inline Matrix<GMPRational> big_dense_matrix(size_t N) {
+  Matrix<GMPRational> A(N, N);
 
   for (size_t i = 0; i < N; ++i) {
     for (size_t j = 0; j < N; ++j) {
@@ -21,13 +21,13 @@ inline Matrix<Rational> big_dense_matrix(size_t N) {
     }
   }
 
-  A = A + Matrix<Rational>::identity(N);
+  A = A + Matrix<GMPRational>::identity(N);
 
   return A;
 }
 
-inline Matrix<Rational> diagonal_matrix(size_t N) {
-  Matrix<Rational> A(N, N);
+inline Matrix<GMPRational> diagonal_matrix(size_t N) {
+  Matrix<GMPRational> A(N, N);
 
   for (size_t i = 0; i < N; ++i) {
     A[i, i] = (i * 123) % 87 + 5;
@@ -36,12 +36,12 @@ inline Matrix<Rational> diagonal_matrix(size_t N) {
   return A;
 }
 
-inline Matrix<Rational> small_matrix1() { return {{1, 2}, {3, 4}}; }
+inline Matrix<GMPRational> small_matrix1() { return {{1, 2}, {3, 4}}; }
 
-inline Matrix<Rational> small_matrix2() { return {{3, 4}, {1, 2}}; }
+inline Matrix<GMPRational> small_matrix2() { return {{3, 4}, {1, 2}}; }
 
-inline Matrix<Rational> sparse_matrix(size_t N, size_t density_multiplier) {
-  auto A = Matrix<Rational>::identity(N);
+inline Matrix<GMPRational> sparse_matrix(size_t N, size_t density_multiplier) {
+  auto A = Matrix<GMPRational>::identity(N);
 
   std::mt19937 engine(0);
   std::uniform_int_distribution<size_t> uniform_dist(0, N - 1);
@@ -57,8 +57,9 @@ inline Matrix<Rational> sparse_matrix(size_t N, size_t density_multiplier) {
   return A;
 }
 
-inline std::vector<std::pair<std::string, Matrix<Rational>>> test_matrices() {
-  std::vector<std::pair<std::string, Matrix<Rational>>> result;
+inline std::vector<std::pair<std::string, Matrix<GMPRational>>>
+test_matrices() {
+  std::vector<std::pair<std::string, Matrix<GMPRational>>> result;
 
   result.emplace_back("unity", unity_matrix(50));
   result.emplace_back("small_matrix1", small_matrix1());

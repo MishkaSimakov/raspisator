@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "field/BigInteger.h"
 #include "problem/Bound.h"
+#include "support/GMPRational.h"
 
 TEST(BoundsTests, SimpleMultiplication) {
-  Bound<Rational> bound(-10, 10);
+  Bound<GMPRational> bound(-10, 10);
 
   bound *= 5;
 
@@ -12,7 +12,7 @@ TEST(BoundsTests, SimpleMultiplication) {
 }
 
 TEST(BoundsTests, NegativeMultiplication) {
-  Bound<Rational> bound(-5, 10);
+  Bound<GMPRational> bound(-5, 10);
 
   bound *= -5;
 
@@ -20,7 +20,7 @@ TEST(BoundsTests, NegativeMultiplication) {
 }
 
 TEST(BoundsTests, UnboundedMultiplication) {
-  Bound<Rational> bound(-5, std::nullopt);
+  Bound<GMPRational> bound(-5, std::nullopt);
 
   bound *= 5;
 
@@ -28,8 +28,8 @@ TEST(BoundsTests, UnboundedMultiplication) {
 }
 
 TEST(BoundsTests, Subtraction) {
-  Bound<Rational> left(-5, 10);
-  Bound<Rational> right(10, 20);
+  Bound<GMPRational> left(-5, 10);
+  Bound<GMPRational> right(10, 20);
 
   auto diff = left - right;
 
@@ -37,8 +37,8 @@ TEST(BoundsTests, Subtraction) {
 }
 
 TEST(BoundsTests, Intersection1) {
-  Bound<Rational> left(-5, 10);
-  Bound<Rational> right(5, 20);
+  Bound<GMPRational> left(-5, 10);
+  Bound<GMPRational> right(5, 20);
 
   auto intersection = left ^ right;
 
@@ -46,8 +46,8 @@ TEST(BoundsTests, Intersection1) {
 }
 
 TEST(BoundsTests, Intersection2) {
-  Bound<Rational> left(-10, 10);
-  Bound<Rational> right(-10, 5);
+  Bound<GMPRational> left(-10, 10);
+  Bound<GMPRational> right(-10, 5);
 
   auto intersection = left ^ right;
 
@@ -55,8 +55,8 @@ TEST(BoundsTests, Intersection2) {
 }
 
 TEST(BoundsTests, Intersection3) {
-  Bound<Rational> left(-10, 10);
-  Bound<Rational> right(-10, 10);
+  Bound<GMPRational> left(-10, 10);
+  Bound<GMPRational> right(-10, 10);
 
   auto intersection = left ^ right;
 
@@ -64,8 +64,8 @@ TEST(BoundsTests, Intersection3) {
 }
 
 TEST(BoundsTests, Intersection4) {
-  Bound<Rational> left(-10, 10);
-  Bound<Rational> right(std::nullopt, std::nullopt);
+  Bound<GMPRational> left(-10, 10);
+  Bound<GMPRational> right(std::nullopt, std::nullopt);
 
   auto intersection = left ^ right;
 
@@ -73,8 +73,8 @@ TEST(BoundsTests, Intersection4) {
 }
 
 TEST(BoundsTests, Intersection5) {
-  Bound<Rational> left(0, 1);
-  Bound<Rational> right(-5, 6);
+  Bound<GMPRational> left(0, 1);
+  Bound<GMPRational> right(-5, 6);
 
   auto intersection = left ^ right;
 
@@ -82,8 +82,8 @@ TEST(BoundsTests, Intersection5) {
 }
 
 TEST(BoundsTests, Intersection6) {
-  Bound<Rational> left(0, 1);
-  Bound<Rational> right(2, 3);
+  Bound<GMPRational> left(0, 1);
+  Bound<GMPRational> right(2, 3);
 
   auto intersection = left ^ right;
 

@@ -1,18 +1,17 @@
 #include <gtest/gtest.h>
 
 #include "ConstructSparse.h"
-#include "field/BigInteger.h"
-#include "field/FieldTraits.h"
 #include "linalg/Det.h"
 #include "linalg/Linalg.h"
 #include "linalg/Random.h"
 #include "linalg/Stack.h"
 #include "linalg/lu/LUPA.h"
+#include "support/GMPRational.h"
 
 using namespace linalg;
 
 TEST(LUPATests, SmallSolveLinearTransposed) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {3, -7, -2, 2},
       {-3, 5, 1, 0},
       {6, -4, 0, -5},
@@ -23,16 +22,16 @@ TEST(LUPATests, SmallSolveLinearTransposed) {
 
   lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
 
-  Matrix<Rational> b = {{0}, {2}, {0}, {1}};
+  Matrix<GMPRational> b = {{0}, {2}, {0}, {1}};
   auto solution = lupa.solve_linear_transposed(b);
 
-  Matrix<Rational> expected = {{30}, {50}, {7}, {-2}};
+  Matrix<GMPRational> expected = {{30}, {50}, {7}, {-2}};
 
   ASSERT_EQ(solution, expected);
 }
 
 TEST(LUPATests, SmallGetRow) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {3, -7, -2, 2},
       {-3, 5, 1, 0},
       {6, -4, 0, -5},
@@ -44,13 +43,13 @@ TEST(LUPATests, SmallGetRow) {
   lupa.set_columns(std::vector<size_t>{0, 1, 2, 3});
 
   auto row = lupa.get_row(2);
-  Matrix<Rational> expected = {{11}, {18}, {2}, {-1}};
+  Matrix<GMPRational> expected = {{11}, {18}, {2}, {-1}};
 
   ASSERT_EQ(row, expected);
 }
 
 TEST(LUPATests, ChangeColumn) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {3, -7, -2, 2, 1, 1},
       {-3, 5, 1, 0, 0, 2},
       {6, -4, 0, -5, 2, 3},
@@ -69,11 +68,11 @@ TEST(LUPATests, ChangeColumn) {
   const auto expected_cols = std::vector<size_t>{0, 4, 5, 3};
   auto expected = A.select_columns(expected_cols);
 
-  ASSERT_EQ(inverse * expected, Matrix<Rational>::identity(4));
+  ASSERT_EQ(inverse * expected, Matrix<GMPRational>::identity(4));
 }
 
 TEST(LUPATests, GetInverseMatrix) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {1, 0, 0},
       {0, 2, 1},
       {0, 1, 0},
@@ -83,7 +82,7 @@ TEST(LUPATests, GetInverseMatrix) {
   lupa.set_columns({0, 1, 2});
 
   const auto inverse = lupa.get_inverse();
-  const Matrix<Rational> expected = {
+  const Matrix<GMPRational> expected = {
       {1, 0, 0},
       {0, 0, 1},
       {0, 1, -2},
@@ -93,7 +92,7 @@ TEST(LUPATests, GetInverseMatrix) {
 }
 
 TEST(LUPATests, GetMatrix) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {1, 1, 0},
       {0, 2, 1},
       {0, 3, 0},
@@ -115,7 +114,7 @@ TEST(LUPATests, GetMatrixRandom) {
 
   for (size_t i = 0; i < 100; ++i) {
     auto A =
-        random::dense_invertible<Rational>(size, random, value_distribution);
+        random::dense_invertible<GMPRational>(size, random, value_distribution);
     auto sparse = CSCMatrix(A);
 
     auto lupa = linalg::LUPA(sparse);
@@ -140,7 +139,7 @@ TEST(LUPATests, ChangeColumnsRandom) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
     const auto core =
-        random::dense_invertible<Rational>(size, random, value_distribution);
+        random::dense_invertible<GMPRational>(size, random, value_distribution);
 
     const auto dense = hstack(core, core);
     const auto sparse = CSCMatrix(dense);
@@ -171,7 +170,7 @@ TEST(LUPATests, ChangeColumnsRandomRoundtrip) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
     const auto core =
-        random::dense_invertible<Rational>(size, random, value_distribution);
+        random::dense_invertible<GMPRational>(size, random, value_distribution);
     const auto dense = hstack(core, core);
     const auto sparse = CSCMatrix(dense);
 
@@ -205,7 +204,7 @@ TEST(LUPATests, ChangeColumnsAndPurgeRandom) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
     const auto core =
-        random::dense_invertible<Rational>(size, random, value_distribution);
+        random::dense_invertible<GMPRational>(size, random, value_distribution);
     const auto dense = hstack(core, core);
     const auto sparse = CSCMatrix(dense);
 
@@ -235,14 +234,14 @@ TEST(LUPATests, ChangeColumnsAndPurgeRandom) {
 }
 
 TEST(LUPATests, AccessWithoutSetColumnsThrowsOnFreshLupa) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {1, 2},
       {3, 4},
   });
 
   auto lupa = linalg::LUPA(A);  // set_columns never called
 
-  const Vector<Rational> b = {1, 0};
+  const Vector<GMPRational> b = {1, 0};
 
   ASSERT_ANY_THROW(lupa.solve_linear(b));
   ASSERT_ANY_THROW(lupa.solve_linear_transposed(b));
@@ -254,7 +253,7 @@ TEST(LUPATests, AccessWithoutSetColumnsThrowsOnFreshLupa) {
 
 // B = I_3, det(B) = 1
 TEST(LUPATests, Det_IdentityMatrix) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {1, 0, 0},
       {0, 1, 0},
       {0, 0, 1},
@@ -263,13 +262,13 @@ TEST(LUPATests, Det_IdentityMatrix) {
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 1, 2});
 
-  const Rational expected = 1;
+  const GMPRational expected = 1;
 
   ASSERT_EQ(lupa.det(), expected);
 }
 
 TEST(LUPATests, Det_SmallPositive) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {2, 1},
       {3, 4},
   });
@@ -277,11 +276,11 @@ TEST(LUPATests, Det_SmallPositive) {
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 1});
 
-  ASSERT_EQ(lupa.det(), Rational{1} / 5);
+  ASSERT_EQ(lupa.det(), GMPRational{1} / 5);
 }
 
 TEST(LUPATests, Det_NegativeDeterminant) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {1, 2},
       {3, 4},
   });
@@ -289,13 +288,13 @@ TEST(LUPATests, Det_NegativeDeterminant) {
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 1});
 
-  ASSERT_EQ(lupa.det(), -Rational{1} / 2);
+  ASSERT_EQ(lupa.det(), -GMPRational{1} / 2);
 }
 
 // Verify det matches naive_det when the initial basis is a non-trivial
 // submatrix.
 TEST(LUPATests, Det_SubmatrixColumnSelection) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {3, -7, -2, 2, 1, 1},
       {-3, 5, 1, 0, 0, 2},
       {6, -4, 0, -5, 2, 3},
@@ -305,14 +304,15 @@ TEST(LUPATests, Det_SubmatrixColumnSelection) {
   auto lupa = linalg::LUPA(A);
   lupa.set_columns({0, 4, 5, 3});
 
-  const Matrix<Rational> B(A.select_columns(std::vector<size_t>{0, 4, 5, 3}));
+  const Matrix<GMPRational> B(
+      A.select_columns(std::vector<size_t>{0, 4, 5, 3}));
 
   ASSERT_EQ(lupa.det(), 1 / det(B));
 }
 
 // det is correctly updated after a single column replacement.
 TEST(LUPATests, Det_AfterChangeColumn) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {3, -7, -2, 2, 1, 1},
       {-3, 5, 1, 0, 0, 2},
       {6, -4, 0, -5, 2, 3},
@@ -324,14 +324,15 @@ TEST(LUPATests, Det_AfterChangeColumn) {
 
   lupa.change_column(1, 4);
 
-  const Matrix<Rational> B(A.select_columns(std::vector<size_t>{0, 4, 2, 3}));
+  const Matrix<GMPRational> B(
+      A.select_columns(std::vector<size_t>{0, 4, 2, 3}));
 
   ASSERT_EQ(lupa.det(), 1 / det(B));
 }
 
 // det remains correct after two sequential column replacements.
 TEST(LUPATests, Det_AfterMultipleColumnChanges) {
-  const auto A = sparse<Rational>({
+  const auto A = sparse<GMPRational>({
       {3, -7, -2, 2, 1, 1},
       {-3, 5, 1, 0, 0, 2},
       {6, -4, 0, -5, 2, 3},
@@ -344,7 +345,8 @@ TEST(LUPATests, Det_AfterMultipleColumnChanges) {
   lupa.change_column(1, 4);
   lupa.change_column(2, 5);
 
-  const Matrix<Rational> B(A.select_columns(std::vector<size_t>{0, 4, 5, 3}));
+  const Matrix<GMPRational> B(
+      A.select_columns(std::vector<size_t>{0, 4, 5, 3}));
 
   ASSERT_EQ(lupa.det(), 1 / det(B));
 }
@@ -361,7 +363,7 @@ TEST(LUPATests, Det_RandomBasisChanges) {
     SCOPED_TRACE(std::format("iteration: {}", i));
 
     const auto left =
-        random::dense_invertible<Rational>(size, random, value_distribution);
+        random::dense_invertible<GMPRational>(size, random, value_distribution);
     const auto dense = hstack(left, left);
     const auto sparse_A = CSCMatrix(dense);
 
@@ -376,7 +378,7 @@ TEST(LUPATests, Det_RandomBasisChanges) {
       lupa.change_column(j, j + size);
       columns[j] = j + size;
 
-      const Matrix<Rational> B(sparse_A.select_columns(columns));
+      const Matrix<GMPRational> B(sparse_A.select_columns(columns));
       ASSERT_EQ(lupa.det(), 1 / det(B));
     }
   }

@@ -11,12 +11,6 @@
 
 // Builder for problem::StandardMILP with guaranteed structural properties.
 // All construction is algebraic — no external solver required.
-//
-// Usage:
-//   auto result =
-//   StandardMILPBuilder<Rational>{}.rows(3).cols(6).build_feasible(); auto
-//   problem  = StandardMILPBuilder<Rational>{}.rows(3).build_infeasible(); auto
-//   problem  = StandardMILPBuilder<Rational>{}.rows(3).build_unbounded();
 template <typename Field>
 class StandardMILPBuilder {
   size_t rows_ = 3;

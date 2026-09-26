@@ -1,15 +1,13 @@
 #include <gtest/gtest.h>
 
 #include "faker/Catalog.h"
-#include "field/BigInteger.h"
-#include "presolve/obfuscators/AddLinearlyDependentRows.h"
-#include "presolve/obfuscators/ShuffleRows.h"
 #include "presolve/passes/TransformToEqualities.h"
 #include "simplex/init/dual/Subproblem.h"
+#include "support/GMPRational.h"
 #include "support/RandomProblem.h"
 
 TEST(ReducedCostTests, CatalogProblems) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .solution_type(faker::SolutionType::FEASIBLE)
                             .all_variables_bounded(true)

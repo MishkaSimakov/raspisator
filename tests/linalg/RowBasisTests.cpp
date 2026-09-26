@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
 
-#include "../../src/field/BigInteger.h"
 #include "linalg/Matrix.h"
 #include "linalg/Random.h"
 #include "linalg/RowBasis.h"
 #include "support/Assertions.h"
+#include "support/GMPRational.h"
 
 using namespace linalg;
 
 TEST(RowBasisTests, UnityMatrix) {
-  auto unity = Matrix<Rational>::identity(3);
+  auto unity = Matrix<GMPRational>::identity(3);
 
   auto row_basis = linalg::get_row_basis(unity);
 
@@ -17,7 +17,7 @@ TEST(RowBasisTests, UnityMatrix) {
 }
 
 TEST(RowBasisTests, WideMatrix) {
-  auto matrix = Matrix<Rational>(3, 4, 0);
+  auto matrix = Matrix<GMPRational>(3, 4, 0);
   for (size_t i = 0; i < 3; ++i) {
     matrix[i, i] = 1;
   }
@@ -28,7 +28,7 @@ TEST(RowBasisTests, WideMatrix) {
 }
 
 TEST(RowBasisTests, LinearlyDependentRows) {
-  Matrix<Rational> matrix = {{1, 1, 0, 0}, {0, 0, 1, 1}, {1, 1, 1, 1}};
+  Matrix<GMPRational> matrix = {{1, 1, 0, 0}, {0, 0, 1, 1}, {1, 1, 1, 1}};
 
   auto row_basis = linalg::get_row_basis(matrix);
 
@@ -36,7 +36,7 @@ TEST(RowBasisTests, LinearlyDependentRows) {
 }
 
 TEST(RowBasisTests, ZeroRow) {
-  Matrix<Rational> matrix = {{1, 0}, {0, 1}, {0, 0}};
+  Matrix<GMPRational> matrix = {{1, 0}, {0, 1}, {0, 0}};
 
   auto row_basis = linalg::get_row_basis(matrix);
 
@@ -44,7 +44,7 @@ TEST(RowBasisTests, ZeroRow) {
 }
 
 TEST(RowBasisTests, LongRows) {
-  Matrix<Rational> matrix = {
+  Matrix<GMPRational> matrix = {
       {1, 1, 0, 0}, {0, 0, 1, 1}, {0, 1, 0, 1}, {1, 0, 1, 0}};
 
   auto row_basis = linalg::get_row_basis(matrix);
@@ -53,7 +53,7 @@ TEST(RowBasisTests, LongRows) {
 }
 
 TEST(RowBasisTests, RowPermutations) {
-  Matrix<Rational> matrix = {
+  Matrix<GMPRational> matrix = {
       {1, 0},
       {0, 0},
       {0, 1},
@@ -65,7 +65,7 @@ TEST(RowBasisTests, RowPermutations) {
 }
 
 TEST(RowBasisTests, SmallMatrix1) {
-  Matrix<Rational> matrix = {
+  Matrix<GMPRational> matrix = {
       {-4, 0, -5},
       {-3, -5, 3},
       {-3, -3, 5},
@@ -78,7 +78,7 @@ TEST(RowBasisTests, SmallMatrix1) {
 }
 
 TEST(RowBasisTests, SmallMatrix2) {
-  Matrix<Rational> matrix = {
+  Matrix<GMPRational> matrix = {
       {1, 1, 10},
       {2, 2, 20},
   };

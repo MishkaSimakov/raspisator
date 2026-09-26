@@ -5,6 +5,7 @@
 #include "linalg/lu/FullPivotingLU.h"
 #include "linalg/lu/Solve.h"
 #include "linalg/lu/TestMatrices.h"
+#include "support/GMPRational.h"
 
 using namespace linalg;
 
@@ -16,9 +17,9 @@ TEST(FullPivotingLUTests, SolvesLinearSystem) {
     std::iota(columns.begin(), columns.end(), 0);
 
     auto [P, Q, ls, us] =
-        linalg::FullPivotingLU<Rational>(N).get(matrix, columns);
+        linalg::FullPivotingLU<GMPRational>(N).get(matrix, columns);
 
-    auto b = Vector<Rational>::ones(N);
+    auto b = Vector<GMPRational>::ones(N);
     auto x = solve_linear(b, P, Q, ls, us);
 
     ASSERT_EQ(matrix * x, b);
@@ -34,9 +35,9 @@ TEST(FullPivotingLUTests, SolvesTransposedLinearSystem) {
     std::iota(columns.begin(), columns.end(), 0);
 
     auto [P, Q, ls, us] =
-        linalg::FullPivotingLU<Rational>(N).get(sparse, columns);
+        linalg::FullPivotingLU<GMPRational>(N).get(sparse, columns);
 
-    auto b = Vector<Rational>::ones(N);
+    auto b = Vector<GMPRational>::ones(N);
     auto x = solve_linear_transposed(b, P, Q, ls, us);
 
     ASSERT_EQ(transpose(matrix) * x, b);
@@ -80,14 +81,14 @@ TEST(FullPivotingLUTests, DecomposeThenCompose) {
     std::iota(columns.begin(), columns.end(), 0);
 
     auto [P, Q, ls, us] =
-        linalg::FullPivotingLU<Rational>(n).get(sparse, columns);
+        linalg::FullPivotingLU<GMPRational>(n).get(sparse, columns);
 
-    auto L = Matrix<Rational>::identity(n);
+    auto L = Matrix<GMPRational>::identity(n);
     for (auto entry : ls) {
       L = entry.apply(std::move(L));
     }
 
-    auto U = Matrix<Rational>::identity(n);
+    auto U = Matrix<GMPRational>::identity(n);
     for (auto entry : us | std::views::reverse) {
       U = entry.apply(std::move(U));
     }
@@ -95,6 +96,6 @@ TEST(FullPivotingLUTests, DecomposeThenCompose) {
     ASSERT_NO_FATAL_FAILURE(check_L(L));
     ASSERT_NO_FATAL_FAILURE(check_U(U));
 
-    ASSERT_EQ(Q * Matrix(U * L) * P * matrix, Matrix<Rational>::identity(n));
+    ASSERT_EQ(Q * Matrix(U * L) * P * matrix, Matrix<GMPRational>::identity(n));
   }
 }

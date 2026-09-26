@@ -1,7 +1,5 @@
 #pragma once
 
-#include "field/BigInteger.h"
-
 namespace simplex {
 
 template <typename Field>
@@ -20,13 +18,6 @@ inline const Tolerance<double> kDefaultTolerance<double> = {
     .feasibility = 1e-9,
     .pivot = 1e-7,
     .suspicious_pivot = 1e-4,
-};
-
-template <>
-inline const Tolerance<Rational> kDefaultTolerance<Rational> = {
-    .feasibility = 0,
-    .pivot = 0,
-    .suspicious_pivot = 0,
 };
 
 }  // namespace simplex

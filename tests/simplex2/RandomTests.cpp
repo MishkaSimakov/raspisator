@@ -3,10 +3,10 @@
 #include <variant>
 
 #include "Assertions.h"
-#include "field/BigInteger.h"
 #include "simplex/Feasibility.h"
 #include "simplex/Simplex.h"
 #include "simplex/init/dual/ReducedCost.h"
+#include "support/GMPRational.h"
 #include "support/StandardMILPBuilder.h"
 
 constexpr size_t kIterations = 500;
@@ -16,7 +16,7 @@ constexpr int kMagnitude = 10;
 
 TEST(Simplex2RandomTests, DISABLED_DualFeasible) {
   for (size_t i = 0; i < kIterations; ++i) {
-    auto [prob, witness, primal_states] = StandardMILPBuilder<Rational>{}
+    auto [prob, witness, primal_states] = StandardMILPBuilder<GMPRational>{}
                                               .rows(kRows)
                                               .cols(kCols)
                                               .magnitude(kMagnitude)
@@ -30,7 +30,7 @@ TEST(Simplex2RandomTests, DISABLED_DualFeasible) {
     // variables have both finite bounds
     ASSERT_TRUE(states.has_value()) << "Dual init failed at iteration " << i;
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
     solver.set_problem(prob);
 
     auto result = solver.dual(*states);
@@ -45,7 +45,7 @@ TEST(Simplex2RandomTests, DISABLED_DualFeasible) {
 
 TEST(Simplex2RandomTests, PrimalFeasible) {
   for (size_t i = 0; i < kIterations; ++i) {
-    auto [prob, witness, primal_states] = StandardMILPBuilder<Rational>{}
+    auto [prob, witness, primal_states] = StandardMILPBuilder<GMPRational>{}
                                               .rows(kRows)
                                               .cols(kCols)
                                               .magnitude(kMagnitude)
@@ -56,7 +56,7 @@ TEST(Simplex2RandomTests, PrimalFeasible) {
     ASSERT_TRUE(simplex::is_primal_feasible(prob, primal_states))
         << "Builder produced invalid primal states at iteration " << i;
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
     solver.set_problem(prob);
 
     auto result = solver.primal(primal_states);
@@ -71,7 +71,7 @@ TEST(Simplex2RandomTests, PrimalFeasible) {
 
 TEST(Simplex2RandomTests, DISABLED_Infeasible) {
   for (size_t i = 0; i < kIterations; ++i) {
-    auto prob = StandardMILPBuilder<Rational>{}
+    auto prob = StandardMILPBuilder<GMPRational>{}
                     .rows(kRows)
                     .cols(kCols)
                     .magnitude(kMagnitude)
@@ -85,7 +85,7 @@ TEST(Simplex2RandomTests, DISABLED_Infeasible) {
     ASSERT_TRUE(states.has_value())
         << "Dual init failed for infeasible problem at iteration " << i;
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
     solver.set_problem(prob);
 
     auto result = solver.dual(*states);
@@ -98,7 +98,7 @@ TEST(Simplex2RandomTests, DISABLED_Infeasible) {
 
 TEST(Simplex2RandomTests, Unbounded) {
   for (size_t i = 0; i < kIterations; ++i) {
-    auto [prob, primal_states] = StandardMILPBuilder<Rational>{}
+    auto [prob, primal_states] = StandardMILPBuilder<GMPRational>{}
                                      .rows(kRows)
                                      .magnitude(kMagnitude)
                                      .seed(i)
@@ -109,7 +109,7 @@ TEST(Simplex2RandomTests, Unbounded) {
            "iteration "
         << i;
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
     solver.set_problem(prob);
 
     auto result = solver.primal(primal_states);

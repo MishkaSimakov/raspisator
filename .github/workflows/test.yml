@@ -23,6 +23,9 @@ jobs:
           version: 22
           platform: x64
 
+      - name: Install GMP
+        run: sudo apt update && sudo apt install -y libgmp-dev
+
       - name: Configure
         run: |
           cmake -B build -S . \

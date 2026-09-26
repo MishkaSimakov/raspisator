@@ -3,9 +3,9 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
-        utils/MergeSortedRangeTests.cpp
+        field/GMPRationalTests.cpp
 
-        field/BigIntegerTests.cpp
+        utils/MergeSortedRangeTests.cpp
 
         schedule/SolutionCheckingTests.cpp
         #        schedule/FullProblemSolvingTests.cpp
@@ -49,6 +49,7 @@ target_sources(tests PUBLIC
         linalg/RRQRTests.cpp
         linalg/SparseRRQRTests.cpp
         linalg/PrintTests.cpp
+        linalg/SparseMatrixTests.cpp
 
         linalg/lu/EtaFileTests.cpp
         linalg/lu/FullPivotingLUTests.cpp
@@ -65,7 +66,7 @@ target_sources(tests PUBLIC
         simplex2/RandomTests.cpp
         simplex2/TraversalTests.cpp
 )
-target_link_libraries(tests GTest::gtest_main highs raspisator)
+target_link_libraries(tests GTest::gtest_main GMP::gmpxx highs raspisator)
 target_include_directories(tests PUBLIC .)
 
 include(GoogleTest)

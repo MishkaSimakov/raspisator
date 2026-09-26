@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "faker/Catalog.h"
-#include "field/BigInteger.h"
 #include "linalg/RRQR.h"
 #include "linalg/Rank.h"
 #include "presolve/obfuscators/AddLinearlyDependentRows.h"
@@ -10,11 +9,12 @@
 #include "problem/mutations/RemoveRows.h"
 #include "simplex/Feasibility.h"
 #include "simplex/init/primal/Phase1.h"
+#include "support/GMPRational.h"
 #include "support/Highs.h"
 #include "support/RandomProblem.h"
 
 TEST(PrimalPhase1Tests, CatalogProblems) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .solution_type(faker::SolutionType::FEASIBLE)
                             .linearly_dependent_rows(false)
@@ -32,7 +32,7 @@ TEST(PrimalPhase1Tests, CatalogProblems) {
 }
 
 TEST(PrimalPhase1Tests, CatalogInfeasibleProblems) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .linearly_dependent_rows(false)
                             .solution_type(faker::SolutionType::INFEASIBLE)
@@ -90,14 +90,14 @@ TEST(PrimalPhase1Tests, RandomProblems) {
     std::cout << "#" << iteration << std::endl;
 
     auto problem =
-        random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+        random_feasible_problem<GMPRational>(kSize, kElementMagnitude, engine);
 
     add_linearly_dependent_rows(problem, engine);
     shuffle_rows(problem, engine);
 
-    problem = presolve::TransformToEqualities<Rational>().apply(problem);
+    problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
 
-    problem::StandardLP<Rational> standard_lp(problem);
+    problem::StandardLP<GMPRational> standard_lp(problem);
 
     auto phase1 = simplex::primal_phase1(standard_lp);
 

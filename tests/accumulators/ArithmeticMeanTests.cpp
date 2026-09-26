@@ -2,11 +2,11 @@
 
 #include <chrono>
 
-#include "../../src/field/BigInteger.h"
+#include "support/GMPRational.h"
 #include "utils/Accumulators.h"
 
 TEST(ArithmeticMeanTests, TestEmpty) {
-  ArithmeticMean<Rational> mean;
+  ArithmeticMean<GMPRational> mean;
 
   ASSERT_EQ(mean.count(), 0);
   ASSERT_EQ(mean.sum(), 0);
@@ -14,12 +14,12 @@ TEST(ArithmeticMeanTests, TestEmpty) {
 }
 
 TEST(ArithmeticMeanTests, TestCorrectCasting1) {
-  ArithmeticMean<Rational> mean;
+  ArithmeticMean<GMPRational> mean;
 
   mean.record(1);
   mean.record(2);
 
-  ASSERT_EQ(*mean, Rational{3} / 2);
+  ASSERT_EQ(*mean, GMPRational{3} / 2);
 }
 
 TEST(ArithmeticMeanTests, TestCorrectCasting2) {

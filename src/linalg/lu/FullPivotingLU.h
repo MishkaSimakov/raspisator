@@ -168,7 +168,9 @@ class FullPivotingLU {
       }
 
       // choose pivoting row
-      Field threshold = 0.75;
+      // not `0.75`: a double literal would silently lose exactness for a
+      // rational Field
+      Field threshold = Field(3) / 4;
       ArgMinimum<size_t, std::less<>> min_nz_row;
 
       for (size_t row : std::views::reverse(nonzero_indices_)) {
