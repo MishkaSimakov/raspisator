@@ -3,6 +3,8 @@ enable_testing()
 add_executable(tests)
 
 target_sources(tests PUBLIC
+        GMPTests.cpp
+
         utils/MergeSortedRangeTests.cpp
 
         field/BigIntegerTests.cpp
@@ -67,6 +69,10 @@ target_sources(tests PUBLIC
 )
 target_link_libraries(tests GTest::gtest_main highs raspisator)
 target_include_directories(tests PUBLIC .)
+
+# GMP
+target_include_directories(tests PUBLIC ${GMP_INCLUDE_DIR})
+target_link_libraries(tests ${GMP_LIBRARY} ${GMPXX_LIBRARY})
 
 include(GoogleTest)
 gtest_discover_tests(tests)
