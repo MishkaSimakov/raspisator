@@ -2,18 +2,29 @@
 
 #include "Matrix.h"
 
-#include "Arithmetics.h"
-
 namespace linalg {
 
 template <typename Field>
 class Vector : public Matrix<Field> {
+  void check_columns_count() const {
+    if (this->cols_ != 1) {
+      throw std::invalid_argument(
+          std::format("Can't create vector with {} columns.", this->cols_));
+    }
+  }
+
  public:
   using FieldType = Field;
 
   Vector() = default;
 
   explicit Vector(size_t rows) : Matrix<Field>(rows, 1) {}
+
+  Vector(const Vector& other) = default;
+  Vector& operator=(const Vector&) = default;
+
+  Vector(Vector&& other) = default;
+  Vector& operator=(Vector&&) = default;
 
   Vector(std::initializer_list<Field> il)
       : Matrix<Field>(Matrix<Field>::uninitialized(il.size(), 1)) {
@@ -28,11 +39,16 @@ class Vector : public Matrix<Field> {
   template <MatrixRange T>
     requires std::same_as<MatrixFieldType<T>, Field>
   Vector(T&& other) : Matrix<Field>(std::forward<T>(other)) {
-    if (this->cols_ != 1) {
-      throw std::invalid_argument(std::format(
-          "Can't initialize vector from matrix range with {} columns.",
-          this->cols_));
-    }
+    check_columns_count();
+  }
+
+  template <MatrixRange T>
+    requires std::same_as<MatrixFieldType<T>, Field>
+  Vector& operator=(T&& other) {
+    Matrix<Field>::operator=(std::forward<T>(other));
+    check_columns_count();
+
+    return *this;
   }
 
   static Vector zeros(size_t rows) { return Matrix<Field>(rows, 1, 0); }
@@ -51,8 +67,8 @@ class Vector : public Matrix<Field> {
   //
   using Matrix<Field>::operator[];
 
-  Field& operator[](size_t row) { return (*this)[row, 0]; }
-  const Field& operator[](size_t row) const { return (*this)[row, 0]; }
+  Field& operator[](size_t row) { return this->data_[row]; }
+  const Field& operator[](size_t row) const { return this->data_[row]; }
 
   template <IndicesRange RowRange>
   auto operator[](RowRange&& rows) const {

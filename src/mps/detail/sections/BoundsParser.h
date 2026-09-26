@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include "SectionParser.h"
-#include "linear/model/Bound.h"
+#include "problem/Bound.h"
 
 namespace mps::detail {
 

@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "../../ConstructSparse.h"
-#include "linalg/CSCMatrix.h"
-#include "linalg/Matrix.h"
+#include "ConstructSparse.h"
+#include "linalg/Linalg.h"
 #include "linalg/MatrixAssertions.h"
 
 using namespace linalg;

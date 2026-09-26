@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "Matrix.h"
-#include "linear/FieldTraits.h"
+#include "field/FieldTraits.h"
 #include "utils/Accumulators.h"
 
 namespace linalg {

@@ -3,9 +3,8 @@
 #include <vector>
 
 #include "SparseEtaMatrixView.h"
-#include "linalg/Matrix.h"
+#include "field/FieldTraits.h"
 #include "linalg/Vector.h"
-#include "linear/FieldTraits.h"
 
 namespace linalg {
 
@@ -49,11 +48,15 @@ class EtaFile {
     using value_type = SparseEtaMatrixView<Field, is_const>;
     using reference = SparseEtaMatrixView<Field, is_const>;
 
-    iterator_base() : entry_(nullptr), end_(nullptr), values_(nullptr) {}
+    iterator_base()
+        : matrix_size_(0), entry_(nullptr), end_(nullptr), values_(nullptr) {}
 
-    iterator_base(iterator_base<false> itr)
-      requires(is_const)
-        : entry_(itr.entry_), end_(itr.end_), values_(itr.values_) {}
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    iterator_base(const iterator_base<false>& itr)
+        : matrix_size_(itr.matrix_size_),
+          entry_(itr.entry_),
+          end_(itr.end_),
+          values_(itr.values_) {}
 
     SparseEtaMatrixView<Field, is_const> operator*() const {
       size_t end = entry_ + 1 == end_ ? values_->size() : (entry_ + 1)->begin;
@@ -112,7 +115,7 @@ class EtaFile {
                  const std::vector<std::pair<size_t, Field>>& values,
                  EtaMatrixType type = EtaMatrixType::COLUMN) {
     if (pivot_index >= matrix_size_) {
-      throw std::invalid_argument(std::format(""));
+      throw std::invalid_argument("Wrong pivot index.");
     }
 
     entries_.push_back(Entry{
@@ -156,7 +159,8 @@ class EtaFile {
           .is_removed = false,
       });
 
-      new_values.append_range(entry.pivot_entries());
+      new_values.insert(new_values.end(), entry.pivot_entries().begin(),
+                        entry.pivot_entries().end());
     }
 
     values_ = std::move(new_values);

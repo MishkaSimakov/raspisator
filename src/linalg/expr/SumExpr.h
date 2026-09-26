@@ -5,6 +5,7 @@
 #include "All.h"
 #include "BaseView.h"
 #include "linalg/Concepts.h"
+#include "utils/PairFormatter.h"
 
 namespace linalg::detail {
 

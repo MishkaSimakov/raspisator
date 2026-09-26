@@ -4,6 +4,13 @@ project(raspisator)
 add_compile_definitions(LOG_FILEPATH="${CMAKE_CURRENT_LIST_DIR}/log")
 add_compile_definitions(RESOURCES_FILEPATH="${CMAKE_CURRENT_LIST_DIR}/resources")
 
+option(ENABLE_ASAN "Enables address sanitizer for all targets." OFF)
+
+if (ENABLE_ASAN)
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
+endif ()
+
 set(CMAKE_CXX_STANDARD 23)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 

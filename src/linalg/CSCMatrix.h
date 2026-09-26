@@ -3,11 +3,10 @@
 #include <algorithm>
 #include <ranges>
 #include <vector>
+#include <format>
 
 #include "expr/SubColsExpr.h"
-
-#include "Arithmetics.h"
-#include "linear/FieldTraits.h"
+#include "field/FieldTraits.h"
 
 namespace linalg {
 
@@ -129,6 +128,21 @@ class CSCMatrix {
   template <IndicesRange R>
   auto select_columns(R&& cols) const {
     return detail::SubColsExpr(*this, std::forward<R>(cols));
+  }
+
+  // Has O(n) complexity, where n is the entries count in the column.
+  std::optional<Field> at(size_t row, size_t col) const {
+    Field sum = 0;
+    bool found = false;
+
+    for (const auto [other_row, value] : get_column(col)) {
+      if (row == other_row) {
+        sum += value;
+        found = true;
+      }
+    }
+
+    return found ? std::optional{sum} : std::nullopt;
   }
 
   //

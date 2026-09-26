@@ -1,8 +1,8 @@
 #pragma once
 
+#include <exception>
 #include <format>
 #include <optional>
-#include <stdexcept>
 #include <string>
 
 namespace mps {

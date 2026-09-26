@@ -1,9 +1,11 @@
-set(CMAKE_CXX_FLAGS "-O3 -march=native")
-
-add_executable(benchmark_lu linear/LU.cpp)
-add_executable(benchmark_csc_constructor linear/CSCMatrixConstructor.cpp)
 add_executable(benchmark_linalg linear/LinalgBenchmark.cpp)
-
-target_link_libraries(benchmark_lu benchmark::benchmark raspisator)
-target_link_libraries(benchmark_csc_constructor benchmark::benchmark raspisator)
 target_link_libraries(benchmark_linalg benchmark::benchmark raspisator)
+target_compile_options(benchmark_linalg PRIVATE "-O3")
+
+add_executable(benchmark_simplex_primal simplex/primal.cpp)
+target_link_libraries(benchmark_simplex_primal raspisator)
+target_compile_options(benchmark_simplex_primal PRIVATE "-O3")
+
+add_executable(benchmark_simplex_dual simplex/dual.cpp)
+target_link_libraries(benchmark_simplex_dual raspisator)
+target_compile_options(benchmark_simplex_dual PRIVATE "-O3")

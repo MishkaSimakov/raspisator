@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-#include "linear/BigInteger.h"
+#include "../../src/field/BigInteger.h"
 #include "utils/Accumulators.h"
 
 TEST(ArithmeticMeanTests, TestEmpty) {

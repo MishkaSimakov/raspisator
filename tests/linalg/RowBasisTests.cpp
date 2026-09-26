@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "Assertions.h"
+#include "../../src/field/BigInteger.h"
 #include "linalg/Matrix.h"
 #include "linalg/Random.h"
 #include "linalg/RowBasis.h"
-#include "linear/BigInteger.h"
+#include "support/Assertions.h"
 
 using namespace linalg;
 

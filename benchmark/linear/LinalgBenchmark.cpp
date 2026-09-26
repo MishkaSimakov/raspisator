@@ -2,13 +2,8 @@
 
 #include <random>
 
-#include "linalg/CSCMatrix.h"
-#include "linalg/Matrix.h"
+#include "linalg/Linalg.h"
 #include "linalg/Random.h"
-#include "linalg/Transpose.h"
-#include "linalg/Vector.h"
-
-using namespace linalg;
 
 static size_t N = 10'000;
 
@@ -17,7 +12,7 @@ auto get_matrices() {
   std::default_random_engine random(0);
   std::uniform_real_distribution<double> value_distribution(1, 10);
 
-  auto matrix = random::sparse(N, N, 10, random, value_distribution);
+  auto matrix = linalg::random::sparse(N, N, 10, random, value_distribution);
 
   Vector cost =
       Matrix<double>::generate(N, 1, [](size_t i, size_t j) { return i + j; });

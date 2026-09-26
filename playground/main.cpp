@@ -1,9 +1,9 @@
 #include <chrono>
 #include <print>
 
+#include "schedule/BlomersHeuristic.h"
 #include "linear/matrix/NPY.h"
 #include "linear/problem/MPS.h"
-#include "linear/scheduling/BlomersHeuristic.h"
 #include "problems/Blomer.h"
 #include "problems/Dwarf.h"
 #include "utils/Drawing.h"

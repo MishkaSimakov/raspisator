@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <optional>
+#include <string>
+
 #include "utils/Accumulators.h"
 
 TEST(ArgMinTests, EmptyArgMin) {
