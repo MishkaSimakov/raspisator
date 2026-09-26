@@ -7,8 +7,6 @@ target_sources(tests PUBLIC
 
         utils/MergeSortedRangeTests.cpp
 
-        field/BigIntegerTests.cpp
-
         schedule/SolutionCheckingTests.cpp
         #        schedule/FullProblemSolvingTests.cpp
 

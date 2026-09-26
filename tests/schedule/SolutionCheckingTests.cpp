@@ -1,29 +1,29 @@
 #include <gtest/gtest.h>
 
-#include "field/BigInteger.h"
 #include "schedule/model/Solution.h"
+#include "support/GMPRational.h"
 
-STN<Rational>* generate_sequential_problem() {
-  STN<Rational>* stn = new STN<Rational>{};
+STN<GMPRational>* generate_sequential_problem() {
+  STN<GMPRational>* stn = new STN<GMPRational>{};
 
-  auto* state1 = stn->add(InputState<Rational>{100});
-  auto* state2 = stn->add(NormalState<Rational>{0, 0, 100});
-  auto* state3 = stn->add(NonStorableState<Rational>{});
-  auto* state4 = stn->add(OutputState<Rational>{0, 50});
+  auto* state1 = stn->add(InputState<GMPRational>{100});
+  auto* state2 = stn->add(NormalState<GMPRational>{0, 0, 100});
+  auto* state3 = stn->add(NonStorableState<GMPRational>{});
+  auto* state4 = stn->add(OutputState<GMPRational>{0, 50});
 
-  auto* unit0 = stn->add(Unit<Rational>{});
+  auto* unit0 = stn->add(Unit<GMPRational>{});
 
-  auto* task0 = stn->add(Task<Rational>{});
+  auto* task0 = stn->add(Task<GMPRational>{});
   task0->add_input(state1, 1);
   task0->add_output(state2, 1);
   unit0->attach_task(task0, {1, 0, 10});
 
-  auto* task1 = stn->add(Task<Rational>{});
+  auto* task1 = stn->add(Task<GMPRational>{});
   task1->add_input(state2, 1);
   task1->add_output(state3, 1);
   unit0->attach_task(task1, {2, 0, 10});
 
-  auto* task2 = stn->add(Task<Rational>{});
+  auto* task2 = stn->add(Task<GMPRational>{});
   task2->add_input(state3, 1);
   task2->add_output(state4, 1);
   unit0->attach_task(task2, {5, 0, 10});
@@ -33,7 +33,7 @@ STN<Rational>* generate_sequential_problem() {
 
 class SolutionCheckerTests : public ::testing::Test {
  protected:
-  STN<Rational>* sequential;
+  STN<GMPRational>* sequential;
 
   void SetUp() override { sequential = generate_sequential_problem(); }
 
@@ -41,7 +41,7 @@ class SolutionCheckerTests : public ::testing::Test {
 };
 
 TEST_F(SolutionCheckerTests, AllOk) {
-  Solution<Rational> solution(sequential);
+  Solution<GMPRational> solution(sequential);
 
   solution.add_instance({0, 0, 10, 0});
   solution.add_instance({0, 0, 10, 1});
@@ -64,7 +64,7 @@ TEST_F(SolutionCheckerTests, AllOk) {
 }
 
 TEST_F(SolutionCheckerTests, InvalidInstance) {
-  Solution<Rational> solution(sequential);
+  Solution<GMPRational> solution(sequential);
 
   solution.add_instance({0, 0, 10, 0});
   solution.add_instance({0, 100500, 10, 1});
@@ -85,7 +85,7 @@ TEST_F(SolutionCheckerTests, InvalidInstance) {
 
   ASSERT_FALSE(solution.check());
 
-  Solution<Rational> solution2(sequential);
+  Solution<GMPRational> solution2(sequential);
 
   solution2.add_instance({0, 0, 10, 0});
   solution2.add_instance({0, 0, 10, 1});
@@ -108,7 +108,7 @@ TEST_F(SolutionCheckerTests, InvalidInstance) {
 }
 
 TEST_F(SolutionCheckerTests, StateOverflow) {
-  Solution<Rational> solution(sequential);
+  Solution<GMPRational> solution(sequential);
 
   solution.add_instance({0, 0, 10, 0});
   solution.add_instance({0, 0, 10, 1});
@@ -137,7 +137,7 @@ TEST_F(SolutionCheckerTests, StateOverflow) {
 }
 
 TEST_F(SolutionCheckerTests, BigBatchSize) {
-  Solution<Rational> solution(sequential);
+  Solution<GMPRational> solution(sequential);
 
   solution.add_instance({0, 0, 10, 0});
   solution.add_instance({0, 0, 10, 1});
@@ -160,7 +160,7 @@ TEST_F(SolutionCheckerTests, BigBatchSize) {
 }
 
 TEST_F(SolutionCheckerTests, BusyUnit) {
-  Solution<Rational> solution(sequential);
+  Solution<GMPRational> solution(sequential);
 
   solution.add_instance({0, 0, 10, 0});
   solution.add_instance({0, 0, 10, 1});
@@ -183,7 +183,7 @@ TEST_F(SolutionCheckerTests, BusyUnit) {
 }
 
 TEST_F(SolutionCheckerTests, TargetNotAcquired) {
-  Solution<Rational> solution(sequential);
+  Solution<GMPRational> solution(sequential);
 
   solution.add_instance({0, 0, 10, 0});
   solution.add_instance({0, 0, 10, 1});

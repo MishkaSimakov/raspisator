@@ -7,9 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "ConstructSparse.h"
-#include "field/BigInteger.h"
-#include "field/FieldTraits.h"
+#include "support/GMPRational.h"
 #include "linalg/Linalg.h"
 #include "linalg/Permutation.h"
 
@@ -23,7 +21,7 @@ namespace {
 Permutation reference() { return Permutation::from_vector({2, 0, 3, 1}); }
 
 // A 4x2 matrix with pairwise distinct, easily traceable rows.
-Matrix<Rational> rows_4x2() {
+Matrix<GMPRational> rows_4x2() {
   return {
       {10, 11},
       {20, 21},
@@ -86,7 +84,7 @@ TEST(PermutationTests, FromVectorEmptyPermutation) {
 
 TEST(PermutationTests, ApplyDensePermutesRows) {
   const auto p = reference();
-  const Matrix<Rational> expected = {
+  const Matrix<GMPRational> expected = {
       {20, 21},  // row 0 of PA = A row 1 (P[1] = 0)
       {40, 41},  // row 1 of PA = A row 3 (P[3] = 1)
       {10, 11},  // row 2 of PA = A row 0 (P[0] = 2)
@@ -105,8 +103,8 @@ TEST(PermutationTests, ApplySparseMatchesDense) {
   const auto A_dense = rows_4x2();
   const auto A_sparse = CSCMatrix(A_dense);
 
-  const Matrix<Rational> from_sparse(p.apply(A_sparse));
-  const Matrix<Rational> from_dense = p.apply(A_dense);
+  const Matrix<GMPRational> from_sparse(p.apply(A_sparse));
+  const Matrix<GMPRational> from_dense = p.apply(A_dense);
 
   ASSERT_EQ(from_sparse, from_dense);
 }
@@ -118,20 +116,20 @@ TEST(PermutationTests, ApplySparseMatchesDense) {
 TEST(PermutationTests, ApplySparseVectorRelabelsRows) {
   const auto p = reference();
 
-  std::vector<std::pair<size_t, Rational>> column = {
-      {0, Rational{5}},
-      {1, Rational{6}},
-      {2, Rational{7}},
-      {3, Rational{8}},
+  std::vector<std::pair<size_t, GMPRational>> column = {
+      {0, GMPRational{5}},
+      {1, GMPRational{6}},
+      {2, GMPRational{7}},
+      {3, GMPRational{8}},
   };
 
   const auto result = p.apply(column);
 
-  const std::vector<std::pair<size_t, Rational>> expected = {
-      {2, Rational{5}},  // P[0] = 2
-      {0, Rational{6}},  // P[1] = 0
-      {3, Rational{7}},  // P[2] = 3
-      {1, Rational{8}},  // P[3] = 1
+  const std::vector<std::pair<size_t, GMPRational>> expected = {
+      {2, GMPRational{5}},  // P[0] = 2
+      {0, GMPRational{6}},  // P[1] = 0
+      {3, GMPRational{7}},  // P[2] = 3
+      {1, GMPRational{8}},  // P[3] = 1
   };
 
   ASSERT_EQ(result, expected);
@@ -143,7 +141,7 @@ TEST(PermutationTests, ApplySparseVectorRelabelsRows) {
 
 TEST(PermutationTests, ApplyTransposedPermutesRows) {
   const auto p = reference();
-  const Matrix<Rational> expected = {
+  const Matrix<GMPRational> expected = {
       {30, 31},  // A row P[0] = 2
       {10, 11},  // A row P[1] = 0
       {40, 41},  // A row P[2] = 3
@@ -165,11 +163,11 @@ TEST(PermutationTests, ApplyThenApplyTransposedIsIdentity) {
 
 TEST(PermutationTests, PostApplyDensePermutesColumns) {
   const auto p = reference();
-  const Matrix<Rational> A = {
+  const Matrix<GMPRational> A = {
       {0, 1, 2, 3},
       {10, 11, 12, 13},
   };
-  const Matrix<Rational> expected = {
+  const Matrix<GMPRational> expected = {
       {2, 0, 3, 1},  // columns reordered to P[0..3] = 2,0,3,1
       {12, 10, 13, 11},
   };
@@ -194,20 +192,20 @@ TEST(PermutationTests, PostApplyScalarIsInverse) {
 
 TEST(PermutationTests, AsDenseMatrix) {
   const auto p = reference();
-  const Matrix<Rational> expected = {
+  const Matrix<GMPRational> expected = {
       {0, 1, 0, 0},  // 1 at (P[1]=0, 1)
       {0, 0, 0, 1},  // 1 at (P[3]=1, 3)
       {1, 0, 0, 0},  // 1 at (P[0]=2, 0)
       {0, 0, 1, 0},  // 1 at (P[2]=3, 2)
   };
-  ASSERT_EQ(p.as_dense_matrix<Rational>(), expected);
+  ASSERT_EQ(p.as_dense_matrix<GMPRational>(), expected);
 }
 
 TEST(PermutationTests, AsDenseMatrixMultiplicationEqualsApply) {
   const auto p = reference();
   const auto A = rows_4x2();
-  const Matrix<Rational> dense = p.as_dense_matrix<Rational>();
-  ASSERT_EQ(Matrix<Rational>(dense * A), p.apply(A));
+  const Matrix<GMPRational> dense = p.as_dense_matrix<GMPRational>();
+  ASSERT_EQ(Matrix<GMPRational>(dense * A), p.apply(A));
 }
 
 // ---------------------------------------------------------------------------
@@ -216,8 +214,8 @@ TEST(PermutationTests, AsDenseMatrixMultiplicationEqualsApply) {
 
 TEST(PermutationTests, AsSparseMatrixMatchesDense) {
   const auto p = reference();
-  const Matrix<Rational> from_sparse(p.as_sparse_matrix<Rational>());
-  ASSERT_EQ(from_sparse, p.as_dense_matrix<Rational>());
+  const Matrix<GMPRational> from_sparse(p.as_sparse_matrix<GMPRational>());
+  ASSERT_EQ(from_sparse, p.as_dense_matrix<GMPRational>());
 }
 
 // ---------------------------------------------------------------------------
@@ -279,7 +277,7 @@ TEST(PermutationTests, OperatorMulLeftEqualsApply) {
 
 TEST(PermutationTests, OperatorMulRightEqualsPostApply) {
   const auto p = reference();
-  const Matrix<Rational> A = {
+  const Matrix<GMPRational> A = {
       {0, 1, 2, 3},
       {10, 11, 12, 13},
   };
@@ -293,9 +291,9 @@ TEST(PermutationTests, OperatorMulRightEqualsPostApply) {
 namespace {
 
 // Deterministic fixed matrix of height n and width d, distinct entries.
-Matrix<Rational> fixed_matrix(size_t n, size_t d) {
-  return Matrix<Rational>::generate(
-      n, d, [](size_t i, size_t j) { return Rational(int(i * 100 + j + 1)); });
+Matrix<GMPRational> fixed_matrix(size_t n, size_t d) {
+  return Matrix<GMPRational>::generate(
+      n, d, [](size_t i, size_t j) { return GMPRational(int(i * 100 + j + 1)); });
 }
 
 // Builds a Permutation from a shuffled index vector.
@@ -322,7 +320,7 @@ TEST(PermutationTests, ApplyRandomMatchesDefinition) {
     const auto p = random_permutation(n, rng);
 
     // Expected P A: row i of A lands at row P[i] of the result.
-    Matrix<Rational> expected(n, d);
+    Matrix<GMPRational> expected(n, d);
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < d; ++j) {
         expected[p[i], j] = A[i, j];
@@ -347,7 +345,7 @@ TEST(PermutationTests, ApplyTransposedRandomMatchesDefinition) {
     const auto p = random_permutation(n, rng);
 
     // Expected P^T A: row i of the result is row P[i] of A.
-    Matrix<Rational> expected(n, d);
+    Matrix<GMPRational> expected(n, d);
     for (size_t i = 0; i < n; ++i) {
       for (size_t j = 0; j < d; ++j) {
         expected[i, j] = A[p[i], j];

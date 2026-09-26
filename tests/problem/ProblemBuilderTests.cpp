@@ -2,12 +2,12 @@
 
 #include <sstream>
 
-#include "field/BigInteger.h"
 #include "problem/builder/Builder.h"
+#include "support/GMPRational.h"
 #include "support/Highs.h"
 
 TEST(ProblemBuilderTests, RemoveConstantConstraints) {
-  problem::Builder<Rational> builder;
+  problem::Builder<GMPRational> builder;
 
   // max x
   // x + y <= 10
@@ -17,12 +17,14 @@ TEST(ProblemBuilderTests, RemoveConstantConstraints) {
 
   builder.set_objective(x);
 
-  builder.add_constraint(x + y <= Expression<Rational>{10});
-  builder.add_constraint(x <= Expression<Rational>{10});
-  builder.add_constraint(Expression<Rational>{5} <= Expression<Rational>{10});
-  builder.add_constraint(Expression<Rational>{10} >= Expression<Rational>{2});
+  builder.add_constraint(x + y <= Expression<GMPRational>{10});
+  builder.add_constraint(x <= Expression<GMPRational>{10});
+  builder.add_constraint(Expression<GMPRational>{5} <=
+                         Expression<GMPRational>{10});
+  builder.add_constraint(Expression<GMPRational>{10} >=
+                         Expression<GMPRational>{2});
 
-  problem::MILP<Rational> problem(builder);
+  problem::MILP<GMPRational> problem(builder);
 
   problem.validate();
 
@@ -40,7 +42,7 @@ TEST(ProblemBuilderTests, RemoveConstantConstraints) {
 
 // Test that operator<< builds successfully
 TEST(ProblemBuilderTests, PrintingBuilds) {
-  problem::Builder<Rational> builder;
+  problem::Builder<GMPRational> builder;
 
   std::stringstream ss;
 

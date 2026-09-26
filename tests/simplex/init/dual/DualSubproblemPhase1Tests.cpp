@@ -1,18 +1,17 @@
 #include <gtest/gtest.h>
 
 #include "faker/Catalog.h"
-#include "field/BigInteger.h"
 #include "presolve/obfuscators/AddInfiniteBounds.h"
-#include "presolve/obfuscators/AddLinearlyDependentRows.h"
 #include "presolve/obfuscators/ShuffleRows.h"
 #include "presolve/passes/TransformToEqualities.h"
 #include "simplex/init/dual/Subproblem.h"
 #include "simplex2/Assertions.h"
+#include "support/GMPRational.h"
 #include "support/Highs.h"
 #include "support/RandomProblem.h"
 
 TEST(DualSubproblemPhase1Tests, CatalogProblems) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .solution_type(faker::SolutionType::FEASIBLE)
                             .linearly_dependent_rows(false)
@@ -43,13 +42,13 @@ TEST(DualSubproblemPhase1Tests, DISABLED_RandomBoundedProblems) {
     std::cout << "#" << iteration << std::endl;
 
     auto problem =
-        random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+        random_feasible_problem<GMPRational>(kSize, kElementMagnitude, engine);
 
     add_infinite_bounds(problem, engine, true);
 
-    problem = presolve::TransformToEqualities<Rational>().apply(problem);
+    problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
 
-    problem::StandardLP<Rational> standard_lp(problem);
+    problem::StandardLP<GMPRational> standard_lp(problem);
 
     auto phase1 = simplex::subproblem_dual_phase1(standard_lp);
 
@@ -71,13 +70,13 @@ TEST(DualSubproblemPhase1Tests, DISABLED_RandomUnboundedProblems) {
     std::cout << "#" << iteration << std::endl;
 
     auto problem =
-        random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+        random_feasible_problem<GMPRational>(kSize, kElementMagnitude, engine);
 
     add_infinite_bounds(problem, engine, false);
 
-    problem = presolve::TransformToEqualities<Rational>().apply(problem);
+    problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
 
-    problem::StandardLP<Rational> standard_lp(problem);
+    problem::StandardLP<GMPRational> standard_lp(problem);
 
     auto phase1 = simplex::subproblem_dual_phase1(standard_lp);
     auto solution = highs::solve(highs::from_milp(problem::MILP(standard_lp)));

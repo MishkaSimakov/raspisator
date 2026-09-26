@@ -1,19 +1,17 @@
 #include <gtest/gtest.h>
 
-#include <variant>
-
 #include "ConstructSparse.h"
-#include "field/BigInteger.h"
 #include "linalg/Linalg.h"
 #include "problem/StandardMILP.h"
 #include "simplex/Simplex.h"
 #include "simplex/init/dual/ReducedCost.h"
+#include "support/GMPRational.h"
 
-static problem::StandardMILP<Rational> make_problem(
-    CSCMatrix<Rational> matrix, Vector<Rational> rhs, Vector<Rational> cost,
-    std::vector<Bound<Rational>> bounds) {
+static problem::StandardMILP<GMPRational> make_problem(
+    CSCMatrix<GMPRational> matrix, Vector<GMPRational> rhs, Vector<GMPRational> cost,
+    std::vector<Bound<GMPRational>> bounds) {
   const auto [n, d] = matrix.shape();
-  problem::StandardMILP<Rational> p;
+  problem::StandardMILP<GMPRational> p;
   p.matrix = std::move(matrix);
   p.rhs = std::move(rhs);
   p.cost = std::move(cost);
@@ -29,14 +27,14 @@ static problem::StandardMILP<Rational> make_problem(
 //   - var_states[j] becomes BASIC
 //   - var_states[old_basic_vars[k]] becomes leaving_state
 TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
-  auto p = make_problem(sparse<Rational>({{1, -1, 1, 0}, {2, 1, 0, 1}}),
-                        Vector<Rational>{1, 3}, Vector<Rational>{2, 1, 1, -1},
-                        {{Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}}});
+  auto p = make_problem(sparse<GMPRational>({{1, -1, 1, 0}, {2, 1, 0, 1}}),
+                        Vector<GMPRational>{1, 3}, Vector<GMPRational>{2, 1, 1, -1},
+                        {{GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}}});
 
-  simplex::Simplex<Rational> solver;
+  simplex::Simplex<GMPRational> solver;
   solver.set_problem(p);
 
   auto states = simplex::try_init_dual_by_reduced_cost(
@@ -96,14 +94,14 @@ TEST(Simplex2TraversalTests, ChangeBasisUpdatesVectors) {
 
 // change_bound(j, new_state) simply updates var_states_[j].
 TEST(Simplex2TraversalTests, ChangeBoundFlipsState) {
-  auto p = make_problem(sparse<Rational>({{1, -1, 1, 0}, {2, 1, 0, 1}}),
-                        Vector<Rational>{1, 3}, Vector<Rational>{2, 1, 1, -1},
-                        {{Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}}});
+  auto p = make_problem(sparse<GMPRational>({{1, -1, 1, 0}, {2, 1, 0, 1}}),
+                        Vector<GMPRational>{1, 3}, Vector<GMPRational>{2, 1, 1, -1},
+                        {{GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}}});
 
-  simplex::Simplex<Rational> solver;
+  simplex::Simplex<GMPRational> solver;
   solver.set_problem(p);
 
   auto states = simplex::try_init_dual_by_reduced_cost(p.matrix, p.rhs, p.cost,
@@ -144,14 +142,14 @@ TEST(Simplex2TraversalTests, ChangeBoundFlipsState) {
 // give B^{-1} A (k-th row). In particular, B^{-1} A[:, basic_vars[k]]
 // should equal e_k (k-th unit vector).
 TEST(Simplex2TraversalTests, TableauRowBasisIdentity) {
-  auto p = make_problem(sparse<Rational>({{1, -1, 1, 0}, {2, 1, 0, 1}}),
-                        Vector<Rational>{1, 3}, Vector<Rational>{2, 1, 1, -1},
-                        {{Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}},
-                         {Rational{0}, Rational{10}}});
+  auto p = make_problem(sparse<GMPRational>({{1, -1, 1, 0}, {2, 1, 0, 1}}),
+                        Vector<GMPRational>{1, 3}, Vector<GMPRational>{2, 1, 1, -1},
+                        {{GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}},
+                         {GMPRational{0}, GMPRational{10}}});
 
-  simplex::Simplex<Rational> solver;
+  simplex::Simplex<GMPRational> solver;
   solver.set_problem(p);
 
   auto states = simplex::try_init_dual_by_reduced_cost(p.matrix, p.rhs, p.cost,
@@ -162,7 +160,7 @@ TEST(Simplex2TraversalTests, TableauRowBasisIdentity) {
 
   const auto basic_vars = solver.get_basic_vars();
   const size_t n = basic_vars.size();
-  const Matrix<Rational> A(p.matrix);
+  const Matrix<GMPRational> A(p.matrix);
 
   // For each basis row k: (B^-1 A)_k,basic_vars[j] should be delta(k,j)
   for (size_t k = 0; k < n; ++k) {
@@ -170,15 +168,15 @@ TEST(Simplex2TraversalTests, TableauRowBasisIdentity) {
 
     for (size_t j = 0; j < n; ++j) {
       // Compute the dot product of tableau row k with column basic_vars[j]
-      Rational dot = 0;
+      GMPRational dot = 0;
       for (const auto& [row_idx, val] : p.matrix.get_column(basic_vars[j])) {
         dot += row[row_idx] * val;
       }
       if (j == k) {
-        EXPECT_EQ(dot, Rational{1}) << "Diagonal entry of B^-1 B must be 1 at ("
+        EXPECT_EQ(dot, GMPRational{1}) << "Diagonal entry of B^-1 B must be 1 at ("
                                     << k << "," << j << ")";
       } else {
-        EXPECT_EQ(dot, Rational{0})
+        EXPECT_EQ(dot, GMPRational{0})
             << "Off-diagonal entry of B^-1 B must be 0 at (" << k << "," << j
             << ")";
       }

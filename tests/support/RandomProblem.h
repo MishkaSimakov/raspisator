@@ -1,10 +1,8 @@
 #pragma once
 
-#include "field/BigInteger.h"
 #include "linalg/Random.h"
 #include "linalg/Stack.h"
 #include "problem/MILP.h"
-#include "simplex/Simplex.h"
 #include "support/RandomProblem.h"
 
 template <typename Field, typename Gen>

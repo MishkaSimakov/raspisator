@@ -2,15 +2,13 @@
 
 #include <random>
 
-#include "field/BigInteger.h"
-#include "linalg/Matrix.h"
-#include "linalg/Random.h"
 #include "presolve/passes/TransformToEqualities.h"
 #include "simplex/Simplex.h"
 #include "simplex/init/dual/ReducedCost.h"
 #include "simplex/init/primal/Phase1.h"
 #include "support/Highs.h"
 #include "support/RandomProblem.h"
+#include "support/GMPRational.h"
 
 TEST(RandomSimplexMethodTests, DISABLED_SimpleRandomMatrixDual) {
   constexpr size_t kIterations = 1'000;
@@ -23,12 +21,12 @@ TEST(RandomSimplexMethodTests, DISABLED_SimpleRandomMatrixDual) {
     std::cout << "#" << iteration << std::endl;
 
     auto problem =
-        random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
-    problem = presolve::TransformToEqualities<Rational>().apply(problem);
+        random_feasible_problem<GMPRational>(kSize, kElementMagnitude, engine);
+    problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
 
-    problem::StandardLP<Rational> standard_lp(problem);
+    problem::StandardLP<GMPRational> standard_lp(problem);
 
-    auto solver = simplex::Simplex<Rational>();
+    auto solver = simplex::Simplex<GMPRational>();
 
     solver.set_problem(standard_lp);
 
@@ -59,18 +57,18 @@ TEST(RandomSimplexMethodTests, SimpleRandomMatrixPrimal) {
     std::cout << "#" << iteration << std::endl;
 
     auto problem =
-        random_feasible_problem<Rational>(kSize, kElementMagnitude, engine);
+        random_feasible_problem<GMPRational>(kSize, kElementMagnitude, engine);
 
-    problem = presolve::TransformToEqualities<Rational>().apply(problem);
+    problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
 
-    problem::StandardLP<Rational> standard_lp(problem);
+    problem::StandardLP<GMPRational> standard_lp(problem);
 
     auto phase1 = simplex::primal_phase1(standard_lp);
 
     ASSERT_TRUE(phase1.has_value());
     ASSERT_TRUE(phase1->redundant_rows.empty());
 
-    auto solver = simplex::Simplex<Rational>();
+    auto solver = simplex::Simplex<GMPRational>();
     solver.set_problem(standard_lp);
 
     auto result = solver.primal(phase1->states);

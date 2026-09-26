@@ -4,9 +4,10 @@
 #include "simplex/Simplex.h"
 #include "simplex/init/dual/ReducedCost.h"
 #include "simplex/init/primal/Phase1.h"
+#include "support/GMPRational.h"
 
 TEST(CatalogTests, Dual) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .solution_type(faker::SolutionType::FEASIBLE)
                             .all_variables_bounded(true)
@@ -20,7 +21,7 @@ TEST(CatalogTests, Dual) {
 
     ASSERT_TRUE(states.has_value());
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
 
     solver.set_problem(problem);
     solver.set_validate_input(true);
@@ -34,7 +35,7 @@ TEST(CatalogTests, Dual) {
 }
 
 TEST(CatalogTests, UnboundedPrimal) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .solution_type(faker::SolutionType::UNBOUNDED)
                             .all();
@@ -47,7 +48,7 @@ TEST(CatalogTests, UnboundedPrimal) {
     ASSERT_TRUE(phase1.has_value());
     ASSERT_TRUE(phase1->redundant_rows.empty());
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
 
     solver.set_problem(problem);
     solver.set_validate_input(true);
@@ -57,7 +58,7 @@ TEST(CatalogTests, UnboundedPrimal) {
 }
 
 TEST(CatalogTests, FeasiblePrimal) {
-  const auto problems = faker::catalog<Rational>()
+  const auto problems = faker::catalog<GMPRational>()
                             .problem_type(faker::ProblemType::StandardLP)
                             .solution_type(faker::SolutionType::FEASIBLE)
                             .know_optimal_objective(true)
@@ -71,7 +72,7 @@ TEST(CatalogTests, FeasiblePrimal) {
     ASSERT_TRUE(phase1.has_value());
     ASSERT_TRUE(phase1->redundant_rows.empty());
 
-    simplex::Simplex<Rational> solver;
+    simplex::Simplex<GMPRational> solver;
 
     solver.set_problem(problem);
     solver.set_validate_input(true);

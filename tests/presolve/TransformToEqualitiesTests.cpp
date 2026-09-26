@@ -6,12 +6,12 @@
 #include "ConstructSparse.h"
 #include "PassAssertions.h"
 #include "presolve/passes/TransformToEqualities.h"
-#include "support/Highs.h"
+#include "support/GMPRational.h"
 #include "support/ProblemConstructors.h"
 #include "support/RandomProblem.h"
 
 TEST(TransformToEqualities, AddsSlackForInequalities) {
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<GMPRational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
       {1, -2, 2, 2},
@@ -20,12 +20,12 @@ TEST(TransformToEqualities, AddsSlackForInequalities) {
   auto problem = feasible_from_matrix(matrix);
 
   problem.rhs_bounds = {
-      Bound<Rational>{1, 1},
-      Bound<Rational>{2, 3},
-      Bound<Rational>{-6, -5},
+      Bound<GMPRational>{1, 1},
+      Bound<GMPRational>{2, 3},
+      Bound<GMPRational>{-6, -5},
   };
 
-  auto new_problem = presolve::TransformToEqualities<Rational>().apply(problem);
+  auto new_problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
   new_problem.validate();
 
   ASSERT_EQ(new_problem.matrix.rows(), 3);
@@ -37,7 +37,7 @@ TEST(TransformToEqualities, AddsSlackForInequalities) {
 }
 
 TEST(TransformToEqualities, GeneratesCorrectNames) {
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<GMPRational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
   });
@@ -46,11 +46,11 @@ TEST(TransformToEqualities, GeneratesCorrectNames) {
 
   problem.row_names = {"r1", "r2"};
   problem.rhs_bounds = {
-      Bound<Rational>{1, 1},
-      Bound<Rational>{2, 3},
+      Bound<GMPRational>{1, 1},
+      Bound<GMPRational>{2, 3},
   };
 
-  auto new_problem = presolve::TransformToEqualities<Rational>().apply(problem);
+  auto new_problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
   new_problem.validate();
 
   ASSERT_EQ(new_problem.matrix.rows(), 2);
@@ -60,7 +60,7 @@ TEST(TransformToEqualities, GeneratesCorrectNames) {
 }
 
 TEST(TransformToEqualities, DontTouchEqualities) {
-  auto matrix = sparse<Rational>({
+  auto matrix = sparse<GMPRational>({
       {1, 2, 3, 4},
       {0, 4, 1, 2},
   });
@@ -69,11 +69,11 @@ TEST(TransformToEqualities, DontTouchEqualities) {
 
   problem.row_names = {"r1", "r2"};
   problem.rhs_bounds = {
-      Bound<Rational>{1, 1},
-      Bound<Rational>{2, 2},
+      Bound<GMPRational>{1, 1},
+      Bound<GMPRational>{2, 2},
   };
 
-  auto new_problem = presolve::TransformToEqualities<Rational>().apply(problem);
+  auto new_problem = presolve::TransformToEqualities<GMPRational>().apply(problem);
   new_problem.validate();
 
   ASSERT_EQ(new_problem.matrix.rows(), 2);
