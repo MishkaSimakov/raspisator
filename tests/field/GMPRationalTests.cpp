@@ -53,3 +53,11 @@ TEST(GMPTest, FromString) {
   ASSERT_EQ(Traits::from_string("1e+-2"), std::nullopt);
   ASSERT_EQ(Traits::from_string("abc"), std::nullopt);
 }
+
+TEST(GMPTest, FromStringExponentLimit) {
+  ASSERT_NE(Traits::from_string("1e+1000"), std::nullopt);
+
+  ASSERT_EQ(Traits::from_string("1e1001"), std::nullopt);
+  ASSERT_EQ(Traits::from_string("1e-1001"), std::nullopt);
+  ASSERT_EQ(Traits::from_string("1e+999999"), std::nullopt);
+}

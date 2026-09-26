@@ -28,12 +28,9 @@ class GMPRational {
   GMPRational() = default;
 
   template <typename T>
-    requires std::is_arithmetic_v<T>
+    requires std::is_integral_v<T>
   GMPRational(T value) {
-    // gmpxx has no constructors for long long, so pick a type it supports
-    if constexpr (std::is_floating_point_v<T>) {
-      value_ = static_cast<double>(value);
-    } else if constexpr (std::is_signed_v<T>) {
+    if constexpr (std::is_signed_v<T>) {
       value_ = static_cast<long>(value);
     } else {
       value_ = static_cast<unsigned long>(value);
@@ -158,8 +155,12 @@ struct FieldTraits<GMPRational> {
   }
 
   // Parses decimal numbers like "-12.5e-3" exactly.
-  // Returns std::nullopt if parsing failed
+  // Returns std::nullopt if parsing failed.
+  // Note: the written exponent is limited to [-1000, 1000] to save from
+  // unexpected enormous memory consumption. Parsing fails otherwise.
   static std::optional<GMPRational> from_string(std::string_view string) {
+    constexpr int kMaxExponent = 1000;
+
     size_t pos = 0;
 
     bool negative = false;
@@ -207,6 +208,10 @@ struct FieldTraits<GMPRational> {
       const auto [ptr, ec] = std::from_chars(begin, end, written_exponent);
 
       if (ec != std::errc{}) {
+        return std::nullopt;
+      }
+
+      if (written_exponent > kMaxExponent) {
         return std::nullopt;
       }
 
