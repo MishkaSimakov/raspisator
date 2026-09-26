@@ -46,9 +46,16 @@ TEST(GMPTest, FromString) {
   ASSERT_EQ(Traits::from_string("1.5e3"), 1500);
   ASSERT_EQ(Traits::from_string("25E-2"), GMPRational(1) / 4);
   ASSERT_EQ(Traits::from_string("0.1"), GMPRational(1) / 10);
+  ASSERT_EQ(Traits::from_string("-.1"), GMPRational(-1) / 10);
+  ASSERT_EQ(Traits::from_string("+.3"), GMPRational(3) / 10);
+  ASSERT_EQ(Traits::from_string("+.3e1"), GMPRational(3));
+  ASSERT_EQ(Traits::from_string("1.e2"), GMPRational(100));
 
   ASSERT_EQ(Traits::from_string(""), std::nullopt);
   ASSERT_EQ(Traits::from_string("."), std::nullopt);
+  ASSERT_EQ(Traits::from_string("+."), std::nullopt);
+  ASSERT_EQ(Traits::from_string("-."), std::nullopt);
+  ASSERT_EQ(Traits::from_string("1e.2"), std::nullopt);
   ASSERT_EQ(Traits::from_string("1.2.3"), std::nullopt);
   ASSERT_EQ(Traits::from_string("1e"), std::nullopt);
   ASSERT_EQ(Traits::from_string("1e+-2"), std::nullopt);

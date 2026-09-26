@@ -49,6 +49,7 @@ target_sources(tests PUBLIC
         linalg/RRQRTests.cpp
         linalg/SparseRRQRTests.cpp
         linalg/PrintTests.cpp
+        linalg/SparseMatrixTests.cpp
 
         linalg/lu/EtaFileTests.cpp
         linalg/lu/FullPivotingLUTests.cpp
