@@ -52,7 +52,7 @@ jobs:
           cmake -B build -S . \
             -DCMAKE_C_COMPILER=cc \
             -DCMAKE_CXX_COMPILER=c++ \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
             -DENABLE_TESTS=OFF
 
       - name: Build benchmark
