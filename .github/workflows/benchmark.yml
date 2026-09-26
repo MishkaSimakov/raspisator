@@ -45,7 +45,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/_deps
-          key: deps-${{ runner.os }}-${{ hashFiles('cmake/load_libraries.cmake') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('cmake/*.cmake') }}
 
       - name: Configure
         run: |
@@ -53,6 +53,7 @@ jobs:
             -DCMAKE_C_COMPILER=cc \
             -DCMAKE_CXX_COMPILER=c++ \
             -DCMAKE_BUILD_TYPE=Release
+            -DENABLE_TESTS=OFF
 
       - name: Build benchmark
         run: cmake --build build --target benchmark_simplex_${{ matrix.variant }}
